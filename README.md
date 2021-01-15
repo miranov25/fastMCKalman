@@ -6,10 +6,12 @@ Fast simulation and performance parameterization - primary for ALICE3 and DUNE
 
 Code will be installed using containers
 * to be pulled from repository or to build from def file
-  * to check web server to store container
+  * using wget faster than pull - orders of magnitude
 ```
-singularity pull https://rootinteractive.web.cern.ch/RootInteractive/Singularity/alidockSingularity6.sif
-singularity shell ....
+#singularity pull https://rootinteractive.web.cern.ch/RootInteractive/Singularity/alidockSingularity6.sif
+wget   https://rootinteractive.web.cern.ch/RootInteractive/Singularity/alidockSingularity6.sif .
+singularity shell alidockSingularity6.sif
+
 ```
 
 
