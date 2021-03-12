@@ -147,8 +147,12 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
       direction*=-1;
     }else{
       double alpha  = TMath::ATan2(xyz[1],xyz[0]);
+      if (fStatus.size()<=nPoint) fStatus.resize(nPoint+1);
+      fStatus[nPoint].resize(6);                  // resize status array
       status = param.Rotate(alpha);
+      fStatus[nPoint][0]=status;
       status = param.PropagateTo(radius,geom.fBz);
+      fStatus[nPoint][1]=status;
     }
     //
     float xrho    = geom.fLayerRho[indexR];
@@ -156,7 +160,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     float tanPhi2 = par[2]*par[2];
     tanPhi2=(1-tanPhi2);
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
-    param.CorrectForMeanMaterial(-crossLength*xx0,-crossLength*xrho,mass);
+    param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass);
     fParamMC.resize(nPoint+1);
     fParamMC[nPoint]=param;
     fLayerIndex[nPoint]=indexR;
@@ -300,6 +304,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
 /// \param layerStart    - starting layer to do tracking
 /// \return   -  TODO  status flags to be decides
 int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint layerStart){
+  const Float_t chi2Cut=16;
   const float kMaxSnp=0.90;
   double covar0[5]={0.1,0.1,0.001,0.001,0.01};
   fPdgCodeRec   =pdgCode;
@@ -326,19 +331,36 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
   double xyz[3];
   int status=0;
   const double *par = param.GetParameter();
-  for (int layer=layer1-1; layer>=0; layer--){
+  for (int layer=layer1-1; layer>=1; layer--){   // dont propagate to vertex , will be done later ...
       double resol=0;
       AliExternalTrackParam & p = fParamMC[layer];
       p.GetXYZ(xyz);
       double alpha=TMath::ATan2(xyz[1],xyz[0]);
       double radius = TMath::Sqrt(xyz[0]*xyz[0]+xyz[1]*xyz[1]);
-      param.Rotate(alpha);
+      status = param.Rotate(alpha);
+      if (status==0){
+        ::Error("reconstructParticle", "Rotation failed");
+        break;
+      }
+      if (fStatus[layer].size()==0) fStatus[layer].resize(6);
+      fStatus[layer][2]=status;
       status = param.PropagateTo(radius,geom.fBz);
+      if (status==0){
+        ::Error("reconstructParticle", "Propagation  failed");
+        break;
+      }
+      fStatus[layer][3]=status;
       float xrho  =geom.fLayerRho[layer];
       float xx0  =geom.fLayerX0[layer];
       double pos[2]={0,xyz[2]};
       double cov[3]={geom.fLayerResolRPhi[layer]*geom.fLayerResolRPhi[layer],0, geom.fLayerResolZ[layer]*geom.fLayerResolZ[layer]};
       fParamIn[layer]=param;
+      float chi2 =  param.GetPredictedChi2(pos, cov);
+      if (chi2>chi2Cut){
+        ::Error("reconstructParticle", "Too big chi2 %f", chi2);
+        break;
+      }
+
       if (TMath::Abs(param.GetSnp())<kMaxSnp) {
         param.Update(pos, cov);
       }

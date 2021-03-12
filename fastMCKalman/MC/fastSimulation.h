@@ -14,6 +14,7 @@ using namespace ROOT::VecOps;
 const Int_t kMaxLayers=10000;
 #pragma link C++ class RVec<AliExternalTrackParam>+;
 
+
 class TTreeSRedirector;
 
 class fastGeometry:public TObject{
@@ -41,7 +42,8 @@ public:
   fastParticle():TObject(){}
   ~fastParticle(){}
   fastParticle(int nLayers){
-    fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamOut.reserve(nLayers); fParamMC.reserve(nLayers);
+    fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamOut.reserve(nLayers); fParamMC.reserve(nLayers);fStatus.reserve(nLayers);
+    fChi2.resize(nLayers);
   }
   int simulateParticle(fastGeometry     &geom, double r[3], double p[3], int pdgCode, float maxLength, int maxPoints);
   int reconstructParticle(fastGeometry  &geom, int pdgCode, uint layerStart);
@@ -54,6 +56,8 @@ public:
   RVec<AliExternalTrackParam> fParamMC;    //   "simulate"      Param MC
   RVec<AliExternalTrackParam> fParamOut;   //   "reconstructed" Param Out
   RVec<AliExternalTrackParam> fParamIn;    //   "reconstructed" Param In
+  RVec<std::vector<int>>      fStatus;     //   propagation/update status
+  RVec<float>                 fChi2;      //   chi2  at layer
   //                                       - local information - to be assigned to simulated track - if not set  taken symmetric from fastGeometry
   RVec<float> fLayerResolRPhi;             //   rphi resolution at layer
   RVec<float> fLayerResolZ;                //   z  resolution at layer
