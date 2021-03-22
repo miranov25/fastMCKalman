@@ -70,6 +70,7 @@ void fastGeometry::setLayerRadiusPower(int layer0, int layerN, float r0, float r
 /// \param maxPoints     - maximal number of points to simulate
 /// \return              - modify status of particles = create points along   - TODO status flags to be decides
 int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3], int pdgCode, float maxLength, int maxPoints){
+  fMaxLayer=0;
     const float kMaxSnp=0.90;
    double covar[21]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
   fPdgCodeMC=pdgCode;
@@ -165,6 +166,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     fParamMC[nPoint]=param;
     fLayerIndex[nPoint]=indexR;
     indexR+=direction;
+    if (indexR>fMaxLayer) fMaxLayer=indexR;
   }
   return 1;
 }

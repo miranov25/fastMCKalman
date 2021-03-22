@@ -44,6 +44,7 @@ public:
   fastParticle(int nLayers){
     fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamOut.reserve(nLayers); fParamMC.reserve(nLayers);fStatus.reserve(nLayers);
     fChi2.resize(nLayers);
+    fMaxLayer=0;
   }
   int simulateParticle(fastGeometry     &geom, double r[3], double p[3], int pdgCode, float maxLength, int maxPoints);
   int reconstructParticle(fastGeometry  &geom, int pdgCode, uint layerStart);
@@ -51,6 +52,7 @@ public:
   double fP[3];                            //   initial momentum
   int                         fPdgCodeMC;  //   PDG code used in simulation
   int                         fPdgCodeRec; //   PDG code as used in reconstruction
+  int                         fMaxLayer;   //   maximal layer position
   RVec<int>                   fLayerIndex; //   layer index    - important for loopers
   RVec<float>                 fDirection;  //   particle direction - Out=1, In = -1
   RVec<AliExternalTrackParam> fParamMC;    //   "simulate"      Param MC
