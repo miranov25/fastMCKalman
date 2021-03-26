@@ -358,6 +358,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
       double cov[3]={geom.fLayerResolRPhi[layer]*geom.fLayerResolRPhi[layer],0, geom.fLayerResolZ[layer]*geom.fLayerResolZ[layer]};
       fParamIn[layer]=param;
       float chi2 =  param.GetPredictedChi2(pos, cov);
+      fChi2[layer]=chi2;
       if (chi2>chi2Cut){
         ::Error("reconstructParticle", "Too big chi2 %f", chi2);
         break;

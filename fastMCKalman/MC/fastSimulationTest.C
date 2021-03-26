@@ -174,7 +174,8 @@ void setAliases(TTree & tree){
   tree.SetAlias("c2MC","sqrt(part.fParamMC[].fC[2])");
   tree.SetAlias("c14MC","sqrt(part.fParamMC[].fC[14])");
   tree.SetAlias("dEdxExp","AliExternalTrackParam::BetheBlochAleph(pMC/AliPID::ParticleMass(pidCode))");
-
+  tree.SetAlias("elossTPCIn","(part.fParamIn[159].fData.GetP()-part.fParamIn[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
+  tree.SetAlias("elossTPCMC","(part.fParamMC[159].fData.GetP()-part.fParamMC[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
 }
 
 void initTreeFast(){
