@@ -42,12 +42,14 @@ public:
   fastParticle():TObject(){}
   ~fastParticle(){}
   fastParticle(int nLayers){
-    fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamOut.reserve(nLayers); fParamMC.reserve(nLayers);fStatus.reserve(nLayers);
+    fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamInRot.reserve(nLayers);
+    fParamOut.reserve(nLayers); fParamMC.reserve(nLayers);fStatus.reserve(nLayers);
     fChi2.resize(nLayers);
     fMaxLayer=0;
   }
   int simulateParticle(fastGeometry     &geom, double r[3], double p[3], int pdgCode, float maxLength, int maxPoints);
   int reconstructParticle(fastGeometry  &geom, int pdgCode, uint layerStart);
+  int reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, uint layerStart);
   double fR[3];                            //   initial position
   double fP[3];                            //   initial momentum
   int                         fPdgCodeMC;  //   PDG code used in simulation
@@ -58,6 +60,7 @@ public:
   RVec<AliExternalTrackParam> fParamMC;    //   "simulate"      Param MC
   RVec<AliExternalTrackParam> fParamOut;   //   "reconstructed" Param Out
   RVec<AliExternalTrackParam> fParamIn;    //   "reconstructed" Param In
+  RVec<AliExternalTrackParam> fParamInRot;    //   "reconstructed" Param In - in rotated frame
   RVec<std::vector<int>>      fStatus;     //   propagation/update status
   RVec<float>                 fChi2;      //   chi2  at layer
   //                                       - local information - to be assigned to simulated track - if not set  taken symmetric from fastGeometry

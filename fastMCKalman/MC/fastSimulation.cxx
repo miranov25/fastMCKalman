@@ -301,7 +301,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
 */
 
 ///
-/// \param geom          - pointer to geomtery to use
+/// \param geom          - pointer to geometry to use
 /// \param pdgCode       - pdgCode used in the reconstruction
 /// \param layerStart    - starting layer to do tracking
 /// \return   -  TODO  status flags to be decides
@@ -371,6 +371,85 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
       tanPhi2=(1-tanPhi2);
       float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder
       param.CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
+  }
+  return 1;
+}
+
+
+
+///
+/// \param geom          - pointer to geometry to use
+/// \param pdgCode       - pdgCode used in the reconstruction
+/// \param layerStart    - starting layer to do tracking
+/// \return   -  TODO  status flags to be decides
+int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, uint layerStart){
+  const Float_t chi2Cut=16;
+  const float kMaxSnp=0.90;
+  double covar0[5]={0.1,0.1,0.001,0.001,0.01};
+  fPdgCodeRec   =pdgCode;
+  TParticlePDG * particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
+  if (particle== nullptr) {
+    ::Error("fastParticle::simulateParticle","Invalid pdgCode %d",pdgCode);
+    return -1;
+  }
+  float sign = particle->Charge()/3.;
+  float mass = particle->Mass();
+  uint layer1 = TMath::Min(layerStart,uint(fParamMC.size()-1));
+  AliExternalTrackParam param=fParamMC[layer1];
+  //
+  Double_t sinT=TMath::Sin(param.GetAlpha());
+  Double_t cosT=TMath::Cos(param.GetAlpha());
+  //
+  double *covar = (double*)param.GetCovariance();
+  covar[0]=covar0[0];
+  covar[2]=covar0[1];
+  covar[5]=covar0[2];
+  covar[9]=covar0[3];
+  covar[14]=covar0[4];
+  //
+  float length=0, time=0;
+  float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
+  fParamInRot.resize(layer1+1);
+  fParamInRot[layer1]=param;
+  double xyz[3];
+  int status=0;
+  const double *par = param.GetParameter();
+  for (int layer=layer1-1; layer>=1; layer--){   // dont propagate to vertex , will be done later ...
+    double resol=0;
+    AliExternalTrackParam & p = fParamMC[layer];
+    p.GetXYZ(xyz);
+    double alpha=TMath::ATan2(xyz[1],xyz[0]);
+    double radius = TMath::Sqrt(xyz[0]*xyz[0]+xyz[1]*xyz[1]);
+    Double_t localX, localY;
+    localX=cosT*xyz[0]+sinT*xyz[1];
+    localY=-sinT*xyz[0]+cosT*xyz[1];
+    if (fStatus[layer].size()==0) fStatus[layer].resize(6);
+    fStatus[layer][2]=status;
+    status = param.PropagateTo(localX,geom.fBz);
+    if (status==0){
+      ::Error("reconstructParticle", "Propagation  failed");
+      break;
+    }
+    fStatus[layer][3]=status;
+    float xrho  =geom.fLayerRho[layer];
+    float xx0  =geom.fLayerX0[layer];
+    double pos[2]={localY,xyz[2]};
+    double cov[3]={geom.fLayerResolRPhi[layer]*geom.fLayerResolRPhi[layer],0, geom.fLayerResolZ[layer]*geom.fLayerResolZ[layer]};
+    fParamInRot[layer]=param;    ///
+    float chi2 =  param.GetPredictedChi2(pos, cov);
+    fChi2[layer]=chi2;
+    if (chi2>chi2Cut){
+      ::Error("reconstructParticle", "Too big chi2 %f", chi2);
+      break;
+    }
+
+    if (TMath::Abs(param.GetSnp())<kMaxSnp) {
+      param.Update(pos, cov);
+    }
+    float tanPhi2 = par[2]*par[2];
+    tanPhi2=(1-tanPhi2);
+    float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder  = to be racalculated
+    param.CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
   }
   return 1;
 }

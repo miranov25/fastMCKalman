@@ -66,6 +66,7 @@ void testPCStream(Int_t nParticles, bool dumpStream){
     int    pdgCode = AliPID::ParticleCode(pidCode)*charge;
     particle.simulateParticle(geom, r,p,pdgCode, 250,161);
     particle.reconstructParticle(geom,pdgCode,160);
+    particle.reconstructParticleRotate0(geom,pdgCode,160);
     //particle.simulateParticle(geom, r,p,211, 250,161);
     //particle.reconstructParticle(geom,211,160);
     if (dumpStream==kFALSE) continue;
@@ -138,6 +139,7 @@ void testAlice(Int_t nParticles, bool dumpStream){
     int    pdgCode = AliPID::ParticleCode(pidCode)*charge;  // PID code covnerted to the PdgCode
     particle.simulateParticle(geom, r,p,pdgCode, kMaxLength,nLayerTPC);
     particle.reconstructParticle(geom,pdgCode,nLayerTPC);
+    particle.reconstructParticleRotate0(geom,pdgCode,nLayerTPC);
     Float_t mass =AliPID::ParticleMass(pidCode);
 
     if (dumpStream==kFALSE) continue;
@@ -173,6 +175,10 @@ void setAliases(TTree & tree){
   tree.SetAlias("c0MC","sqrt(part.fParamMC[].fC[0])");
   tree.SetAlias("c2MC","sqrt(part.fParamMC[].fC[2])");
   tree.SetAlias("c14MC","sqrt(part.fParamMC[].fC[14])");
+  tree.SetAlias("c0In","sqrt(part.fParamIn[].fC[0])");
+  tree.SetAlias("c2In","sqrt(part.fParamIn[].fC[2])");
+  tree.SetAlias("c0InRot","sqrt(part.fParamInRot[].fC[0])");
+  tree.SetAlias("c2InRot","sqrt(part.fParamInRot[].fC[2])");
   tree.SetAlias("dEdxExp","AliExternalTrackParam::BetheBlochAleph(pMC/AliPID::ParticleMass(pidCode))");
   tree.SetAlias("elossTPCIn","(part.fParamIn[159].fData.GetP()-part.fParamIn[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
   tree.SetAlias("elossTPCMC","(part.fParamMC[159].fData.GetP()-part.fParamMC[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
