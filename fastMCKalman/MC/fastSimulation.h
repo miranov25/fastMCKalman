@@ -9,11 +9,12 @@
 #include "TParticlePDG.h"
 #include "TDatabasePDG.h"
 #include "ROOT/RVec.hxx"
+class TTree;
 //using namespace ROOT;
 using namespace ROOT::VecOps;
 const Int_t kMaxLayers=10000;
 #pragma link C++ class RVec<AliExternalTrackParam>+;
-
+#pragma link C++ class RVec<std::vector<int>>
 
 class TTreeSRedirector;
 
@@ -39,17 +40,26 @@ public:
 
 class fastParticle : public TObject{
 public:
+  enum TrackingBits {
+  kTrackRotate   = 0x1,
+  kTrackPropagate  = 0x2,
+  kTrackCorrectForMaterial =0x4,
+  kTrackUpdate =0x8,
+  kTrackChi2   =0x10
+} ;
+
   fastParticle():TObject(){}
   ~fastParticle(){}
   fastParticle(int nLayers){
     fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamInRot.reserve(nLayers);
-    fParamOut.reserve(nLayers); fParamMC.reserve(nLayers);fStatus.reserve(nLayers);
+    fParamOut.reserve(nLayers); fParamMC.reserve(nLayers);fStatusMask.reserve(nLayers);
     fChi2.resize(nLayers);
     fMaxLayer=0;
   }
   int simulateParticle(fastGeometry     &geom, double r[3], double p[3], int pdgCode, float maxLength, int maxPoints);
   int reconstructParticle(fastGeometry  &geom, int pdgCode, uint layerStart);
   int reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, uint layerStart);
+  void setAliases(TTree & tree);           //   set aliases for derived variables
   double fR[3];                            //   initial position
   double fP[3];                            //   initial momentum
   int                         fPdgCodeMC;  //   PDG code used in simulation
@@ -61,7 +71,7 @@ public:
   RVec<AliExternalTrackParam> fParamOut;   //   "reconstructed" Param Out
   RVec<AliExternalTrackParam> fParamIn;    //   "reconstructed" Param In
   RVec<AliExternalTrackParam> fParamInRot;    //   "reconstructed" Param In - in rotated frame
-  RVec<std::vector<int>>      fStatus;     //   propagation/update status
+  RVec<std::vector<int>>      fStatusMask;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
   RVec<float>                 fChi2;      //   chi2  at layer
   //                                       - local information - to be assigned to simulated track - if not set  taken symmetric from fastGeometry
   RVec<float> fLayerResolRPhi;             //   rphi resolution at layer
@@ -74,5 +84,7 @@ public:
   static TTreeSRedirector * fgStreamer;    //   debug streamer
   ClassDef(fastParticle, 1)
 };
+
+
 #endif
 

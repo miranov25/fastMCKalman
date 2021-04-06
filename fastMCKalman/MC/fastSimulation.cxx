@@ -99,6 +99,9 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     if (indexR>geom.fLayerRadius.size()) {
       break;
     }
+    if (fStatusMask.size()<=nPoint) fStatusMask.resize(nPoint+1);
+    fStatusMask[nPoint].resize(6);                  // resize status array
+    //
     double xyz[3],pxyz[3];
     float radius  = geom.fLayerRadius[indexR];
     //float xrho    = geom.fLayerRho[indexR];
@@ -148,12 +151,19 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
       direction*=-1;
     }else{
       double alpha  = TMath::ATan2(xyz[1],xyz[0]);
-      if (fStatus.size()<=nPoint) fStatus.resize(nPoint+1);
-      fStatus[nPoint].resize(6);                  // resize status array
+      fStatusMask[nPoint][0]=0;
       status = param.Rotate(alpha);
-      fStatus[nPoint][0]=status;
+      if (status) {
+        fStatusMask[nPoint][0]|= kTrackRotate;
+      }else{
+        break;
+      }
       status = param.PropagateTo(radius,geom.fBz);
-      fStatus[nPoint][1]=status;
+      if (status) {
+        fStatusMask[nPoint][0]|=kTrackPropagate;
+      }else{
+        break;
+      }
     }
     //
     float xrho    = geom.fLayerRho[indexR];
@@ -161,7 +171,12 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     float tanPhi2 = par[2]*par[2];
     tanPhi2=(1-tanPhi2);
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
-    param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass);
+    status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass);
+    if (status) {
+        fStatusMask[nPoint][0]|=kTrackCorrectForMaterial;
+      }else{
+        break;
+    }
     fParamMC.resize(nPoint+1);
     fParamMC[nPoint]=param;
     fLayerIndex[nPoint]=indexR;
@@ -339,19 +354,22 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
       p.GetXYZ(xyz);
       double alpha=TMath::ATan2(xyz[1],xyz[0]);
       double radius = TMath::Sqrt(xyz[0]*xyz[0]+xyz[1]*xyz[1]);
+      if (fStatusMask[layer].size()==0) fStatusMask[layer].resize(6);
+      fStatusMask[layer][1]=0;
       status = param.Rotate(alpha);
-      if (status==0){
+      if (status) {
+        fStatusMask[layer][1]|=kTrackRotate;
+      }else{
         ::Error("reconstructParticle", "Rotation failed");
         break;
       }
-      if (fStatus[layer].size()==0) fStatus[layer].resize(6);
-      fStatus[layer][2]=status;
       status = param.PropagateTo(radius,geom.fBz);
-      if (status==0){
-        ::Error("reconstructParticle", "Propagation  failed");
+      if (status) {
+        fStatusMask[layer][1]|=kTrackPropagate;
+      }else{
+        ::Error("reconstructParticle", "Proapagation failed");
         break;
       }
-      fStatus[layer][3]=status;
       float xrho  =geom.fLayerRho[layer];
       float xx0  =geom.fLayerX0[layer];
       double pos[2]={0,xyz[2]};
@@ -359,18 +377,32 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
       fParamIn[layer]=param;
       float chi2 =  param.GetPredictedChi2(pos, cov);
       fChi2[layer]=chi2;
-      if (chi2>chi2Cut){
+      if (chi2<chi2Cut) {
+        fStatusMask[layer][1]|=kTrackChi2;
+      }else{
         ::Error("reconstructParticle", "Too big chi2 %f", chi2);
         break;
       }
-
       if (TMath::Abs(param.GetSnp())<kMaxSnp) {
-        param.Update(pos, cov);
+        status = param.Update(pos, cov);
+        if (status) {
+          fStatusMask[layer][1]|=kTrackUpdate;
+        }else{
+          ::Error("reconstructParticle", "Update failed");
+          break;
+        }
       }
+
       float tanPhi2 = par[2]*par[2];
       tanPhi2=(1-tanPhi2);
       float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder
-      param.CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
+      status = param.CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
+      if (status) {
+        fStatusMask[layer][1]|=kTrackCorrectForMaterial;
+      }else{
+        ::Error("reconstructParticle", "Correct for material failed");
+        break;
+      }
   }
   return 1;
 }
@@ -423,14 +455,17 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
     Double_t localX, localY;
     localX=cosT*xyz[0]+sinT*xyz[1];
     localY=-sinT*xyz[0]+cosT*xyz[1];
-    if (fStatus[layer].size()==0) fStatus[layer].resize(6);
-    fStatus[layer][2]=status;
+    if (fStatusMask[layer].size()==0) fStatusMask[layer].resize(6);
+    fStatusMask[layer][2]=0;
     status = param.PropagateTo(localX,geom.fBz);
-    if (status==0){
-      ::Error("reconstructParticle", "Propagation  failed");
+    if (status) {
+      fStatusMask[layer][2]|=kTrackPropagate;
+    }else{
+      ::Error("reconstructParticle", "Propagation failed");
       break;
     }
-    fStatus[layer][3]=status;
+    //
+
     float xrho  =geom.fLayerRho[layer];
     float xx0  =geom.fLayerX0[layer];
     double pos[2]={localY,xyz[2]};
@@ -438,18 +473,65 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
     fParamInRot[layer]=param;    ///
     float chi2 =  param.GetPredictedChi2(pos, cov);
     fChi2[layer]=chi2;
-    if (chi2>chi2Cut){
-      ::Error("reconstructParticle", "Too big chi2 %f", chi2);
+    if (chi2<chi2Cut) {
+      fStatusMask[layer][2] |= kTrackChi2;
+    }else {
+      ::Error("reconstructParticle", "Chi2 -  failed");
       break;
     }
-
+    //
     if (TMath::Abs(param.GetSnp())<kMaxSnp) {
-      param.Update(pos, cov);
+      status = param.Update(pos, cov);
+      if (status) {
+        fStatusMask[layer][2] |= kTrackUpdate;
+      } else {
+        ::Error("reconstructParticle", "Update failed");
+        break;
+      }
     }
     float tanPhi2 = par[2]*par[2];
     tanPhi2=(1-tanPhi2);
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder  = to be racalculated
-    param.CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
+    status = param.CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
+    if (status) {
+      fStatusMask[layer][2] |= kTrackCorrectForMaterial;
+    } else {
+      ::Error("reconstructParticle", "Correct for material failed");
+      break;
+    }
   }
   return 1;
+}
+
+
+/// set derived varaibles as alaiases to tree
+/// \param tree
+void fastParticle::setAliases(TTree & tree){
+  tree.SetAlias("gxIn","cos(part.fParamIn[].fAlpha)*part.fParamIn[].fX");
+  tree.SetAlias("gyIn","sin(part.fParamIn[].fAlpha)*part.fParamIn[].fX");
+  tree.SetAlias("gxMC","cos(part.fParamMC[].fAlpha)*part.fParamMC[].fX");
+  tree.SetAlias("gyMC","sin(part.fParamMC[].fAlpha)*part.fParamMC[].fX");
+  tree.SetAlias("gzMC","part.fParamMC[].fP[1]");
+  tree.SetAlias("rMC","part.fParamMC[].fX");
+  //
+  tree.SetAlias("ptMC","part.fParamMC[0].fData.Pt()");
+  tree.SetAlias("ptMCL","part.fParamMC[].fData.Pt()");
+  tree.SetAlias("pMC","part.fParamMC[0].fData.P()");
+  tree.SetAlias("ptRec","part.fParamIn[0].fData.Pt()");
+  //
+  //
+  tree.SetAlias("layer","Iteration$");
+  tree.SetAlias("c0MC","sqrt(part.fParamMC[].fC[0])");
+  tree.SetAlias("c2MC","sqrt(part.fParamMC[].fC[2])");
+  tree.SetAlias("c14MC","sqrt(part.fParamMC[].fC[14])");
+  tree.SetAlias("c0In","sqrt(part.fParamIn[].fC[0])");
+  tree.SetAlias("c2In","sqrt(part.fParamIn[].fC[2])");
+  tree.SetAlias("c0InRot","sqrt(part.fParamInRot[].fC[0])");
+  tree.SetAlias("c2InRot","sqrt(part.fParamInRot[].fC[2])");
+  tree.SetAlias("dEdxExp","AliExternalTrackParam::BetheBlochAleph(pMC/AliPID::ParticleMass(pidCode))");
+  tree.SetAlias("dEdxExpSolid","AliExternalTrackParam::BetheBlochSolid(pMC/AliPID::ParticleMass(pidCode))");
+  tree.SetAlias("dEdxExpSolidL","AliExternalTrackParam::BetheBlochSolid(part.fParamMC[].fData.P()/AliPID::ParticleMass(pidCode))");
+  tree.SetAlias("dEdxExpSolidL1","AliExternalTrackParam::BetheBlochSolid(part.fParamMC[Iteration$-1].fData.P()/AliPID::ParticleMass(pidCode))");
+  tree.SetAlias("elossTPCIn","(part.fParamIn[159].fData.GetP()-part.fParamIn[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
+  tree.SetAlias("elossTPCMC","(part.fParamMC[159].fData.GetP()-part.fParamMC[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
 }

@@ -1,7 +1,7 @@
 /*
    .L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+g
     .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C+g
-    //testPCStream(5000,kTRUE);  //setup for the looper development
+    testPCStream(5000,kTRUE);  //setup for the looper development
     testAlice(10000,kTRUE);   // ALICE setup
     //initTreeFast()
     .> a.log
@@ -29,21 +29,25 @@ void testDummy(){
   //particle.simulateParticle(geom, r,p,211,200,90);
 }
 
+/// test for looper development with continous tracking
+/// \param nParticles
+/// \param dumpStream
 void testPCStream(Int_t nParticles, bool dumpStream){
-    const Float_t smearR=200;
-    const Float_t smearZ=200;
+    const Int_t   nLayerTPC=250;
+  const Float_t smearR=200;
+  const Float_t smearZ=200;
+    const Float_t  xx0=7.8350968e-05;
+  const Float_t xrho=0.0016265266;
   TStopwatch timer;
   timer.Start();
-  fastGeometry geom= fastGeometry(201.);
+  fastGeometry geom= fastGeometry(nLayerTPC);
   geom.fBz=5;
-  fastParticle particle=fastParticle(200);
+  fastParticle particle=fastParticle(nLayerTPC);
 
   float resol[2]={0.001,0.001};
-  geom.setLayerRadiusPower(0,80, 4,80, 1.2,0.006,0.16,resol);
   resol[0]=0.1;
   resol[1]=0.1;
-  geom.setLayerRadiusPower(80,160,80,250,1.0,0.0001,0.08,resol);
-
+  geom.setLayerRadiusPower(0,nLayerTPC,1,nLayerTPC,1.0,xx0,xrho,resol);
 
   TTreeSRedirector *pcstream = new TTreeSRedirector("fastParticle.root","recreate");
   particle.fgStreamer=pcstream;
@@ -86,7 +90,9 @@ void testPCStream(Int_t nParticles, bool dumpStream){
   timer.Print();
 }
 
-
+/// testAlice configuration
+/// \param nParticles
+/// \param dumpStream
 void testAlice(Int_t nParticles, bool dumpStream){
   const Float_t smearR=10;
   const Float_t smearZ=10;
@@ -94,8 +100,9 @@ void testAlice(Int_t nParticles, bool dumpStream){
   const Float_t resolZ=0.1;
   const Float_t bz=5;
   const Int_t   nLayerTPC=160;
-  const Float_t kMinPt=0.20;
+  const Float_t kMinPt=0.02;
   const Float_t kMax1Pt=1./100.;
+  //const Float_t kMax1Pt=1./0.2;
   const Float_t kThetaMax=2.;
   const Float_t kMaxLength=300;
   // values as obtaied from the gromManager see -  https://alice.its.cern.ch/jira/browse/PWGPP-613?focusedCommentId=263181&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-263181
@@ -160,28 +167,31 @@ void testAlice(Int_t nParticles, bool dumpStream){
 }
 
 void setAliases(TTree & tree){
-  tree.SetAlias("gxIn","cos(part.fParamIn[].fAlpha)*part.fParamIn[].fX");
-  tree.SetAlias("gyIn","sin(part.fParamIn[].fAlpha)*part.fParamIn[].fX");
-  tree.SetAlias("gxMC","cos(part.fParamMC[].fAlpha)*part.fParamMC[].fX");
-  tree.SetAlias("gyMC","sin(part.fParamMC[].fAlpha)*part.fParamMC[].fX");
-  tree.SetAlias("gzMC","part.fParamMC[].fP[1]");
-  tree.SetAlias("rMC","part.fParamMC[].fX");
-  tree.SetAlias("ptMC","part.fParamMC[0].fData.Pt()");
-  tree.SetAlias("pMC","part.fParamMC[0].fData.P()");
-  tree.SetAlias("ptRec","part.fParamIn[0].fData.Pt()");
-  tree.SetAlias("dEdxExp","");
-  //
-  tree.SetAlias("layer","Iteration$");
-  tree.SetAlias("c0MC","sqrt(part.fParamMC[].fC[0])");
-  tree.SetAlias("c2MC","sqrt(part.fParamMC[].fC[2])");
-  tree.SetAlias("c14MC","sqrt(part.fParamMC[].fC[14])");
-  tree.SetAlias("c0In","sqrt(part.fParamIn[].fC[0])");
-  tree.SetAlias("c2In","sqrt(part.fParamIn[].fC[2])");
-  tree.SetAlias("c0InRot","sqrt(part.fParamInRot[].fC[0])");
-  tree.SetAlias("c2InRot","sqrt(part.fParamInRot[].fC[2])");
-  tree.SetAlias("dEdxExp","AliExternalTrackParam::BetheBlochAleph(pMC/AliPID::ParticleMass(pidCode))");
-  tree.SetAlias("elossTPCIn","(part.fParamIn[159].fData.GetP()-part.fParamIn[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
-  tree.SetAlias("elossTPCMC","(part.fParamMC[159].fData.GetP()-part.fParamMC[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
+  fastParticle::setAliases(tree);
+//  tree.SetAlias("gxIn","cos(part.fParamIn[].fAlpha)*part.fParamIn[].fX");
+//  tree.SetAlias("gyIn","sin(part.fParamIn[].fAlpha)*part.fParamIn[].fX");
+//  tree.SetAlias("gxMC","cos(part.fParamMC[].fAlpha)*part.fParamMC[].fX");
+//  tree.SetAlias("gyMC","sin(part.fParamMC[].fAlpha)*part.fParamMC[].fX");
+//  tree.SetAlias("gzMC","part.fParamMC[].fP[1]");
+//  tree.SetAlias("rMC","part.fParamMC[].fX");
+//  tree.SetAlias("ptMC","part.fParamMC[0].fData.Pt()");
+//  tree.SetAlias("pMC","part.fParamMC[0].fData.P()");
+//  tree.SetAlias("ptRec","part.fParamIn[0].fData.Pt()");
+//  //
+//  tree.SetAlias("layer","Iteration$");
+//  tree.SetAlias("c0MC","sqrt(part.fParamMC[].fC[0])");
+//  tree.SetAlias("c2MC","sqrt(part.fParamMC[].fC[2])");
+//  tree.SetAlias("c14MC","sqrt(part.fParamMC[].fC[14])");
+//  tree.SetAlias("c0In","sqrt(part.fParamIn[].fC[0])");
+//  tree.SetAlias("c2In","sqrt(part.fParamIn[].fC[2])");
+//  tree.SetAlias("c0InRot","sqrt(part.fParamInRot[].fC[0])");
+//  tree.SetAlias("c2InRot","sqrt(part.fParamInRot[].fC[2])");
+//  tree.SetAlias("dEdxExp","AliExternalTrackParam::BetheBlochAleph(pMC/AliPID::ParticleMass(pidCode))");
+//  tree.SetAlias("dEdxExpSolid","AliExternalTrackParam::BetheBlochSolid(pMC/AliPID::ParticleMass(pidCode))");
+//  tree.SetAlias("dEdxExpSolidL","AliExternalTrackParam::BetheBlochSolid(part.fParamMC[].fData.P()/AliPID::ParticleMass(pidCode))");
+//  tree.SetAlias("dEdxExpSolidL1","AliExternalTrackParam::BetheBlochSolid(part.fParamMC[Iteration$-1].fData.P()/AliPID::ParticleMass(pidCode))");
+//  tree.SetAlias("elossTPCIn","(part.fParamIn[159].fData.GetP()-part.fParamIn[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
+//  tree.SetAlias("elossTPCMC","(part.fParamMC[159].fData.GetP()-part.fParamMC[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
 }
 
 void initTreeFast(){
