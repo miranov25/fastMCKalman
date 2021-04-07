@@ -99,8 +99,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     if (indexR>geom.fLayerRadius.size()) {
       break;
     }
-    if (fStatusMask.size()<=nPoint) fStatusMask.resize(nPoint+1);
-    fStatusMask[nPoint].resize(6);                  // resize status array
+    if (fStatusMaskMC.size()<=nPoint) fStatusMaskMC.resize(nPoint+1);
     //
     double xyz[3],pxyz[3];
     float radius  = geom.fLayerRadius[indexR];
@@ -151,16 +150,16 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
       direction*=-1;
     }else{
       double alpha  = TMath::ATan2(xyz[1],xyz[0]);
-      fStatusMask[nPoint][0]=0;
+      fStatusMaskMC[nPoint]=0;
       status = param.Rotate(alpha);
       if (status) {
-        fStatusMask[nPoint][0]|= kTrackRotate;
+        fStatusMaskMC[nPoint]|= kTrackRotate;
       }else{
         break;
       }
       status = param.PropagateTo(radius,geom.fBz);
       if (status) {
-        fStatusMask[nPoint][0]|=kTrackPropagate;
+        fStatusMaskMC[nPoint]|=kTrackPropagate;
       }else{
         break;
       }
@@ -173,7 +172,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
     status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass);
     if (status) {
-        fStatusMask[nPoint][0]|=kTrackCorrectForMaterial;
+        fStatusMaskMC[nPoint]|=kTrackCorrectForMaterial;
       }else{
         break;
     }
@@ -344,6 +343,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
   float length=0, time=0;
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
   fParamIn.resize(layer1+1);
+  fStatusMaskIn.resize(layer1+1);
   fParamIn[layer1]=param;
   double xyz[3];
   int status=0;
@@ -354,18 +354,17 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
       p.GetXYZ(xyz);
       double alpha=TMath::ATan2(xyz[1],xyz[0]);
       double radius = TMath::Sqrt(xyz[0]*xyz[0]+xyz[1]*xyz[1]);
-      if (fStatusMask[layer].size()==0) fStatusMask[layer].resize(6);
-      fStatusMask[layer][1]=0;
+      fStatusMaskIn[layer]=0;
       status = param.Rotate(alpha);
       if (status) {
-        fStatusMask[layer][1]|=kTrackRotate;
+        fStatusMaskIn[layer]|=kTrackRotate;
       }else{
         ::Error("reconstructParticle", "Rotation failed");
         break;
       }
       status = param.PropagateTo(radius,geom.fBz);
       if (status) {
-        fStatusMask[layer][1]|=kTrackPropagate;
+        fStatusMaskIn[layer]|=kTrackPropagate;
       }else{
         ::Error("reconstructParticle", "Proapagation failed");
         break;
@@ -378,7 +377,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
       float chi2 =  param.GetPredictedChi2(pos, cov);
       fChi2[layer]=chi2;
       if (chi2<chi2Cut) {
-        fStatusMask[layer][1]|=kTrackChi2;
+        fStatusMaskIn[layer]|=kTrackChi2;
       }else{
         ::Error("reconstructParticle", "Too big chi2 %f", chi2);
         break;
@@ -386,7 +385,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
       if (TMath::Abs(param.GetSnp())<kMaxSnp) {
         status = param.Update(pos, cov);
         if (status) {
-          fStatusMask[layer][1]|=kTrackUpdate;
+          fStatusMaskIn[layer]|=kTrackUpdate;
         }else{
           ::Error("reconstructParticle", "Update failed");
           break;
@@ -398,7 +397,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
       float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder
       status = param.CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
       if (status) {
-        fStatusMask[layer][1]|=kTrackCorrectForMaterial;
+        fStatusMaskIn[layer]|=kTrackCorrectForMaterial;
       }else{
         ::Error("reconstructParticle", "Correct for material failed");
         break;
@@ -442,6 +441,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
   float length=0, time=0;
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
   fParamInRot.resize(layer1+1);
+    fStatusMaskInRot.resize(layer1+1);
   fParamInRot[layer1]=param;
   double xyz[3];
   int status=0;
@@ -455,11 +455,10 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
     Double_t localX, localY;
     localX=cosT*xyz[0]+sinT*xyz[1];
     localY=-sinT*xyz[0]+cosT*xyz[1];
-    if (fStatusMask[layer].size()==0) fStatusMask[layer].resize(6);
-    fStatusMask[layer][2]=0;
+    fStatusMaskInRot[layer]=0;
     status = param.PropagateTo(localX,geom.fBz);
     if (status) {
-      fStatusMask[layer][2]|=kTrackPropagate;
+      fStatusMaskInRot[layer]|=kTrackPropagate;
     }else{
       ::Error("reconstructParticle", "Propagation failed");
       break;
@@ -474,7 +473,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
     float chi2 =  param.GetPredictedChi2(pos, cov);
     fChi2[layer]=chi2;
     if (chi2<chi2Cut) {
-      fStatusMask[layer][2] |= kTrackChi2;
+      fStatusMaskInRot[layer] |= kTrackChi2;
     }else {
       ::Error("reconstructParticle", "Chi2 -  failed");
       break;
@@ -483,7 +482,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
     if (TMath::Abs(param.GetSnp())<kMaxSnp) {
       status = param.Update(pos, cov);
       if (status) {
-        fStatusMask[layer][2] |= kTrackUpdate;
+        fStatusMaskInRot[layer] |= kTrackUpdate;
       } else {
         ::Error("reconstructParticle", "Update failed");
         break;
@@ -494,7 +493,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder  = to be racalculated
     status = param.CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
     if (status) {
-      fStatusMask[layer][2] |= kTrackCorrectForMaterial;
+      fStatusMaskInRot[layer] |= kTrackCorrectForMaterial;
     } else {
       ::Error("reconstructParticle", "Correct for material failed");
       break;

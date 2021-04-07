@@ -14,7 +14,9 @@ class TTree;
 using namespace ROOT::VecOps;
 const Int_t kMaxLayers=10000;
 #pragma link C++ class RVec<AliExternalTrackParam>+;
-#pragma link C++ class RVec<std::vector<int>>
+#pragma link C++ class RVec<int>+;
+//#pragma link C++ class std::vector<int>;
+//#pragma link C++ class RVec<std::vector<int>>;
 
 class TTreeSRedirector;
 
@@ -52,14 +54,14 @@ public:
   ~fastParticle(){}
   fastParticle(int nLayers){
     fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamInRot.reserve(nLayers);
-    fParamOut.reserve(nLayers); fParamMC.reserve(nLayers);fStatusMask.reserve(nLayers);
+    fParamOut.reserve(nLayers); fParamMC.reserve(nLayers);fStatusMaskMC.reserve(nLayers); fStatusMaskIn.reserve(nLayers);
     fChi2.resize(nLayers);
     fMaxLayer=0;
   }
   int simulateParticle(fastGeometry     &geom, double r[3], double p[3], int pdgCode, float maxLength, int maxPoints);
   int reconstructParticle(fastGeometry  &geom, int pdgCode, uint layerStart);
   int reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, uint layerStart);
-  void setAliases(TTree & tree);           //   set aliases for derived variables
+  static void setAliases(TTree & tree);           //   set aliases for derived variables
   double fR[3];                            //   initial position
   double fP[3];                            //   initial momentum
   int                         fPdgCodeMC;  //   PDG code used in simulation
@@ -71,7 +73,9 @@ public:
   RVec<AliExternalTrackParam> fParamOut;   //   "reconstructed" Param Out
   RVec<AliExternalTrackParam> fParamIn;    //   "reconstructed" Param In
   RVec<AliExternalTrackParam> fParamInRot;    //   "reconstructed" Param In - in rotated frame
-  RVec<std::vector<int>>      fStatusMask;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
+  RVec<int>      fStatusMaskMC;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
+  RVec<int>      fStatusMaskIn;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
+  RVec<int>      fStatusMaskInRot;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
   RVec<float>                 fChi2;      //   chi2  at layer
   //                                       - local information - to be assigned to simulated track - if not set  taken symmetric from fastGeometry
   RVec<float> fLayerResolRPhi;             //   rphi resolution at layer

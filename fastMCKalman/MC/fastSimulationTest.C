@@ -40,9 +40,9 @@ void testPCStream(Int_t nParticles, bool dumpStream){
   const Float_t xrho=0.0016265266;
   TStopwatch timer;
   timer.Start();
-  fastGeometry geom= fastGeometry(nLayerTPC);
+  fastGeometry geom(nLayerTPC+1);
   geom.fBz=5;
-  fastParticle particle=fastParticle(nLayerTPC);
+  fastParticle particle(nLayerTPC+1);
 
   float resol[2]={0.001,0.001};
   resol[0]=0.1;
