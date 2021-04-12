@@ -25,9 +25,12 @@ class AliExternalTrackParam4D: public AliExternalTrackParam{
 public:
   AliExternalTrackParam4D();
   AliExternalTrackParam4D(const AliExternalTrackParam &);
-  Bool_t CorrectForMeanMaterialRK(Double_t xOverX0, Double_t xTimesRho,Double_t mass,
-	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid, Float_t stepFraction=0.02);
+  Bool_t CorrectForMeanMaterialRK(Double_t xOverX0, Double_t xTimesRho,Double_t mass,Float_t stepFraction=0.02,
+	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid );
+  Bool_t CorrectForMeanMaterialRKv2(Double_t xOverX0, Double_t xTimesRho,Double_t mass, Float_t stepFraction=0.02,
+	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
 
+  void UnitTestDumpCorrectForMaterial(TTreeSRedirector * pcstream, Double_t xOverX0, Double_t xTimesRho,Double_t mass, Int_t nSteps, Float_t stepFraction=0.02);
   virtual ~AliExternalTrackParam4D(){}
   ClassDef(AliExternalTrackParam4D, 1)
 };

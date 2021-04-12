@@ -1,7 +1,7 @@
 /*
    .L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+g
     .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C+g
-    testPCStream(5000,kTRUE);  //setup for the looper development
+    testPCStream(10000,kTRUE);  //setup for the looper development
     testAlice(10000,kTRUE);   // ALICE setup
     //initTreeFast()
     .> a.log
@@ -23,6 +23,7 @@
 
 TChain * treeFast = 0;
 TChain * treeTurn=0;
+TChain * treeUnit0=0;
 void testDummy(){
   double r[]={0,0,0};
   double p[]={1,0,0};
@@ -34,6 +35,8 @@ void testDummy(){
 /// \param dumpStream
 void testPCStream(Int_t nParticles, bool dumpStream){
     const Int_t   nLayerTPC=250;
+      const Float_t kMinPt=0.02;
+  const Float_t kMax1Pt=1./100.;
   const Float_t smearR=200;
   const Float_t smearZ=200;
     const Float_t  xx0=7.8350968e-05;
@@ -55,22 +58,22 @@ void testPCStream(Int_t nParticles, bool dumpStream){
   for (Int_t i=0; i<nParticles; i++){
     double r[]     = {0,0,0};
     Bool_t  isSecondary=gRandom->Rndm()<0.5;
-    //isSecondary=kTRUE;
+    isSecondary=kFALSE;
     if (isSecondary){
         r[0]=2*(gRandom->Rndm()-0.5)*smearR;
         r[1]=2*(gRandom->Rndm()-0.5)*smearR;
         r[2]=2*(gRandom->Rndm()-0.5)*smearZ;
     }
-    double pt      = 0.02/(0.002+gRandom->Rndm());
+    double pt      = kMinPt/(kMax1Pt*kMinPt+gRandom->Rndm());
     double phi     = gRandom->Rndm()*TMath::TwoPi();
     double theta = (gRandom->Rndm()-0.5)*3;
     double p[]={pt*sin(phi),pt*cos(phi),pt*theta};
     int    pidCode=int(gRandom->Rndm()*5);
     float  charge  = (gRandom->Rndm()<0.5) ? -1:1;
     int    pdgCode = AliPID::ParticleCode(pidCode)*charge;
-    particle.simulateParticle(geom, r,p,pdgCode, 250,161);
-    particle.reconstructParticle(geom,pdgCode,160);
-    particle.reconstructParticleRotate0(geom,pdgCode,160);
+    particle.simulateParticle(geom, r,p,pdgCode, 250,nLayerTPC);
+    particle.reconstructParticle(geom,pdgCode,nLayerTPC);
+    particle.reconstructParticleRotate0(geom,pdgCode,nLayerTPC);
     //particle.simulateParticle(geom, r,p,211, 250,161);
     //particle.reconstructParticle(geom,211,160);
     if (dumpStream==kFALSE) continue;
@@ -197,8 +200,12 @@ void setAliases(TTree & tree){
 void initTreeFast(){
   treeFast  = AliXRDPROOFtoolkit::MakeChainRandom("fastParticle.list","fastPart",0,10000);
   treeTurn  = AliXRDPROOFtoolkit::MakeChainRandom("fastParticle.list","turn",0,10000);
+  treeUnit0  = AliXRDPROOFtoolkit::MakeChainRandom("fastParticle.list","UnitTestDumpCorrectForMaterial",0,10000);
   treeFast->SetMarkerStyle(21);
   treeFast->SetMarkerSize(0.5);
+   treeUnit0->SetMarkerStyle(21);
+  treeUnit0->SetMarkerSize(0.5);
+
   AliDrawStyle::SetDefaults();
   AliDrawStyle::ApplyStyle("figTemplate");
   gStyle->SetOptTitle(1);

@@ -29,7 +29,7 @@ AliExternalTrackParam4D::AliExternalTrackParam4D(const AliExternalTrackParam &t)
 /// \param f              - dEdx formula
 /// \param stepFraction   - step fraction
 /// \return
-Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRK(Double_t xOverX0, Double_t xTimesRho,Double_t mass, Double_t (*f)(Double_t), Float_t stepFraction){
+Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRK(Double_t xOverX0, Double_t xTimesRho, Double_t mass, Float_t stepFraction, Double_t (*f)(Double_t)){
   //  Runge Kuttta integral p(x)
   //k_{1} is the slope at the beginning of the interval, using {\displaystyle y}y (Euler's method);
   //k_{2} is the slope at the midpoint of the interval, using {\displaystyle y}y and {\displaystyle k_{1}}k_{1};
@@ -130,6 +130,154 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRK(Double_t xOverX0, Doubl
 }
 
 
+
+/// Runge-Kuta energy loss correction  - https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
+/// \param xOverX0        - X/X0, the thickness in units of the radiation length.
+/// \param xTimesRho      - is the product length*density (g/cm^2).
+//                        - It should be passed as negative when propagating tracks
+//                        - from the interaction point to the outside of the central barrel.
+/// \param mass           - the mass of this particle (GeV/c^2). Negative mass means charge=2 particle
+/// \param f              - dEdx formula
+/// \param stepFraction   - step fraction
+/// \return
+Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRKv2(Double_t xOverX0, Double_t xTimesRho,Double_t mass, Float_t stepFraction,  Double_t (*f)(Double_t)){
+  //  Runge Kuttta integral p(x)
+  //k_{1} is the slope at the beginning of the interval, using {\displaystyle y}y (Euler's method);
+  //k_{2} is the slope at the midpoint of the interval, using {\displaystyle y}y and {\displaystyle k_{1}}k_{1};
+  //k_{3} is again the slope at the midpoint, but now using {\displaystyle y}y and {\displaystyle k_{2}}k_{2};
+  //k_{4} is the slope at the end of the interval, using {\displaystyle y}y and {\displaystyle k_{3}}k_{3}.
+  const Double_t kBGStop=0.02;
+  Double_t p=GetP();
+  Double_t q=(mass<0)?1.:2.;   // q=2 particle in ALICE convention
+  mass=TMath::Abs(mass);
+  Double_t mass2=mass*mass;
+  p*=q;
+  if ((p/mass)<kBGStop) return kFALSE;
+  Double_t p2=p*p;
+  Double_t dEdxM=f(p/mass),dEdxMRK=0;
+  Double_t Ein=TMath::Sqrt(p2+mass2);
+  Double_t Eout=0;
+  //Runge-Kuta
+  if ( TMath::Abs(dEdxM*xTimesRho) > 0.3*Ein ) return kFALSE; //30% energy loss is too much!
+  Double_t p2Mean=0, beta2Mean=0, mp2Beta2Mean=0;
+  //
+  if (TMath::Abs(dEdxM*xTimesRho)>stepFraction*Ein || (Ein+dEdxM*xTimesRho)<mass){
+    Double_t E1=Ein,E2=0,E3=0,E4=0;
+    Double_t k1=0,k2=0,k3=0,k4=0;
+    k1=dEdxM;
+    E2=E1+k1*xTimesRho*0.5;
+    if (E2*E2/mass2-1.< kBGStop*kBGStop) return kFALSE;
+    k2=f(TMath::Sqrt(E2*E2/mass2-1.));
+    E3=E1+k2*xTimesRho*0.5;
+    if (E3*E3/mass2-1.< kBGStop*kBGStop) return kFALSE;
+    k3=f(TMath::Sqrt(E3*E3/mass2-1.));
+    E4=E1+k3*xTimesRho;
+    if (E4*E4/mass2-1.< kBGStop*kBGStop) return kFALSE;
+    k4 =f(TMath::Sqrt(E4*E4/mass2-1.));
+    dEdxMRK=(k1+2.*k2+2.*k3+k4)/6.;
+    Eout=E1+xTimesRho*dEdxMRK;
+    //
+    p2Mean=((E1*E1-mass2)+(E2*E2-mass2)+(E3*E3-mass2)+(E4*E4-mass2))*0.25;
+    beta2Mean=((E1*E1-mass2)/(E1*E1)+(E2*E2-mass2)/(E2*E2)+(E3*E3-mass2)/(E3*E3)+(E4*E4-mass2)/(E4*E4))*0.25;
+  }else{
+    Eout=Ein+xTimesRho*dEdxM;
+  }
+
+  Double_t Emean=(Ein+Eout)*0.5;
+  if (Emean<mass) {
+    return kFALSE;
+  }
+  // Use mean values for p2, p and beta2
+  p2=Emean*Emean-mass2;
+  p =TMath::Sqrt(p2);
+  if ((p/mass)<kBGStop) return kFALSE;
+  Double_t beta2=p2/(p2+mass2);
+  //
+  Double_t &fP2=fP[2];
+  Double_t &fP3=fP[3];
+  Double_t &fP4=fP[4];
+  Double_t &fC22=fC[5];
+  Double_t &fC33=fC[9];
+  Double_t &fC43=fC[13];
+  Double_t &fC44=fC[14];
+  //
+  //Calculating the multiple scattering corrections******************
+  Double_t cC22 = 0.;
+  Double_t cC33 = 0.;
+  Double_t cC43 = 0.;
+  Double_t cC44 = 0.;
+  if (xOverX0 != 0) {
+    //Double_t theta2=1.0259e-6*14*14/28/(beta2*p2)*TMath::Abs(d)*9.36*2.33;
+    Double_t theta2=0.0136*0.0136/(beta2*p2)*TMath::Abs(xOverX0);
+    if (GetUseLogTermMS()) {
+      double lt = 1+0.038*TMath::Log(TMath::Abs(xOverX0));
+      if (lt>0) theta2 *= lt*lt;
+    }
+    theta2 *= q*q;    // q=2 particle
+    if(theta2>TMath::Pi()*TMath::Pi()) return kFALSE;
+    cC22 = theta2*((1.-fP2)*(1.+fP2))*(1. + fP3*fP3);
+    cC33 = theta2*(1. + fP3*fP3)*(1. + fP3*fP3);
+    cC43 = theta2*fP3*fP4*(1. + fP3*fP3);
+    cC44 = theta2*fP3*fP4*fP3*fP4;
+  }
+
+  //Calculating the energy loss corrections************************
+  Double_t cP4=1.;
+  if ((xTimesRho != 0.) && (beta2 < 1.)) {
+    Double_t dE=Eout-Ein;
+    if ( (1.+ dE/p2*(dE + 2*Ein)) < 0. ) return kFALSE;
+    cP4 = 1./TMath::Sqrt(1.+ dE/p2*(dE + 2*Ein));  //A precise formula by Ruben !
+    //if (TMath::Abs(fP4*cP4)>100.) return kFALSE; //Do not track below 10 MeV/c -dsiable controlled by the BG cut
+    // Approximate energy loss fluctuation (M.Ivanov)
+    const Double_t knst=0.07; // To be tuned.
+    Double_t sigmadE=knst*TMath::Sqrt(TMath::Abs(dE));
+    cC44 += ((sigmadE*Ein/p2*fP4)*(sigmadE*Ein/p2*fP4));
+
+  }
+
+  //Applying the corrections*****************************
+  fC22 += cC22;
+  fC33 += cC33;
+  fC43 += cC43;
+  fC44 += cC44;
+  fP4  *= cP4;
+  CheckCovariance();
+  return kTRUE;
+}
+
+/// Unit test to check performance  - tracks is corrected in nSteps or using RK in one step - the results will be stored in the streamer for later numberical analysis
+/// \param pcstream
+/// \param xOverX0
+/// \param xTimesRho
+/// \param mass
+/// \param nSteps
+/// \param stepFraction
+void AliExternalTrackParam4D::UnitTestDumpCorrectForMaterial(TTreeSRedirector * pcstream, Double_t xOverX0, Double_t xTimesRho,Double_t mass,Int_t nSteps, Float_t stepFraction){
+  AliExternalTrackParam4D param0=*this;
+  AliExternalTrackParam4D paramRK=*this;
+  AliExternalTrackParam4D paramRK2=*this;
+  AliExternalTrackParam4D paramStep=*this;
+  Int_t status0=param0.CorrectForMeanMaterial(xOverX0,xTimesRho,mass);                         //  Euler implementation
+  Int_t statusRK=paramRK.CorrectForMeanMaterialRK(xOverX0,xTimesRho,mass,stepFraction);        //  RK  implementation
+  Int_t statusRK2=paramRK2.CorrectForMeanMaterialRK(xOverX0,xTimesRho,mass,stepFraction);      //  RK  implementation v2
+  for (Int_t iStep=0; iStep<nSteps; iStep++){
+     paramStep.CorrectForMeanMaterialRK(xOverX0/nSteps,xTimesRho/nSteps,mass);
+  }
+  (*pcstream)<<"UnitTestDumpCorrectForMaterial"<<
+    "xOverX0="<<xOverX0<<
+    "xTimesRho="<<xTimesRho<<
+    "mass="<<mass<<
+    "nSteps="<<nSteps<<
+    "status0="<<status0<<
+    "statusRK="<<statusRK<<
+    "statusRK2="<<statusRK2<<
+    "paramIn.="<<this<<
+    "param0.="<<&param0<<
+    "paramRK.="<<&paramRK<<
+    "paramRK2.="<<&paramRK2<<
+    "paramStep.="<<&paramStep<<
+    "\n";
+}
 
 void getHelix(Double_t *fHelix,  AliExternalTrackParam t, float bz){
   // addapted code from AliHelix
@@ -288,6 +436,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     tanPhi2=(1-tanPhi2);
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
     status = param.CorrectForMeanMaterialRK(crossLength*xx0,-crossLength*xrho,mass);
+    param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,-crossLength*xrho,mass,5);
     if (status) {
         fStatusMaskMC[nPoint]|=kTrackCorrectForMaterial;
       }else{
