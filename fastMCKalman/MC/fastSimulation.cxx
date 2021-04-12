@@ -14,6 +14,122 @@ TTreeSRedirector* fastParticle::fgStreamer = nullptr;
 
 ClassImp(fastGeometry)
 ClassImp(fastParticle)
+ClassImp(AliExternalTrackParam4D)
+
+
+AliExternalTrackParam4D::AliExternalTrackParam4D():AliExternalTrackParam(){}
+AliExternalTrackParam4D::AliExternalTrackParam4D(const AliExternalTrackParam &t):AliExternalTrackParam(t){}
+
+/// Runge-Kuta energy loss correction  - https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
+/// \param xOverX0        - X/X0, the thickness in units of the radiation length.
+/// \param xTimesRho      - is the product length*density (g/cm^2).
+//                        - It should be passed as negative when propagating tracks
+//                        - from the interaction point to the outside of the central barrel.
+/// \param mass           - the mass of this particle (GeV/c^2). Negative mass means charge=2 particle
+/// \param f              - dEdx formula
+/// \param stepFraction   - step fraction
+/// \return
+Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRK(Double_t xOverX0, Double_t xTimesRho,Double_t mass, Double_t (*f)(Double_t), Float_t stepFraction){
+  //  Runge Kuttta integral p(x)
+  //k_{1} is the slope at the beginning of the interval, using {\displaystyle y}y (Euler's method);
+  //k_{2} is the slope at the midpoint of the interval, using {\displaystyle y}y and {\displaystyle k_{1}}k_{1};
+  //k_{3} is again the slope at the midpoint, but now using {\displaystyle y}y and {\displaystyle k_{2}}k_{2};
+  //k_{4} is the slope at the end of the interval, using {\displaystyle y}y and {\displaystyle k_{3}}k_{3}.
+  const Double_t kBGStop=0.02;
+  Double_t p=GetP();
+  Double_t q=(mass<0)?1.:2.;   // q=2 particle in ALICE convention
+  mass=TMath::Abs(mass);
+  Double_t mass2=mass*mass;
+  p*=q;
+  if ((p/mass)<kBGStop) return kFALSE;
+  Double_t p2=p*p;
+  Double_t dEdxM=f(p/mass),dEdxMRK=0;
+  Double_t Ein=TMath::Sqrt(p2+mass2);
+  Double_t Eout=0;
+  //Runge-Kuta
+  if ( TMath::Abs(dEdxM*xTimesRho) > 0.3*Ein ) return kFALSE; //30% energy loss is too much!
+  if (TMath::Abs(dEdxM*xTimesRho)>stepFraction*Ein || (Ein+dEdxM*xTimesRho)<mass){
+    Double_t E1=Ein,E2=0,E3=0,E4=0;
+    Double_t k1=0,k2=0,k3=0,k4=0;
+    k1=dEdxM;
+    E2=E1+k1*xTimesRho*0.5;
+    if (E2*E2/mass2-1.< kBGStop*kBGStop) return kFALSE;
+    k2=f(TMath::Sqrt(E2*E2/mass2-1.));
+    E3=E1+k2*xTimesRho*0.5;
+    if (E3*E3/mass2-1.< kBGStop*kBGStop) return kFALSE;
+    k3=f(TMath::Sqrt(E3*E3/mass2-1.));
+    E4=E1+k3*xTimesRho;
+    if (E4*E4/mass2-1.< kBGStop*kBGStop) return kFALSE;
+    k4 =f(TMath::Sqrt(E4*E4/mass2-1.));
+    dEdxMRK=(k1+2.*k2+2.*k3+k4)/6.;
+    Eout=E1+xTimesRho*dEdxMRK;
+  }else{
+    Eout=Ein+xTimesRho*dEdxM;
+  }
+
+  Double_t Emean=(Ein+Eout)*0.5;
+  if (Emean<mass) {
+    return kFALSE;
+  }
+  // Use mean values for p2, p and beta2
+  p2=Emean*Emean-mass2;
+  p =TMath::Sqrt(p2);
+  if ((p/mass)<kBGStop) return kFALSE;
+  Double_t beta2=p2/(p2+mass2);
+  //
+  Double_t &fP2=fP[2];
+  Double_t &fP3=fP[3];
+  Double_t &fP4=fP[4];
+  Double_t &fC22=fC[5];
+  Double_t &fC33=fC[9];
+  Double_t &fC43=fC[13];
+  Double_t &fC44=fC[14];
+  //
+  //Calculating the multiple scattering corrections******************
+  Double_t cC22 = 0.;
+  Double_t cC33 = 0.;
+  Double_t cC43 = 0.;
+  Double_t cC44 = 0.;
+  if (xOverX0 != 0) {
+    //Double_t theta2=1.0259e-6*14*14/28/(beta2*p2)*TMath::Abs(d)*9.36*2.33;
+    Double_t theta2=0.0136*0.0136/(beta2*p2)*TMath::Abs(xOverX0);
+    if (GetUseLogTermMS()) {
+      double lt = 1+0.038*TMath::Log(TMath::Abs(xOverX0));
+      if (lt>0) theta2 *= lt*lt;
+    }
+    theta2 *= q*q;    // q=2 particle
+    if(theta2>TMath::Pi()*TMath::Pi()) return kFALSE;
+    cC22 = theta2*((1.-fP2)*(1.+fP2))*(1. + fP3*fP3);
+    cC33 = theta2*(1. + fP3*fP3)*(1. + fP3*fP3);
+    cC43 = theta2*fP3*fP4*(1. + fP3*fP3);
+    cC44 = theta2*fP3*fP4*fP3*fP4;
+  }
+
+  //Calculating the energy loss corrections************************
+  Double_t cP4=1.;
+  if ((xTimesRho != 0.) && (beta2 < 1.)) {
+    Double_t dE=Eout-Ein;
+    if ( (1.+ dE/p2*(dE + 2*Ein)) < 0. ) return kFALSE;
+    cP4 = 1./TMath::Sqrt(1.+ dE/p2*(dE + 2*Ein));  //A precise formula by Ruben !
+    //if (TMath::Abs(fP4*cP4)>100.) return kFALSE; //Do not track below 10 MeV/c -dsiable controlled by the BG cut
+    // Approximate energy loss fluctuation (M.Ivanov)
+    const Double_t knst=0.07; // To be tuned.
+    Double_t sigmadE=knst*TMath::Sqrt(TMath::Abs(dE));
+    cC44 += ((sigmadE*Ein/p2*fP4)*(sigmadE*Ein/p2*fP4));
+
+  }
+
+  //Applying the corrections*****************************
+  fC22 += cC22;
+  fC33 += cC33;
+  fC43 += cC43;
+  fC44 += cC44;
+  fP4  *= cP4;
+  CheckCovariance();
+  return kTRUE;
+}
+
+
 
 void getHelix(Double_t *fHelix,  AliExternalTrackParam t, float bz){
   // addapted code from AliHelix
@@ -81,7 +197,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
   }
   float sign = particle->Charge()/3.;
   float mass = particle->Mass();
-  AliExternalTrackParam param(r,p,covar,sign);
+  AliExternalTrackParam4D param(AliExternalTrackParam(r,p,covar,sign));
   float length=0, time=0;
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
   float direction=r[0]*p[0]+r[1]*p[1]+r[2]*p[2];
@@ -108,6 +224,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     //Float_t x = param.GetXatLabR(r,localX,fBz,1);
     int status =  param.GetXYZatR(radius,geom.fBz,xyz);
     if (status==0){   // if not possible to propagate to next radius - assume looper - change direction
+      break;    //this is temporary
       param.GetPxPyPz(pxyz);
       float C         = param.GetC(geom.fBz);
       float R         = TMath::Abs(1/C);
@@ -170,7 +287,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     float tanPhi2 = par[2]*par[2];
     tanPhi2=(1-tanPhi2);
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
-    status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass);
+    status = param.CorrectForMeanMaterialRK(crossLength*xx0,-crossLength*xrho,mass);
     if (status) {
         fStatusMaskMC[nPoint]|=kTrackCorrectForMaterial;
       }else{
@@ -322,7 +439,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
 int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint layerStart){
   const Float_t chi2Cut=16;
   const float kMaxSnp=0.90;
-  double covar0[5]={0.1,0.1,0.001,0.001,0.01};
+  fLengthIn=0;
   fPdgCodeRec   =pdgCode;
   TParticlePDG * particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
   if (particle== nullptr) {
@@ -334,6 +451,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
   uint layer1 = TMath::Min(layerStart,uint(fParamMC.size()-1));
   AliExternalTrackParam param=fParamMC[layer1];
   double *covar = (double*)param.GetCovariance();
+  double covar0[5]={1,1,0.001*(1+1./param.Pt()),0.001*(1+1./param.Pt()),0.01*(1.+1./param.Pt())};
   covar[0]=covar0[0];
   covar[2]=covar0[1];
   covar[5]=covar0[2];
@@ -402,6 +520,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
         ::Error("reconstructParticle", "Correct for material failed");
         break;
       }
+      fLengthIn++;
   }
   return 1;
 }
@@ -417,6 +536,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
   const Float_t chi2Cut=16;
   const float kMaxSnp=0.90;
   double covar0[5]={0.1,0.1,0.001,0.001,0.01};
+  fLengthInRot=0;
   fPdgCodeRec   =pdgCode;
   TParticlePDG * particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
   if (particle== nullptr) {
@@ -498,6 +618,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
       ::Error("reconstructParticle", "Correct for material failed");
       break;
     }
+      fLengthInRot=0;
   }
   return 1;
 }
@@ -517,6 +638,7 @@ void fastParticle::setAliases(TTree & tree){
   tree.SetAlias("ptMCL","part.fParamMC[].fData.Pt()");
   tree.SetAlias("pMC","part.fParamMC[0].fData.P()");
   tree.SetAlias("ptRec","part.fParamIn[0].fData.Pt()");
+  tree.SetAlias("tglMC","part.fParamIn[0].fData.fP[3]");
   //
   //
   tree.SetAlias("layer","Iteration$");
@@ -533,4 +655,12 @@ void fastParticle::setAliases(TTree & tree){
   tree.SetAlias("dEdxExpSolidL1","AliExternalTrackParam::BetheBlochSolid(part.fParamMC[Iteration$-1].fData.P()/AliPID::ParticleMass(pidCode))");
   tree.SetAlias("elossTPCIn","(part.fParamIn[159].fData.GetP()-part.fParamIn[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
   tree.SetAlias("elossTPCMC","(part.fParamMC[159].fData.GetP()-part.fParamMC[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
+  //
+  tree.SetAlias("sigmaY0","sqrt(part.fParamIn[1].fC[0])");
+  tree.SetAlias("sigmaZ0","sqrt(part.fParamIn[1].fC[2])");
+  tree.SetAlias("sigmaqPt0","sqrt(part.fParamIn[1].fC[14])");
+
+  tree.SetAlias("sigmaY0Rot","sqrt(part.fParamInRot[1].fC[0])");
+  tree.SetAlias("sigmaZ0Rot","sqrt(part.fParamInRot[1].fC[2])");
+  tree.SetAlias("sigmaqPt0Rot","sqrt(part.fParamInRot[1].fC[14])");
 }

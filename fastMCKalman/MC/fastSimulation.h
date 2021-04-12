@@ -14,11 +14,23 @@ class TTree;
 using namespace ROOT::VecOps;
 const Int_t kMaxLayers=10000;
 #pragma link C++ class RVec<AliExternalTrackParam>+;
+#pragma link C++ class RVec<AliExternalTrackParam4D>+;
 #pragma link C++ class RVec<int>+;
 //#pragma link C++ class std::vector<int>;
 //#pragma link C++ class RVec<std::vector<int>>;
 
 class TTreeSRedirector;
+
+class AliExternalTrackParam4D: public AliExternalTrackParam{
+public:
+  AliExternalTrackParam4D();
+  AliExternalTrackParam4D(const AliExternalTrackParam &);
+  Bool_t CorrectForMeanMaterialRK(Double_t xOverX0, Double_t xTimesRho,Double_t mass,
+	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid, Float_t stepFraction=0.02);
+
+  virtual ~AliExternalTrackParam4D(){}
+  ClassDef(AliExternalTrackParam4D, 1)
+};
 
 class fastGeometry:public TObject{
 public:
@@ -67,6 +79,8 @@ public:
   int                         fPdgCodeMC;  //   PDG code used in simulation
   int                         fPdgCodeRec; //   PDG code as used in reconstruction
   int                         fMaxLayer;   //   maximal layer position
+  int                         fLengthIn;   //   track length for in propagation
+   int                         fLengthInRot;   //   track length for in propagation
   RVec<int>                   fLayerIndex; //   layer index    - important for loopers
   RVec<float>                 fDirection;  //   particle direction - Out=1, In = -1
   RVec<AliExternalTrackParam> fParamMC;    //   "simulate"      Param MC
