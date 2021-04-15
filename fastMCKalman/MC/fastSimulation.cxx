@@ -27,8 +27,8 @@ AliExternalTrackParam4D::AliExternalTrackParam4D(const AliExternalTrackParam &t)
 //                        - from the interaction point to the outside of the central barrel.
 /// \param mass           - the mass of this particle (GeV/c^2). Negative mass means charge=2 particle
 /// \param f              - dEdx formula
-/// \param stepFraction   - step fraction
-/// \return
+/// \param stepFraction   - step fraction  - above some limits RungeKuta instead of the Euler Method used
+/// \return  CorrectForMeanMaterial status  (kFalse - Failed, kTrue - Success)
 Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRK(Double_t xOverX0, Double_t xTimesRho, Double_t mass, Float_t stepFraction, Double_t (*f)(Double_t)){
   //  Runge Kuttta integral p(x)
   //k_{1} is the slope at the beginning of the interval, using {\displaystyle y}y (Euler's method);
@@ -157,11 +157,13 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRKv2(Double_t xOverX0, Dou
   Double_t dEdxM=f(p/mass),dEdxMRK=0;
   Double_t Ein=TMath::Sqrt(p2+mass2);
   Double_t Eout=0;
-  //Runge-Kuta
+  //Runge-Kutta
   if ( TMath::Abs(dEdxM*xTimesRho) > 0.3*Ein ) return kFALSE; //30% energy loss is too much!
   Double_t p2Mean=0, beta2Mean=0, mp2Beta2Mean=0;
   //
+  Bool_t isRK=kFALSE;
   if (TMath::Abs(dEdxM*xTimesRho)>stepFraction*Ein || (Ein+dEdxM*xTimesRho)<mass){
+    isRK=kTRUE;
     Double_t E1=Ein,E2=0,E3=0,E4=0;
     Double_t k1=0,k2=0,k3=0,k4=0;
     k1=dEdxM;
@@ -179,8 +181,14 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRKv2(Double_t xOverX0, Dou
     //
     p2Mean=((E1*E1-mass2)+(E2*E2-mass2)+(E3*E3-mass2)+(E4*E4-mass2))*0.25;
     beta2Mean=((E1*E1-mass2)/(E1*E1)+(E2*E2-mass2)/(E2*E2)+(E3*E3-mass2)/(E3*E3)+(E4*E4-mass2)/(E4*E4))*0.25;
+    mp2Beta2Mean=1/(p2Mean*beta2Mean);
+    //mp2Beta2Mean=((E1*E1-mass2)*(E1*E1-mass2)/(E1*E1)+(E2*E2-mass2)*(E2*E2-mass2)/(E2*E2)+(E3*E3-mass2)*(E3*E3-mass2)/(E3*E3)+(E4*E4-mass2)*(E4*E4-mass2)/(E4*E4))*0.25;
+    mp2Beta2Mean=(1/((E1*E1-mass2)*(E1*E1-mass2)/(E1*E1))+1/((E2*E2-mass2)*(E2*E2-mass2)/(E2*E2))+1/((E3*E3-mass2)*(E3*E3-mass2)/(E3*E3))+1/((E4*E4-mass2)*(E4*E4-mass2)/(E4*E4)))*0.25;
   }else{
     Eout=Ein+xTimesRho*dEdxM;
+    p2Mean=((Ein*Ein-mass2)+(Eout*Eout-mass2))*0.5;
+    beta2Mean=((Ein*Ein-mass2)/(Ein*Ein)+(Eout*Eout-mass2)/(Eout*Eout))*0.5;
+    mp2Beta2Mean=1/(p2Mean*beta2Mean);
   }
 
   Double_t Emean=(Ein+Eout)*0.5;
@@ -208,7 +216,8 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRKv2(Double_t xOverX0, Dou
   Double_t cC44 = 0.;
   if (xOverX0 != 0) {
     //Double_t theta2=1.0259e-6*14*14/28/(beta2*p2)*TMath::Abs(d)*9.36*2.33;
-    Double_t theta2=0.0136*0.0136/(beta2*p2)*TMath::Abs(xOverX0);
+    //Double_t theta2=0.0136*0.0136/(beta2*p2)*TMath::Abs(xOverX0);
+    Double_t theta2=0.0136*0.0136*mp2Beta2Mean*TMath::Abs(xOverX0);
     if (GetUseLogTermMS()) {
       double lt = 1+0.038*TMath::Log(TMath::Abs(xOverX0));
       if (lt>0) theta2 *= lt*lt;
@@ -246,28 +255,30 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRKv2(Double_t xOverX0, Dou
 }
 
 /// Unit test to check performance  - tracks is corrected in nSteps or using RK in one step - the results will be stored in the streamer for later numberical analysis
-/// \param pcstream
-/// \param xOverX0
-/// \param xTimesRho
-/// \param mass
-/// \param nSteps
-/// \param stepFraction
+/// \param pcstream       - debug streamer output
+/// \param xOverX0        - X0
+/// \param xTimesRho      - is the product length*density (g/cm^2).
+/// \param mass           - particle mass
+/// \param nSteps         - nsteps to be done for the refernce
+/// \param stepFraction   - step fraction to switch between RK and Euler
 void AliExternalTrackParam4D::UnitTestDumpCorrectForMaterial(TTreeSRedirector * pcstream, Double_t xOverX0, Double_t xTimesRho,Double_t mass,Int_t nSteps, Float_t stepFraction){
   AliExternalTrackParam4D param0=*this;
   AliExternalTrackParam4D paramRK=*this;
   AliExternalTrackParam4D paramRK2=*this;
   AliExternalTrackParam4D paramStep=*this;
-  Int_t status0=param0.CorrectForMeanMaterial(xOverX0,xTimesRho,mass);                         //  Euler implementation
-  Int_t statusRK=paramRK.CorrectForMeanMaterialRK(xOverX0,xTimesRho,mass,stepFraction);        //  RK  implementation
-  Int_t statusRK2=paramRK2.CorrectForMeanMaterialRK(xOverX0,xTimesRho,mass,stepFraction);      //  RK  implementation v2
+  Int_t status0=param0.CorrectForMeanMaterial(xOverX0,xTimesRho,mass);                         //  status for old Euler implementation
+  Int_t statusRK=paramRK.CorrectForMeanMaterialRK(xOverX0,xTimesRho,mass,stepFraction);        //  status for new RK  implementation
+  Int_t statusRK2=paramRK2.CorrectForMeanMaterialRKv2(xOverX0,xTimesRho,mass,stepFraction);      //  status for new RK with RK  implementation v2
+  Int_t statusStep=kTRUE;
   for (Int_t iStep=0; iStep<nSteps; iStep++){
-     paramStep.CorrectForMeanMaterialRK(xOverX0/nSteps,xTimesRho/nSteps,mass);
+     statusStep&=paramStep.CorrectForMeanMaterialRK(xOverX0/nSteps,xTimesRho/nSteps,mass);
   }
   (*pcstream)<<"UnitTestDumpCorrectForMaterial"<<
     "xOverX0="<<xOverX0<<
     "xTimesRho="<<xTimesRho<<
     "mass="<<mass<<
     "nSteps="<<nSteps<<
+    "statusStep="<<statusStep<<
     "status0="<<status0<<
     "statusRK="<<statusRK<<
     "statusRK2="<<statusRK2<<
@@ -436,7 +447,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     tanPhi2=(1-tanPhi2);
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
     status = param.CorrectForMeanMaterialRK(crossLength*xx0,-crossLength*xrho,mass);
-    param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,-crossLength*xrho,mass,5);
+    param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,-crossLength*xrho,mass,10);
     if (status) {
         fStatusMaskMC[nPoint]|=kTrackCorrectForMaterial;
       }else{
