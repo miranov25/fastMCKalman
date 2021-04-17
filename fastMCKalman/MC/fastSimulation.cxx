@@ -21,6 +21,7 @@ AliExternalTrackParam4D::AliExternalTrackParam4D():AliExternalTrackParam(){}
 AliExternalTrackParam4D::AliExternalTrackParam4D(const AliExternalTrackParam &t):AliExternalTrackParam(t){}
 
 /// Runge-Kuta energy loss correction  - https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
+/// WARNING - we use strange ALICE convention signing Z==2 particle with negative mass - TODO - replace it with explicit Q
 /// \param xOverX0        - X/X0, the thickness in units of the radiation length.
 /// \param xTimesRho      - is the product length*density (g/cm^2).
 //                        - It should be passed as negative when propagating tracks
@@ -37,7 +38,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRK(Double_t xOverX0, Doubl
   //k_{4} is the slope at the end of the interval, using {\displaystyle y}y and {\displaystyle k_{3}}k_{3}.
   const Double_t kBGStop=0.02;
   Double_t p=GetP();
-  Double_t q=(mass<0)?1.:2.;   // q=2 particle in ALICE convention
+  Double_t q=(mass<0)?2.:1.;   // q=2 particle in ALICE convention
   mass=TMath::Abs(mass);
   Double_t mass2=mass*mass;
   p*=q;
@@ -132,6 +133,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRK(Double_t xOverX0, Doubl
 
 
 /// Runge-Kuta energy loss correction  - https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
+/// WARNING - we use strange ALICE convention signing Z==2 particle with negative mass - TODO - replace it with explicit Q
 /// \param xOverX0        - X/X0, the thickness in units of the radiation length.
 /// \param xTimesRho      - is the product length*density (g/cm^2).
 //                        - It should be passed as negative when propagating tracks
@@ -148,7 +150,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRKv2(Double_t xOverX0, Dou
   //k_{4} is the slope at the end of the interval, using {\displaystyle y}y and {\displaystyle k_{3}}k_{3}.
   const Double_t kBGStop=0.02;
   Double_t p=GetP();
-  Double_t q=(mass<0)?1.:2.;   // q=2 particle in ALICE convention
+  Double_t q=(mass<0)?2.:1.;   // q=2 particle in ALICE convention
   mass=TMath::Abs(mass);
   Double_t mass2=mass*mass;
   p*=q;
@@ -234,8 +236,8 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRKv2(Double_t xOverX0, Dou
   Double_t cP4=1.;
   if ((xTimesRho != 0.) && (beta2 < 1.)) {
     Double_t dE=Eout-Ein;
-    if ( (1.+ dE/p2*(dE + 2*Ein)) < 0. ) return kFALSE;
-    cP4 = 1./TMath::Sqrt(1.+ dE/p2*(dE + 2*Ein));  //A precise formula by Ruben !
+    if ( (1.+ dE/p2*(dE + 2.*Ein)) < 0. ) return kFALSE;
+    cP4 = 1./TMath::Sqrt(1.+ dE/p2*(dE + 2.*Ein));  //A precise formula by Ruben !
     //if (TMath::Abs(fP4*cP4)>100.) return kFALSE; //Do not track below 10 MeV/c -dsiable controlled by the BG cut
     // Approximate energy loss fluctuation (M.Ivanov)
     const Double_t knst=0.07; // To be tuned.
@@ -266,12 +268,15 @@ void AliExternalTrackParam4D::UnitTestDumpCorrectForMaterial(TTreeSRedirector * 
   AliExternalTrackParam4D paramRK=*this;
   AliExternalTrackParam4D paramRK2=*this;
   AliExternalTrackParam4D paramStep=*this;
+  AliExternalTrackParam4D paramStepRK=*this;
   Int_t status0=param0.CorrectForMeanMaterial(xOverX0,xTimesRho,mass);                         //  status for old Euler implementation
   Int_t statusRK=paramRK.CorrectForMeanMaterialRK(xOverX0,xTimesRho,mass,stepFraction);        //  status for new RK  implementation
   Int_t statusRK2=paramRK2.CorrectForMeanMaterialRKv2(xOverX0,xTimesRho,mass,stepFraction);      //  status for new RK with RK  implementation v2
   Int_t statusStep=kTRUE;
+  Int_t statusStepRK=kTRUE;
   for (Int_t iStep=0; iStep<nSteps; iStep++){
-     statusStep&=paramStep.CorrectForMeanMaterialRK(xOverX0/nSteps,xTimesRho/nSteps,mass);
+     statusStep&=paramStep.CorrectForMeanMaterial(xOverX0/nSteps,xTimesRho/nSteps,mass);
+     statusStepRK&=paramStepRK.CorrectForMeanMaterialRK(xOverX0/nSteps,xTimesRho/nSteps,mass);
   }
   (*pcstream)<<"UnitTestDumpCorrectForMaterial"<<
     "xOverX0="<<xOverX0<<
@@ -279,6 +284,7 @@ void AliExternalTrackParam4D::UnitTestDumpCorrectForMaterial(TTreeSRedirector * 
     "mass="<<mass<<
     "nSteps="<<nSteps<<
     "statusStep="<<statusStep<<
+    "statusStepRK="<<statusStepRK<<
     "status0="<<status0<<
     "statusRK="<<statusRK<<
     "statusRK2="<<statusRK2<<
@@ -287,6 +293,7 @@ void AliExternalTrackParam4D::UnitTestDumpCorrectForMaterial(TTreeSRedirector * 
     "paramRK.="<<&paramRK<<
     "paramRK2.="<<&paramRK2<<
     "paramStep.="<<&paramStep<<
+    "paramStepRK.="<<&paramStepRK<<
     "\n";
 }
 
@@ -447,7 +454,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     tanPhi2=(1-tanPhi2);
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
     status = param.CorrectForMeanMaterialRK(crossLength*xx0,-crossLength*xrho,mass);
-    param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,-crossLength*xrho,mass,10);
+    param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,-crossLength*xrho,mass,20);
     if (status) {
         fStatusMaskMC[nPoint]|=kTrackCorrectForMaterial;
       }else{
