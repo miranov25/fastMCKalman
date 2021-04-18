@@ -257,8 +257,101 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRKv2(Double_t xOverX0, Dou
 }
 
 
+/// dPdx correction  on top of Euler approximation  - applying correction as in the dPdxCorr to correct
+/// \param xOverX0        - X/X0, the thickness in units of the radiation length.
+/// \param xTimesRho      - is the product length*density (g/cm^2).
+//                        - It should be passed as negative when propagating tracks
+//                        - from the interaction point to the outside of the central barrel.
+/// \param mass           - the mass of this particle (GeV/c^2). Negative mass means charge=2 particle
+/// \param f              - dEdx formula
+/// \return
+Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialT4(Double_t xOverX0, Double_t xTimesRho,Double_t mass,  Double_t (*f)(Double_t)){
+  const Double_t kBGStop=0.02;
+  Double_t p=GetP();
+  Double_t q=(mass<0)?2.:1.;   // q=2 particle in ALICE convention
+  mass=TMath::Abs(mass);
+  p*=q;
+  Double_t p2=p*p;
+  Double_t dPdx=AliExternalTrackParam4D::dPdx(p,mass);
+  if (dPdx==0) return kFALSE;
+  //
+  Double_t corrPar[3] = {-0.834093, 2.60696, -25.1185};
+  Double_t pVector[6];
+  Double_t mp2Beta2Mean=0;
+  Double_t sumW=0;
+  for (Int_t i=5; i>=0;i--){
+    Double_t dPdxRel=(dPdx*double(i)*xTimesRho*0.2)/p;
+    Double_t dPdxRelCorr = dPdxRel * (1 + dPdxRel * (corrPar[0] + dPdxRel*(corrPar[1] + corrPar[2]*dPdxRel)));
+    pVector[i]=(1+dPdxRelCorr)*p;
+    if ((pVector[i]/mass)<kBGStop) return kFALSE;
+    Double_t p2=pVector[i]*pVector[i];
+    Double_t beta2=p2/(p2+mass*mass);
+    Double_t w= (i==0 || i==5) ? 0.5:1.;
+    mp2Beta2Mean+=w*(beta2*p2);
+    sumW+=w;
+  }
+  mp2Beta2Mean/=sumW;
+  Double_t pOut=pVector[5];
+  Double_t Ein=TMath::Sqrt(p*p+mass*mass);
+  Double_t Eout=TMath::Sqrt(pOut*pOut+mass*mass);
+  Double_t dE=Eout-Ein;
+  //
+  Double_t &fP2=fP[2];
+  Double_t &fP3=fP[3];
+  Double_t &fP4=fP[4];
+  Double_t &fC22=fC[5];
+  Double_t &fC33=fC[9];
+  Double_t &fC43=fC[13];
+  Double_t &fC44=fC[14];
+  //
+  //Calculating the multiple scattering corrections******************
+  Double_t cC22 = 0.;
+  Double_t cC33 = 0.;
+  Double_t cC43 = 0.;
+  Double_t cC44 = 0.;
+  if (xOverX0 != 0) {
+    //Double_t theta2=1.0259e-6*14*14/28/(beta2*p2)*TMath::Abs(d)*9.36*2.33;
+    //Double_t theta2=0.0136*0.0136/(beta2*p2)*TMath::Abs(xOverX0);
+    Double_t theta2=0.0136*0.0136*mp2Beta2Mean*TMath::Abs(xOverX0);
+    if (GetUseLogTermMS()) {
+      double lt = 1+0.038*TMath::Log(TMath::Abs(xOverX0));
+      if (lt>0) theta2 *= lt*lt;
+    }
+    theta2 *= q*q;    // q=2 particle
+    if(theta2>TMath::Pi()*TMath::Pi()) return kFALSE;
+    cC22 = theta2*((1.-fP2)*(1.+fP2))*(1. + fP3*fP3);
+    cC33 = theta2*(1. + fP3*fP3)*(1. + fP3*fP3);
+    cC43 = theta2*fP3*fP4*(1. + fP3*fP3);
+    cC44 = theta2*fP3*fP4*fP3*fP4;
+  }
 
-/// Runge-Kuta energy loss correction  - https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods  momentum loss based
+  //Calculating the energy loss corrections************************
+  Double_t cP4=1.;
+  if ((xTimesRho != 0.) ) {
+    if ( (1.+ dE/p2*(dE + 2.*Ein)) < 0. ) return kFALSE;
+    cP4 = 1./TMath::Sqrt(1.+ dE/p2*(dE + 2.*Ein));  //A precise formula by Ruben !
+    //if (TMath::Abs(fP4*cP4)>100.) return kFALSE; //Do not track below 10 MeV/c -dsiable controlled by the BG cut
+    // Approximate energy loss fluctuation (M.Ivanov)
+    const Double_t knst=0.07; // To be tuned.
+    Double_t sigmadE=knst*TMath::Sqrt(TMath::Abs(dE));
+    cC44 += ((sigmadE*Ein/p2*fP4)*(sigmadE*Ein/p2*fP4));
+  }
+
+  //Applying the corrections*****************************
+  fC22 += cC22;
+  fC33 += cC33;
+  fC43 += cC43;
+  fC44 += cC44;
+  fP4  *= cP4;
+  CheckCovariance();
+  return kTRUE;
+}
+
+
+
+
+
+/// Runge-Kuta energy loss correction  - https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods  momentum loss based - not working well - for testing purposes
 /// WARNING - we use strange ALICE convention signing Z==2 particle with negative mass - TODO - replace it with explicit Q
 /// \param xOverX0        - X/X0, the thickness in units of the radiation length.
 /// \param xTimesRho      - is the product length*density (g/cm^2).
@@ -380,7 +473,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRKP(Double_t xOverX0, Doub
   return kTRUE;
 }
 
-/// first derivative of the dP/dx
+/// First derivative of the dP/dx - for testing and visualization purposes
 /// \param p       - particle momenta
 /// \param mass    - particle mass
 /// \param fdEdx   - dEdx function pointer
@@ -394,7 +487,7 @@ Double_t AliExternalTrackParam4D::dPdx(double p, double mass, Double_t (*fundEdx
     return dPdE*dEdx;
 };
 
-/// first derivative of the dP/dx
+/// first derivative of the dP/dx- Just for checking
 /// \param p       - particle momenta
 /// \param mass    - particle mass
 /// \param fdEdx   - dEdx function pointer
@@ -410,11 +503,11 @@ Double_t AliExternalTrackParam4D::dPdxEuler(double p, double mass, Double_t xTim
   return TMath::Sqrt(p2) - p;
 };
 
-/// dPdx - based on the first derivative of the dPdx corrected for "saturation" - see fit in the test_AliExternalTrackParam4D.C:fitdPdxScaling
+/// dPdx - based on the first derivative of the dPdx corrected for "saturation" - see fit in the test_AliExternalTrackParam4D.C:fitdPdxScaling - for testing and visualization purposes
 /// \param p       - particle momenta
 /// \param mass    - particle mass
 /// \param fdEdx   - dEdx function pointer
-/// \return        - dP/dx
+/// \return        - <dP/dx> *  xTimesRho
 Double_t AliExternalTrackParam4D::dPdxCorr(double p, double mass, Double_t xTimesRho, Double_t (*fundEdx)(Double_t)) {
   const Double_t kBGStop = 0.02;
   Double_t corrPar[3] = {-0.834093, 2.60696, -25.1185};
@@ -440,13 +533,15 @@ void AliExternalTrackParam4D::UnitTestDumpCorrectForMaterial(TTreeSRedirector * 
   AliExternalTrackParam4D paramRK=*this;
   AliExternalTrackParam4D paramRK2=*this;
   AliExternalTrackParam4D paramRKP=*this;
+  AliExternalTrackParam4D paramT4=*this;
   AliExternalTrackParam4D paramStep=*this;
   AliExternalTrackParam4D paramStepRK=*this;
-
+  //
   Int_t status0=param0.CorrectForMeanMaterial(xOverX0,xTimesRho,mass);                         //  status for old Euler implementation
   Int_t statusRK=paramRK.CorrectForMeanMaterialRK(xOverX0,xTimesRho,mass,stepFraction);        //  status for new RK  implementation
   Int_t statusRK2=paramRK2.CorrectForMeanMaterialRKv2(xOverX0,xTimesRho,mass,stepFraction);      //  status for new RK with RK  implementation v2
   Int_t statusRKP=paramRKP.CorrectForMeanMaterialRKP(xOverX0,xTimesRho,mass,stepFraction);      //  status for new RK with RK in momentum
+  Int_t statusT4=paramT4.CorrectForMeanMaterialT4(xOverX0,xTimesRho,mass);      //  status for new RK with RK in momentum
   Int_t statusStep=kTRUE;
   Int_t statusStepRK=kTRUE;
   for (Int_t iStep=0; iStep<nSteps; iStep++){
@@ -458,17 +553,20 @@ void AliExternalTrackParam4D::UnitTestDumpCorrectForMaterial(TTreeSRedirector * 
     "xTimesRho="<<xTimesRho<<
     "mass="<<mass<<
     "nSteps="<<nSteps<<
+    //
     "statusStep="<<statusStep<<
     "statusStepRK="<<statusStepRK<<
     "status0="<<status0<<
     "statusRK="<<statusRK<<
     "statusRK2="<<statusRK2<<
     "statusRKP="<<statusRKP<<
+    "statusT4="<<statusT4<<
     "paramIn.="<<this<<
     "param0.="<<&param0<<
     "paramRK.="<<&paramRK<<
     "paramRK2.="<<&paramRK2<<
     "paramRKP.="<<&paramRKP<<
+    "paramT4.="<<&paramT4<<
     "paramStep.="<<&paramStep<<
     "paramStepRK.="<<&paramStepRK<<
     "\n";

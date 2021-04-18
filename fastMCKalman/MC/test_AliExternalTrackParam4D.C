@@ -16,7 +16,7 @@ void testdPdx0(){
     ::Info("testdPdx0","OK RMS %f<%f", treeUnit0->GetHistogram()->GetRMS(),maxRMS);
   }
 }
-/// fit dPdxCorrection formula
+/// fit dPdxCorrection formula and test the content
 void fitdPdxScaling(){
   TCanvas *canvasfitdPdxScaling = new TCanvas("fitdPdxScaling","fitdPdxScaling",1200,400);
   canvasfitdPdxScaling->SetGrid(1,1);
@@ -34,33 +34,46 @@ void fitdPdxScaling(){
   treeUnit0->SetAlias("dPdxRFit",Form("dPdxR*(1+%f*dPdxR+%f*dPdxR**2+%f*dPdxR**3)",f1.GetParameter(0), f1.GetParameter(1),f1.GetParameter(2)));
   treeUnit0->Draw("dPdxR0-dPdxRFit:dPdxR0:mass","statusStepRK==1&&status0==1&&dPdxR0>-0.5","colz");
   gPad->SaveAs("fig/fitdPdxScalingDiff.png");
-  //
+  // make test of the AliExternalTrackParam4D::dPdxCorr(paramIn.P(),mass,xTimesRho)/paramIn.P()
   treeUnit0->Draw("dPdxR0-AliExternalTrackParam4D::dPdxCorr(paramIn.P(),mass,xTimesRho)/paramIn.P():dPdxR0:mass","statusStepRK==1&&status0==1&&dPdxR0>-0.5","colz");
   gPad->SaveAs("fig/fitdPdxCorrDiff.png");
-
 }
 
 void testRungeKutaDraw(){
+    TCanvas *canvasfitdPdxScaling = new TCanvas("fitdPdxScaling","fitdPdxScaling",1200,400);
+  canvasfitdPdxScaling->SetGrid(1,1);
   // Euler propagation
   treeUnit0->Draw("log(paramStep.P()/param0.P()):paramStepRK.P()/paramIn.P():mass","statusStepRK==1&&status0==1&&paramStepRK.P()/paramIn.P()>0.5","colz");
-  gPad->SaveAs("unitTest_paramEuler_PLoss.png");
+  gPad->SaveAs("fig/unitTest_paramEuler_PLoss.png");
   // Runge-Kuta in Energy
-  treeUnit0->Draw("log(paramStepRK.P()/paramRK2.P()):paramStepRK.P()/paramIn.P():mass","statusStepRK==1&&statusRK2==1&&paramStepRK.P()/paramIn.P()>0.5","colz");
-  gPad->SaveAs("unitTest_paramRK_PLoss.png");
+  treeUnit0->Draw("log(paramStepRK.P()/paramRK.P()):paramStepRK.P()/paramIn.P():mass","statusStepRK==1&&status0==1&&paramStepRK.P()/paramIn.P()>0.5","colz");
+  gPad->SaveAs("fig/unitTest_paramRK_PLoss.png");
   // Runge-Kuta in momenta
   treeUnit0->Draw("log(paramStepRK.P()/paramRKP.P()):paramStepRK.P()/paramIn.P():mass","statusStepRK==1&&status0==1&&paramStepRK.P()/paramIn.P()>0.5","colz");
-  gPad->SaveAs("unitTest_paramStepRKP_PLoss.png");
+  gPad->SaveAs("fig/unitTest_paramRKP_PLoss.png");
+  //
+  treeUnit0->Draw("log(paramStepRK.P()/paramT4.P()):paramStepRK.P()/paramIn.P():mass","statusStepRK==1&&status0==1&&paramStepRK.P()/paramIn.P()>0.5","colz");
+  gPad->SaveAs("fig/unitTest_paramT4_PLoss.png");
+
 }
 
 
 
-void drawRungeKuttaTest() {
+void drawRungeKuttaTestMS() {
   //
+     TCanvas *canvasfitdPdxScaling = new TCanvas("fitdPdxScaling","fitdPdxScaling",1200,400);
+  canvasfitdPdxScaling->SetGrid(1,1);
   treeUnit0->Draw("(paramStep.fC[9]-param0.fC[9])/(paramStep.fC[9]-paramIn.fC[9]):paramRK2.P()/paramIn.P():mass","xOverX0>0.01&&statusStep==1&&paramRK2.P()/paramIn.P()>0.6","colz");
-   gPad->SaveAs("unitTest_paramEuler_CovTtgl.png");
+   gPad->SaveAs("fig/unitTest_paramEuler_CovTtgl.png");
   treeUnit0->Draw("(paramStep.fC[9]-paramRK.fC[9])/(paramStep.fC[9]-paramIn.fC[9]):paramRK2.P()/paramIn.P():mass","xOverX0>0.01&&statusStep==1&&paramRK2.P()/paramIn.P()>0.6","colz");
-  gPad->SaveAs("unitTest_paramRK_CovTtgl.png");
+  gPad->SaveAs("fig/unitTest_paramRK_CovTtgl.png");
+  //
+
   treeUnit0->Draw("(paramStep.fC[9]-paramRK2.fC[9])/(paramStep.fC[9]-paramIn.fC[9]):paramRK2.P()/paramIn.P():mass","xOverX0>0.01&&statusStep==1&&paramRK2.P()/paramIn.P()>0.6","colz");
-  gPad->SaveAs("unitTest_paramRK2_CovTtgl.png");
+  gPad->SaveAs("fig/unitTest_paramRK2_CovTtgl.png");
+  //
+
+  treeUnit0->Draw("log(paramStep.fC[9]-paramT4.fC[9]):log(paramStep.fC[9]-paramIn.fC[9]):mass","xOverX0>0.01&&statusStep==1&&statusT4==1&&paramIn.P()<1&&paramStep.P()/paramIn.P()>0.5","colz");
+  gPad->SaveAs("fig/unitTest_paramT4_CovTtgl.png");
 
 }
