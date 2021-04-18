@@ -13,6 +13,8 @@ display mass
 display Ein
 display Eout
 display Eout-Ein
+display (Eout-Ein)/Ein
+
 
 
 
