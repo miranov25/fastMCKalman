@@ -20,11 +20,18 @@ const Int_t kMaxLayers=10000;
 //#pragma link C++ class RVec<std::vector<int>>;
 
 class TTreeSRedirector;
+Float_t fracUnitTest=0.1;
 
 class AliExternalTrackParam4D: public AliExternalTrackParam{
 public:
   AliExternalTrackParam4D();
-  AliExternalTrackParam4D(const AliExternalTrackParam &);
+  AliExternalTrackParam4D(const AliExternalTrackParam &, Double_t mass,Int_t z);
+  virtual ~AliExternalTrackParam4D(){}
+  Double_t Beta(){ Double_t p2=GetP();p2*=p2; return TMath::Sqrt(p2/(p2+fMass*fMass));}
+  Double_t GetOverThr(Float_t sigma=0.01, Float_t width=0.0005, Float_t threshold=0.1);
+  //
+  Bool_t PropagateTo(Double_t xk, Double_t b, Int_t timeDir);
+  //
   Bool_t CorrectForMeanMaterialRK(Double_t xOverX0, Double_t xTimesRho,Double_t mass,Float_t stepFraction=0.01,
 	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid );
   Bool_t CorrectForMeanMaterialRKv2(Double_t xOverX0, Double_t xTimesRho,Double_t mass, Float_t stepFraction=0.01,
@@ -32,13 +39,17 @@ public:
   Bool_t CorrectForMeanMaterialRKP(Double_t xOverX0, Double_t xTimesRho,Double_t mass, Float_t stepFraction=0.01,
 	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
   Bool_t CorrectForMeanMaterialT4(Double_t xOverX0, Double_t xTimesRho,Double_t mass, Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
-  //
-  void UnitTestDumpCorrectForMaterial(TTreeSRedirector * pcstream, Double_t xOverX0, Double_t xTimesRho,Double_t mass, Int_t nSteps, Float_t stepFraction=0.02);
-  virtual ~AliExternalTrackParam4D(){}
-  //
+  // dPdx function
   static Double_t dPdx(Double_t p, Double_t mass, Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
   static Double_t dPdxEuler(Double_t p, Double_t mass, Double_t xTimesRho, Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
   static Double_t dPdxCorr(Double_t p, Double_t mass, Double_t xTimesRho, Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
+  // Uit test functions
+  void UnitTestDumpCorrectForMaterial(TTreeSRedirector * pcstream, Double_t xOverX0, Double_t xTimesRho,Double_t mass, Int_t nSteps, Float_t stepFraction=0.02);
+public:
+  Int_t    fZ;         // particle Z
+  Double_t fMass;      // particle mass
+  Double_t fLength;    // track length
+  Double_t fTime;      // track time
   ClassDef(AliExternalTrackParam4D, 1)
 };
 
@@ -93,10 +104,10 @@ public:
    int                         fLengthInRot;   //   track length for in propagation
   RVec<int>                   fLayerIndex; //   layer index    - important for loopers
   RVec<float>                 fDirection;  //   particle direction - Out=1, In = -1
-  RVec<AliExternalTrackParam> fParamMC;    //   "simulate"      Param MC
-  RVec<AliExternalTrackParam> fParamOut;   //   "reconstructed" Param Out
-  RVec<AliExternalTrackParam> fParamIn;    //   "reconstructed" Param In
-  RVec<AliExternalTrackParam> fParamInRot;    //   "reconstructed" Param In - in rotated frame
+  RVec<AliExternalTrackParam4D> fParamMC;    //   "simulate"      Param MC
+  RVec<AliExternalTrackParam4D> fParamOut;   //   "reconstructed" Param Out
+  RVec<AliExternalTrackParam4D> fParamIn;    //   "reconstructed" Param In
+  RVec<AliExternalTrackParam4D> fParamInRot;    //   "reconstructed" Param In - in rotated frame
   RVec<int>      fStatusMaskMC;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
   RVec<int>      fStatusMaskIn;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
   RVec<int>      fStatusMaskInRot;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)

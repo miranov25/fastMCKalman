@@ -9,6 +9,7 @@
 #include "fastSimulation.h"
 //#include "AliHelix.h"
 #include "TTreeStream.h"
+#include "TRandom.h"
 
 TTreeSRedirector* fastParticle::fgStreamer = nullptr;
 
@@ -17,8 +18,53 @@ ClassImp(fastParticle)
 ClassImp(AliExternalTrackParam4D)
 
 
-AliExternalTrackParam4D::AliExternalTrackParam4D():AliExternalTrackParam(){}
-AliExternalTrackParam4D::AliExternalTrackParam4D(const AliExternalTrackParam &t):AliExternalTrackParam(t){}
+AliExternalTrackParam4D::AliExternalTrackParam4D():
+  AliExternalTrackParam(),
+  fZ(1),
+  fMass(0),
+  fLength(0),
+  fTime(0){
+
+}
+AliExternalTrackParam4D::AliExternalTrackParam4D(const AliExternalTrackParam &t,Double_t mass,Int_t z):
+  AliExternalTrackParam(t),
+  fZ(z),
+  fMass(mass),
+  fLength(0),
+  fTime(0){
+}
+
+/// Estimate shape size for particle - shape is determined by the diffusion, angles and deposited charge
+/// \param sigma           -  diffusion sigma ~ induction gap - if as in the TPC
+/// \param width           -  pixel width
+/// \param threshold       -  threhsold in units of MIP
+/// \return                - mean number of pixels above threshold
+Double_t AliExternalTrackParam4D::GetOverThr(Float_t sigma, Float_t width, Float_t threshold){
+
+}
+
+
+/// propagate to radius and update Track length and time
+/// \param xk
+/// \param b
+/// \param timeDir
+/// \return
+Bool_t AliExternalTrackParam4D::PropagateTo(Double_t xk, Double_t b, Int_t timeDir){
+  static const Double_t kcc = 2.99792458e-2;
+  Double_t xyzIn[3],xyzOut[3];
+  GetXYZ(xyzIn);
+  AliExternalTrackParam::PropagateTo(xk,b);
+  GetXYZ(xyzOut);
+  Double_t length=0;
+  for (Int_t i=0;i<3;i++) length+=(xyzIn[i]-xyzOut[i])*(xyzIn[i]-xyzOut[i]);
+  length=TMath::Sqrt(length);
+  //
+  fLength += length;
+  Double_t p2inv = fP[4]*fP[4]/(1+fP[3]*fP[3]);
+  Double_t mBeta = TMath::Sqrt( 1. + fMass*fMass*p2inv ); // 1/beta
+  Double_t time = length * mBeta / kcc;
+  fTime += timeDir*time;
+}
 
 /// Runge-Kuta energy loss correction  - https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
 /// WARNING - we use strange ALICE convention signing Z==2 particle with negative mass - TODO - replace it with explicit Q
@@ -501,7 +547,7 @@ Double_t AliExternalTrackParam4D::dPdxEuler(double p, double mass, Double_t xTim
   Double_t p2 = E2 * E2 - mass * mass;
   if (p2 < 0) return 0;
   return TMath::Sqrt(p2) - p;
-};
+}
 
 /// dPdx - based on the first derivative of the dPdx corrected for "saturation" - see fit in the test_AliExternalTrackParam4D.C:fitdPdxScaling - for testing and visualization purposes
 /// \param p       - particle momenta
@@ -517,7 +563,7 @@ Double_t AliExternalTrackParam4D::dPdxCorr(double p, double mass, Double_t xTime
   Double_t dPdxRel = (dPdx * xTimesRho) / p;
   Double_t dPdxRelCorr = dPdxRel * (1 + dPdxRel * (corrPar[0] + dPdxRel*(corrPar[1] + corrPar[2]*dPdxRel)));
   return dPdxRelCorr * p;
-};
+}
 
 
 
@@ -528,48 +574,48 @@ Double_t AliExternalTrackParam4D::dPdxCorr(double p, double mass, Double_t xTime
 /// \param mass           - particle mass
 /// \param nSteps         - nsteps to be done for the refernce
 /// \param stepFraction   - step fraction to switch between RK and Euler
-void AliExternalTrackParam4D::UnitTestDumpCorrectForMaterial(TTreeSRedirector * pcstream, Double_t xOverX0, Double_t xTimesRho,Double_t mass,Int_t nSteps, Float_t stepFraction){
-  AliExternalTrackParam4D param0=*this;
-  AliExternalTrackParam4D paramRK=*this;
-  AliExternalTrackParam4D paramRK2=*this;
-  AliExternalTrackParam4D paramRKP=*this;
-  AliExternalTrackParam4D paramT4=*this;
-  AliExternalTrackParam4D paramStep=*this;
-  AliExternalTrackParam4D paramStepRK=*this;
+void AliExternalTrackParam4D::UnitTestDumpCorrectForMaterial(TTreeSRedirector * pcstream, Double_t xOverX0, Double_t xTimesRho,Double_t mass,Int_t nSteps, Float_t stepFraction) {
+  AliExternalTrackParam4D param0 = *this;
+  AliExternalTrackParam4D paramRK = *this;
+  AliExternalTrackParam4D paramRK2 = *this;
+  AliExternalTrackParam4D paramRKP = *this;
+  AliExternalTrackParam4D paramT4 = *this;
+  AliExternalTrackParam4D paramStep = *this;
+  AliExternalTrackParam4D paramStepRK = *this;
   //
-  Int_t status0=param0.CorrectForMeanMaterial(xOverX0,xTimesRho,mass);                         //  status for old Euler implementation
-  Int_t statusRK=paramRK.CorrectForMeanMaterialRK(xOverX0,xTimesRho,mass,stepFraction);        //  status for new RK  implementation
-  Int_t statusRK2=paramRK2.CorrectForMeanMaterialRKv2(xOverX0,xTimesRho,mass,stepFraction);      //  status for new RK with RK  implementation v2
-  Int_t statusRKP=paramRKP.CorrectForMeanMaterialRKP(xOverX0,xTimesRho,mass,stepFraction);      //  status for new RK with RK in momentum
-  Int_t statusT4=paramT4.CorrectForMeanMaterialT4(xOverX0,xTimesRho,mass);      //  status for new RK with RK in momentum
-  Int_t statusStep=kTRUE;
-  Int_t statusStepRK=kTRUE;
-  for (Int_t iStep=0; iStep<nSteps; iStep++){
-     statusStep&=paramStep.CorrectForMeanMaterial(xOverX0/nSteps,xTimesRho/nSteps,mass);
-     statusStepRK&=paramStepRK.CorrectForMeanMaterialRK(xOverX0/nSteps,xTimesRho/nSteps,mass);
+  Int_t status0 = param0.CorrectForMeanMaterial(xOverX0, xTimesRho, mass);                         //  status for old Euler implementation
+  Int_t statusRK = paramRK.CorrectForMeanMaterialRK(xOverX0, xTimesRho, mass, stepFraction);        //  status for new RK  implementation
+  Int_t statusRK2 = paramRK2.CorrectForMeanMaterialRKv2(xOverX0, xTimesRho, mass, stepFraction);      //  status for new RK with RK  implementation v2
+  Int_t statusRKP = paramRKP.CorrectForMeanMaterialRKP(xOverX0, xTimesRho, mass, stepFraction);      //  status for new RK with RK in momentum
+  Int_t statusT4 = paramT4.CorrectForMeanMaterialT4(xOverX0, xTimesRho, mass);      //  status for new RK with RK in momentum
+  Int_t statusStep = kTRUE;
+  Int_t statusStepRK = kTRUE;
+  for (Int_t iStep = 0; iStep < nSteps; iStep++) {
+    statusStep &= paramStep.CorrectForMeanMaterial(xOverX0 / nSteps, xTimesRho / nSteps, mass);
+    statusStepRK &= paramStepRK.CorrectForMeanMaterialRK(xOverX0 / nSteps, xTimesRho / nSteps, mass);
   }
-  (*pcstream)<<"UnitTestDumpCorrectForMaterial"<<
-    "xOverX0="<<xOverX0<<
-    "xTimesRho="<<xTimesRho<<
-    "mass="<<mass<<
-    "nSteps="<<nSteps<<
-    //
-    "statusStep="<<statusStep<<
-    "statusStepRK="<<statusStepRK<<
-    "status0="<<status0<<
-    "statusRK="<<statusRK<<
-    "statusRK2="<<statusRK2<<
-    "statusRKP="<<statusRKP<<
-    "statusT4="<<statusT4<<
-    "paramIn.="<<this<<
-    "param0.="<<&param0<<
-    "paramRK.="<<&paramRK<<
-    "paramRK2.="<<&paramRK2<<
-    "paramRKP.="<<&paramRKP<<
-    "paramT4.="<<&paramT4<<
-    "paramStep.="<<&paramStep<<
-    "paramStepRK.="<<&paramStepRK<<
-    "\n";
+  (*pcstream) << "UnitTestDumpCorrectForMaterial" <<
+              "xOverX0=" << xOverX0 <<
+              "xTimesRho=" << xTimesRho <<
+              "mass=" << mass <<
+              "nSteps=" << nSteps <<
+              //
+              "statusStep=" << statusStep <<
+              "statusStepRK=" << statusStepRK <<
+              "status0=" << status0 <<
+              "statusRK=" << statusRK <<
+              "statusRK2=" << statusRK2 <<
+              "statusRKP=" << statusRKP <<
+              "statusT4=" << statusT4 <<
+              "paramIn.=" << this <<
+              "param0.=" << &param0 <<
+              "paramRK.=" << &paramRK <<
+              "paramRK2.=" << &paramRK2 <<
+              "paramRKP.=" << &paramRKP <<
+              "paramT4.=" << &paramT4 <<
+              "paramStep.=" << &paramStep <<
+              "paramStepRK.=" << &paramStepRK <<
+              "\n";
 }
 
 void getHelix(Double_t *fHelix,  AliExternalTrackParam t, float bz){
@@ -638,7 +684,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
   }
   float sign = particle->Charge()/3.;
   float mass = particle->Mass();
-  AliExternalTrackParam4D param(AliExternalTrackParam(r,p,covar,sign));
+  AliExternalTrackParam4D param(AliExternalTrackParam(r,p,covar,sign),mass,1);
   float length=0, time=0;
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
   float direction=r[0]*p[0]+r[1]*p[1]+r[2]*p[2];
@@ -704,7 +750,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
           "paramNew.="<<&paramNew<<
           "\n";
       }
-      param=paramNew;
+      param=AliExternalTrackParam4D(paramNew,mass,1);
       direction*=-1;
     }else{
       double alpha  = TMath::ATan2(xyz[1],xyz[0]);
@@ -715,7 +761,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
       }else{
         break;
       }
-      status = param.PropagateTo(radius,geom.fBz);
+      status = param.PropagateTo(radius,geom.fBz,1);
       if (status) {
         fStatusMaskMC[nPoint]|=kTrackPropagate;
       }else{
@@ -729,7 +775,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     tanPhi2=(1-tanPhi2);
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
     status = param.CorrectForMeanMaterialRK(crossLength*xx0,-crossLength*xrho,mass);
-    param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,-crossLength*xrho,mass,20);
+    if (gRandom->Rndm()<fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,-crossLength*xrho,mass,20);
     if (status) {
         fStatusMaskMC[nPoint]|=kTrackCorrectForMaterial;
       }else{
@@ -891,7 +937,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
   float sign = particle->Charge()/3.;
   float mass = particle->Mass();
   uint layer1 = TMath::Min(layerStart,uint(fParamMC.size()-1));
-  AliExternalTrackParam4D param=fParamMC[layer1];
+  AliExternalTrackParam4D param(fParamMC[layer1],mass,1);
   double *covar = (double*)param.GetCovariance();
   double covar0[5]={1,1,0.001*(1+1./param.Pt()),0.001*(1+1./param.Pt()),0.01*(1.+1./param.Pt())};
   covar[0]=covar0[0];
@@ -922,7 +968,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
         ::Error("reconstructParticle", "Rotation failed");
         break;
       }
-      status = param.PropagateTo(radius,geom.fBz);
+      status = param.PropagateTo(radius,geom.fBz,1);
       if (status) {
         fStatusMaskIn[layer]|=kTrackPropagate;
       }else{
@@ -956,7 +1002,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
       tanPhi2=(1-tanPhi2);
       float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder
       status = param.CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
-      param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,crossLength*xrho,mass,20);
+      if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,crossLength*xrho,mass,20);
       if (status) {
         fStatusMaskIn[layer]|=kTrackCorrectForMaterial;
       }else{
@@ -989,7 +1035,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
   float sign = particle->Charge()/3.;
   float mass = particle->Mass();
   uint layer1 = TMath::Min(layerStart,uint(fParamMC.size()-1));
-  AliExternalTrackParam param=fParamMC[layer1];
+  AliExternalTrackParam4D param(fParamMC[layer1],mass,1);
   //
   Double_t sinT=TMath::Sin(param.GetAlpha());
   Double_t cosT=TMath::Cos(param.GetAlpha());
@@ -1019,7 +1065,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
     localX=cosT*xyz[0]+sinT*xyz[1];
     localY=-sinT*xyz[0]+cosT*xyz[1];
     fStatusMaskInRot[layer]=0;
-    status = param.PropagateTo(localX,geom.fBz);
+    status = param.PropagateTo(localX,geom.fBz,1);
     if (status) {
       fStatusMaskInRot[layer]|=kTrackPropagate;
     }else{
@@ -1102,8 +1148,11 @@ void fastParticle::setAliases(TTree & tree){
   tree.SetAlias("sigmaY0","sqrt(part.fParamIn[1].fC[0])");
   tree.SetAlias("sigmaZ0","sqrt(part.fParamIn[1].fC[2])");
   tree.SetAlias("sigmaqPt0","sqrt(part.fParamIn[1].fC[14])");
-
+  //
   tree.SetAlias("sigmaY0Rot","sqrt(part.fParamInRot[1].fC[0])");
   tree.SetAlias("sigmaZ0Rot","sqrt(part.fParamInRot[1].fC[2])");
   tree.SetAlias("sigmaqPt0Rot","sqrt(part.fParamInRot[1].fC[14])");
+  // eloss aliases
+  tree.SetAlias("eLossLog","log(AliExternalTrackParam::BetheBlochSolid(fParamMC[].P()/fParamMC[].fData.fMass)/AliExternalTrackParam::BetheBlochSolid(4))");
+
 }

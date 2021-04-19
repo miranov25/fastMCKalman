@@ -105,6 +105,84 @@ void testAlice(Int_t nParticles, bool dumpStream){
   const Int_t   nLayerTPC=160;
   const Float_t kMinPt=0.02;
   const Float_t kMax1Pt=1./100.;
+  //const Float_t kMax1Pt=1./0.1;
+  const Float_t kThetaMax=2.;
+  const Float_t kMaxLength=300;
+  // values as obtaied from the gromManager see -  https://alice.its.cern.ch/jira/browse/PWGPP-613?focusedCommentId=263181&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-263181
+  const Float_t  xx0=7.8350968e-05;
+  const Float_t xrho=0.0016265266;
+  //
+  TStopwatch timer;
+  timer.Start();
+  fastGeometry geom= fastGeometry(nLayerTPC);
+  geom.fBz=bz;
+  fastParticle particle=fastParticle(nLayerTPC);
+  // ITS emulation  0 6 layers wit  O(0.001 cm) resolution
+  //     X0 is radiation length per layer and rho is the integrated density per layer - obtained from Geant simulation
+  float resol[2]={0.001,0.001};
+  geom.setLayerRadiusPower(0,5, 4,37, 1.0,0.006,0.16, resol);
+  // TPC emulation
+  //    X0 is radiation length per layer and rho is the integrated density per layer - obtained from Geant simulation
+  resol[0]=0.1;
+  resol[1]=0.1;
+  //geom.setLayerRadiusPower(6,nLayerTPC,89,260,1.0,0.000025,0.0009,resol);
+  geom.setLayerRadiusPower(6,nLayerTPC,89,260,1.0,xx0,xrho,resol);
+  //
+  TTreeSRedirector *pcstream = new TTreeSRedirector("fastParticleALICE.root","recreate");
+  particle.fgStreamer=pcstream;
+  TTree * tree = 0;
+  for (Int_t i=0; i<nParticles; i++){
+    double r[]     = {0,0,0};
+    Bool_t  isSecondary=gRandom->Rndm()<0.5;
+    isSecondary=kFALSE;
+    if (isSecondary){
+        r[0]=2*(gRandom->Rndm()-0.5)*smearR;
+        r[1]=2*(gRandom->Rndm()-0.5)*smearR;
+        r[2]=2*(gRandom->Rndm()-0.5)*smearZ;
+    }
+    double pt      = kMinPt/(kMax1Pt*kMinPt+gRandom->Rndm());
+    double phi     = gRandom->Rndm()*TMath::TwoPi();
+    double theta = 2.*(gRandom->Rndm()-0.5)*kThetaMax;
+    double p[]={pt*sin(phi),pt*cos(phi),pt*theta};
+    int    pidCode=int(gRandom->Rndm()*5);                   // PID code of particles - 0-electron ,1-muon, 2-pion, 3-Kaon
+    //pidCode=2;
+    float  charge  = (gRandom->Rndm()<0.5) ? -1:1;
+    int    pdgCode = AliPID::ParticleCode(pidCode)*charge;  // PID code covnerted to the PdgCode
+    particle.simulateParticle(geom, r,p,pdgCode, kMaxLength,nLayerTPC);
+    particle.reconstructParticle(geom,pdgCode,nLayerTPC);
+    particle.reconstructParticleRotate0(geom,pdgCode,nLayerTPC);
+    Float_t mass =AliPID::ParticleMass(pidCode);
+
+    if (dumpStream==kFALSE) continue;
+    if (tree) tree->Fill();
+    else {
+      (*pcstream) << "fastPart" <<
+                  "i=" << i <<
+                  "isSecondary="<<isSecondary<<
+                  "pidCode="<<pidCode<<
+                  "charge="<<charge<<
+                  "part.=" << &particle <<
+                  "\n";
+      tree=  ((*pcstream) << "fastPart").GetTree();
+    }
+  }
+  delete pcstream;
+  timer.Print();
+}
+
+
+/// testAlice configuration
+/// \param nParticles
+/// \param dumpStream
+void testAlice3(Int_t nParticles, bool dumpStream){
+  const Float_t smearR=10;
+  const Float_t smearZ=10;
+  const Float_t resolY=0.1;
+  const Float_t resolZ=0.1;
+  const Float_t bz=5;
+  const Int_t   nLayerTPC=160;
+  const Float_t kMinPt=0.02;
+  const Float_t kMax1Pt=1./100.;
   //const Float_t kMax1Pt=1./0.2;
   const Float_t kThetaMax=2.;
   const Float_t kMaxLength=300;
@@ -169,6 +247,7 @@ void testAlice(Int_t nParticles, bool dumpStream){
   timer.Print();
 }
 
+
 void setAliases(TTree & tree){
   fastParticle::setAliases(tree);
 //  tree.SetAlias("gxIn","cos(part.fParamIn[].fAlpha)*part.fParamIn[].fX");
@@ -210,6 +289,11 @@ void initTreeFast(){
   AliDrawStyle::ApplyStyle("figTemplate");
   gStyle->SetOptTitle(1);
   setAliases(*treeFast);
+  //
+  treeUnit0->SetAlias("dEdxOutIn","AliExternalTrackParam::BetheBlochSolid(0+paramStepRK.P()/mass)/AliExternalTrackParam::BetheBlochSolid(paramIn.P()/mass)");
+  treeUnit0->SetAlias("dEdxIn","AliExternalTrackParam::BetheBlochSolid(paramIn.P()/mass+0)");
+  treeUnit0->SetAlias("dEdxOut","AliExternalTrackParam::BetheBlochSolid(paramRK.P()/mass+0)");
+
 }
 
 void drawDisplay(){
