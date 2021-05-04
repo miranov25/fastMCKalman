@@ -1,6 +1,3 @@
-/*
-    .L $fastMCKalman/fastMCKalman/MC/fastSimulation.h
-*/
 #ifndef fastSimulation_H
 #define fastSimulation_H
 
@@ -9,6 +6,7 @@
 #include "TParticlePDG.h"
 #include "TDatabasePDG.h"
 #include "ROOT/RVec.hxx"
+
 class TTree;
 //using namespace ROOT;
 using namespace ROOT::VecOps;
@@ -70,7 +68,7 @@ public:
   RVec<int>   fLayerIndex;         //   barrel indices for fast navigation
   RVec<float> fLayerX0;            //   barrel X0 array
   RVec<float> fLayerRho;           //   barrel Rho array
-  RVec<float> fLayerResolRPhi;     //   rphi resolution at layer
+  RVec<float> fLayerResolRPhi;     //   r-phi resolution at layer
   RVec<float> fLayerResolZ;        //   z  resolution at layer
   RVec<float> fHitDensity;         //   hit density (hits per cm^2)
   float       fBz;                 //   magnetic field
@@ -107,7 +105,7 @@ public:
   int                         fMaxLayerRec;   //   maximal layer position in reconstruction
   int                         fLengthIn;   //   track length for in propagation
    int                         fLengthInRot;   //   track length for in propagation
-  RVec<int>                   fLayerIndex; //   layer index    - important for loopers
+  RVec<int>                   fLayerIndex; //   layer index    - important for looper
   RVec<float>                 fDirection;  //   particle direction - Out=1, In = -1
   RVec<AliExternalTrackParam4D> fParamMC;    //   "simulate"      Param MC
   RVec<AliExternalTrackParam4D> fParamOut;   //   "reconstructed" Param Out
@@ -118,9 +116,9 @@ public:
   RVec<int>      fStatusMaskInRot;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
   RVec<float>                 fChi2;      //   chi2  at layer
   //                                       - local information - to be assigned to simulated track - if not set  taken symmetric from fastGeometry
-  RVec<float> fLayerResolRPhi;             //   rphi resolution at layer
+  RVec<float> fLayerResolRPhi;             //   r-phi resolution at layer
   RVec<float> fLayerResolZ;                //   z  resolution at layer
-  RVec<float> fLayerDeltaRPhi;             //   rphi delta distortion at layer
+  RVec<float> fLayerDeltaRPhi;             //   r-phi delta distortion at layer
   RVec<float> fLayerDeltaZ;                //   z  delta distortion at layer
   RVec<float> fLayerProb;                  //   probability  to assign point
   RVec<float> fHitDensity;                 //   hit density
