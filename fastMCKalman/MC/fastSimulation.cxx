@@ -65,6 +65,153 @@ Bool_t AliExternalTrackParam4D::PropagateTo(Double_t xk, Double_t b, Int_t timeD
   Double_t time = length * mBeta / kcc;
   fTime += timeDir*time;
 }
+///  Clone of the original method removing one protection
+///  // This method has 3 modes of behaviour
+///  // 1) xyz[3] array is provided but alpSect pointer is 0: calculate the position of track intersection
+///  //    with circle of radius xr and fill it in xyz array
+///  // 2) alpSect pointer is provided: find alpha of the sector where the track reaches local coordinate xr
+///  //    Note that in this case xr is NOT the radius but the local coordinate.
+///  //    If the xyz array is provided, it will be filled by track lab coordinates at local X in this sector
+///  // 3) Neither alpSect nor xyz pointers are provided: just check if the track reaches radius xr
+/// \param xr
+/// \param bz
+/// \param xyz
+/// \param alpSect
+/// \return
+Bool_t AliExternalTrackParam4D::GetXYZatR(Double_t xr,Double_t bz, Double_t *xyz, Double_t* alpSect) const {
+  double crv = GetC(bz);
+  if ((TMath::Abs(bz)) < kAlmost0Field) crv = 0.;
+  const double &fy = fP[0];
+  const double &fz = fP[1];
+  const double &sn = fP[2];
+  const double &tgl = fP[3];
+  //
+  // general circle parameterization:
+  // x = (r0+tR)cos(phi0) - tR cos(t+phi0)
+  // y = (r0+tR)sin(phi0) - tR sin(t+phi0)
+  // where qb is the sign of the curvature, tR is the track's signed radius and r0
+  // is the DCA of helix to origin
+  //
+  double tR = 1. / crv;            // track radius signed
+  double cs = TMath::Sqrt((1 - sn) * (1 + sn));
+  double x0 = fX - sn * tR;        // helix center coordinates
+  double y0 = fy + cs * tR;
+  double phi0 = TMath::ATan2(y0, x0);  // angle of PCA wrt to the origin
+  if (tR < 0) phi0 += TMath::Pi();
+  if (phi0 > TMath::Pi()) phi0 -= 2. * TMath::Pi();
+  else if (phi0 < -TMath::Pi()) phi0 += 2. * TMath::Pi();
+  double cs0 = TMath::Cos(phi0);
+  double sn0 = TMath::Sin(phi0);
+  double r0 = x0 * cs0 + y0 * sn0 - tR; // DCA to origin
+  double r2R = 1. + r0 / tR;
+  //
+  //
+  if (r2R < kAlmost0) return kFALSE;  // helix is centered at the origin, no specific intersection with other concetric circle
+  if (!xyz && !alpSect) return kTRUE;
+  double xr2R = xr / tR;
+  double r2Ri = 1. / r2R;
+  // the intersection cos(t) = [1 + (r0/tR+1)^2 - (r0/tR)^2]/[2(1+r0/tR)]
+  double cosT = 0.5 * (r2R + (1 - xr2R * xr2R) * r2Ri);
+  if ((cosT * cosT) >= 1.) {  /// TODO - fix protection or change calculation
+    //    printf("Does not reach : %f %f\n",r0,tR);
+    return kFALSE; // track does not reach the radius xr
+  }
+  //
+  double t = TMath::ACos(cosT);
+  if (tR < 0) t = -t;
+  // intersection point
+  double xyzi[3];
+  xyzi[0] = x0 - tR * TMath::Cos(t + phi0);
+  xyzi[1] = y0 - tR * TMath::Sin(t + phi0);
+  if (xyz) { // if postition is requested, then z is needed:
+    double t0 = TMath::ATan2(cs, -sn) - phi0;
+    double z0 = fz - t0 * tR * tgl;
+    xyzi[2] = z0 + tR * t * tgl;
+  } else xyzi[2] = 0;
+  //
+  Local2GlobalPosition(xyzi, fAlpha);
+  //
+  if (xyz) {
+    xyz[0] = xyzi[0];
+    xyz[1] = xyzi[1];
+    xyz[2] = xyzi[2];
+  }
+  //
+  if (alpSect) {
+    double &alp = *alpSect;
+    // determine the sector of crossing
+    double phiPos = TMath::Pi() + TMath::ATan2(-xyzi[1], -xyzi[0]);
+    int sect = ((Int_t)(phiPos * TMath::RadToDeg())) / 20;
+    alp = TMath::DegToRad() * (20 * sect + 10);
+    double x2r, f1, f2, r1, r2, dx, dy2dx, yloc = 0, ylocMax = xr * TMath::Tan(TMath::Pi() / 18); // min max Y within sector at given X
+    //
+    while (1) {
+      Double_t ca = TMath::Cos(alp - fAlpha), sa = TMath::Sin(alp - fAlpha);
+      if ((cs * ca + sn * sa) < 0) {
+        //AliDebug(1, Form("Rotation to target sector impossible: local cos(phi) would become %.2f", cs * ca + sn * sa));
+        return kFALSE;
+      }
+      //
+      f1 = sn * ca - cs * sa;
+      if (TMath::Abs(f1) >= kAlmost1) {
+        //AliDebug(1, Form("Rotation to target sector impossible: local sin(phi) would become %.2f", f1));
+        return kFALSE;
+      }
+      //
+      double tmpX = fX * ca + fy * sa;
+      double tmpY = -fX * sa + fy * ca;
+      //
+      // estimate Y at X=xr
+      dx = xr - tmpX;
+      x2r = crv * dx;
+      f2 = f1 + x2r;
+      if (TMath::Abs(f2) >= kAlmost1) {
+        //AliDebug(1, Form("Propagation in target sector failed ! %.10e", f2));
+        return kFALSE;
+      }
+      r1 = TMath::Sqrt((1. - f1) * (1. + f1));
+      r2 = TMath::Sqrt((1. - f2) * (1. + f2));
+      dy2dx = (f1 + f2) / (r1 + r2);
+      yloc = tmpY + dx * dy2dx;
+      if (yloc > ylocMax) {
+        alp += 2 * TMath::Pi() / 18;
+        sect++;
+      }
+      else if (yloc < -ylocMax) {
+        alp -= 2 * TMath::Pi() / 18;
+        sect--;
+      }
+      else break;
+      if (alp >= TMath::Pi()) alp -= 2 * TMath::Pi();
+      else if (alp < -TMath::Pi()) alp += 2 * TMath::Pi();
+      //      if (sect>=18) sect = 0;
+      //      if (sect<=0) sect = 17;
+    }
+    //
+    // if alpha was requested, then recalculate the position at intersection in sector
+    if (xyz) {
+      xyz[0] = xr;
+      xyz[1] = yloc;
+      if (TMath::Abs(x2r) < 0.05) xyz[2] = fz + dx * (r2 + f2 * dy2dx) * tgl;
+      else {
+        // for small dx/R the linear apporximation of the arc by the segment is OK,
+        // but at large dx/R the error is very large and leads to incorrect Z propagation
+        // angle traversed delta = 2*asin(dist_start_end / R / 2), hence the arc is: R*deltaPhi
+        // The dist_start_end is obtained from sqrt(dx^2+dy^2) = x/(r1+r2)*sqrt(2+f1*f2+r1*r2)
+        // Similarly, the rotation angle in linear in dx only for dx<<R
+        double chord = dx * TMath::Sqrt(1 + dy2dx * dy2dx);   // distance from old position to new one
+        double rot = 2 * TMath::ASin(0.5 * chord * crv); // angular difference seen from the circle center
+        xyz[2] = fz + rot / crv * tgl;
+      }
+      Local2GlobalPosition(xyz, alp);
+    }
+  }
+  return kTRUE;
+  //
+}
+
+
+
 
 /// Runge-Kuta energy loss correction  - https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
 /// WARNING - we use strange ALICE convention signing Z==2 particle with negative mass - TODO - replace it with explicit Q
@@ -303,7 +450,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRKv2(Double_t xOverX0, Dou
 }
 
 
-/// dPdx correction  on top of Euler approximation  - applying correction as in the dPdxCorr to correct
+/// dPdx correction  on top of Euler approximation  - applying correction as in the dPdxCorr to correct - correction fitted in -0.25-0.25
 /// \param xOverX0        - X/X0, the thickness in units of the radiation length.
 /// \param xTimesRho      - is the product length*density (g/cm^2).
 //                        - It should be passed as negative when propagating tracks
@@ -313,6 +460,9 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRKv2(Double_t xOverX0, Dou
 /// \return
 Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialT4(Double_t xOverX0, Double_t xTimesRho,Double_t mass,  Double_t (*f)(Double_t)){
   const Double_t kBGStop=0.02;
+  //const Double_t kMaxdPdxRel=0.55, kMindPdxRel=-0.25; // relative correction fitted in that range
+  const Double_t kMaxdPdxRel=0.55, kMindPdxRel=-0.55; // relative correction fitted in that range
+  const Double_t kMaxLoss=0.6;
   Double_t p=GetP();
   Double_t q=(mass<0)?2.:1.;   // q=2 particle in ALICE convention
   mass=TMath::Abs(mass);
@@ -320,13 +470,16 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialT4(Double_t xOverX0, Doubl
   Double_t p2=p*p;
   Double_t dPdx=AliExternalTrackParam4D::dPdx(p,mass);
   if (dPdx==0) return kFALSE;
+  Double_t dPdxRel=xTimesRho*dPdx/p;
+  //if (dPdxRel>kMaxdPdxRel) return kFALSE;
+  //if (dPdxRel<kMindPdxRel) return kFALSE;
   //
-  Double_t corrPar[3] = {-0.834093, 2.60696, -25.1185};
+  Double_t corrPar[3] = {-1.59155, 3.84571,-3.93002};  // fitted in -0.25,0.55
   Double_t pVector[6];
   Double_t mp2Beta2Mean=0;
   Double_t sumW=0;
   for (Int_t i=5; i>=0;i--){
-    Double_t dPdxRel=(dPdx*double(i)*xTimesRho*0.2)/p;
+    dPdxRel=(dPdx*double(i)*xTimesRho*0.2)/p;
     Double_t dPdxRelCorr = dPdxRel * (1 + dPdxRel * (corrPar[0] + dPdxRel*(corrPar[1] + corrPar[2]*dPdxRel)));
     pVector[i]=(1+dPdxRelCorr)*p;
     if ((pVector[i]/mass)<kBGStop) return kFALSE;
@@ -341,6 +494,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialT4(Double_t xOverX0, Doubl
   Double_t Ein=TMath::Sqrt(p*p+mass*mass);
   Double_t Eout=TMath::Sqrt(pOut*pOut+mass*mass);
   Double_t dE=Eout-Ein;
+  if (TMath::Log(pOut/p)>kMaxLoss) return kFALSE;
   //
   Double_t &fP2=fP[2];
   Double_t &fP3=fP[3];
@@ -528,9 +682,8 @@ Double_t AliExternalTrackParam4D::dPdx(double p, double mass, Double_t (*fundEdx
     const Double_t kBGStop = 0.02;
     Double_t bg=p/mass;
     if (bg<kBGStop) return 0;
-    Double_t dEdx=TMath::Abs(fundEdx(bg));
-    Double_t dPdE=TMath::Sqrt(1.+1./(bg*bg));
-    return dPdE*dEdx;
+    Double_t dPdx=TMath::Abs(fundEdx(bg))*TMath::Sqrt(1.+1./(bg*bg));
+    return dPdx;
 };
 
 /// first derivative of the dP/dx- Just for checking
@@ -549,21 +702,77 @@ Double_t AliExternalTrackParam4D::dPdxEuler(double p, double mass, Double_t xTim
   return TMath::Sqrt(p2) - p;
 }
 
+/// First derivative of the dP/dx - for testing and visualization purposes
+/// \param p       - particle momenta
+/// \param mass    - particle mass
+/// \param fdEdx   - dEdx function pointer
+/// \return        - dP/dx
+Double_t AliExternalTrackParam4D::dPdxEulerStep(double p, double mass,  Double_t xTimesRho, double step, Double_t (*fundEdx)(Double_t)){
+    const Double_t kBGStop = 0.02;
+    Double_t bg=p/mass;
+    if (bg<kBGStop) return 0;
+    Double_t dPdx=TMath::Abs(fundEdx(bg))*TMath::Sqrt(1.+1./(bg*bg));
+    bg=p/mass;
+    if (bg<kBGStop) return 0;
+    Double_t dPdx2=TMath::Abs(fundEdx(bg))*TMath::Sqrt(1.+1./(bg*bg));
+    //
+    Int_t nSteps=1+(TMath::Abs(dPdx*xTimesRho)+TMath::Abs(dPdx2*xTimesRho))/step;
+    if (nSteps==1) return 0.5*(dPdx+dPdx2)*xTimesRho;
+    Float_t xTimesRhoS=xTimesRho/nSteps;
+    Float_t sumP=0;
+    for (Int_t i=0; i<nSteps;i++){
+      p+=dPdx*xTimesRhoS;
+      sumP+=dPdx*xTimesRhoS;
+      bg=p/mass;
+      if (bg<kBGStop) return 0;
+      dPdx=TMath::Abs(fundEdx(bg))*TMath::Sqrt(1.+1./(bg*bg));
+    }
+    return sumP;
+};
+
 /// dPdx - based on the first derivative of the dPdx corrected for "saturation" - see fit in the test_AliExternalTrackParam4D.C:fitdPdxScaling - for testing and visualization purposes
 /// \param p       - particle momenta
 /// \param mass    - particle mass
 /// \param fdEdx   - dEdx function pointer
 /// \return        - <dP/dx> *  xTimesRho
-Double_t AliExternalTrackParam4D::dPdxCorr(double p, double mass, Double_t xTimesRho, Double_t (*fundEdx)(Double_t)) {
+Double_t AliExternalTrackParam4D::dPdxCorrT4(double p, double mass, Double_t xTimesRho, Double_t (*fundEdx)(Double_t)) {
   const Double_t kBGStop = 0.02;
-  Double_t corrPar[3] = {-0.834093, 2.60696, -25.1185};
+  Double_t corrPar[3] = {-1.59155, 3.84571,-3.93002};  // fitted in -0.25,0.55
   Double_t bg = p / mass;
   if (bg < kBGStop) return 0;
   Double_t dPdx = TMath::Abs(fundEdx(bg))*TMath::Sqrt(1. + 1. / (bg * bg));
   Double_t dPdxRel = (dPdx * xTimesRho) / p;
+  if (dPdxRel>0.6) return 0;
+  if (dPdxRel<-0.25) return 0;
   Double_t dPdxRelCorr = dPdxRel * (1 + dPdxRel * (corrPar[0] + dPdxRel*(corrPar[1] + corrPar[2]*dPdxRel)));
   return dPdxRelCorr * p;
 }
+
+/// dPdx - based on the first derivative of the dPdx corrected for "saturation" - see fit in the test_AliExternalTrackParam4D.C:fitdPdxScaling - for testing and visualization purposes
+/// \param p       - particle momenta
+/// \param mass    - particle mass
+/// \param fdEdx   - dEdx function pointer
+/// \return        - <dP/dx> *  xTimesRho
+Double_t AliExternalTrackParam4D::dPdxCorrT42(double p, double mass, Double_t xTimesRho, Double_t (*fundEdx)(Double_t)) {
+  const Double_t kBGStop = 0.02;
+  Double_t corrParM[3] = {-1.046866,-0.075693,-26.008540};
+  Double_t corrParP[3] = {-0.873142,0.562098,-0.131849};
+  Double_t bg = p / mass;
+  if (bg < kBGStop) return 0;
+  Double_t dPdx = TMath::Abs(fundEdx(bg))*TMath::Sqrt(1. + 1. / (bg * bg));
+  Double_t logP=TMath::Log(p);
+  if ((dPdx * xTimesRho+p)<kBGStop*mass) return 0;
+  Double_t dPdxLR = TMath::Log(dPdx * xTimesRho+p) - logP;
+  if (dPdxLR>2) return 0;
+  if (dPdxLR<-0.3) return 0;
+  Double_t *corrPar = (dPdxLR<0) ? corrParM:corrParP;
+  Double_t dPdxRelCorr = dPdxLR * (1 + dPdxLR * (corrPar[0] + dPdxLR*(corrPar[1] + corrPar[2]*dPdxLR)));
+  Double_t pOut=p*(TMath::Exp(dPdxRelCorr)-1);
+  return pOut;
+}
+
+
+
 
 
 
@@ -664,6 +873,14 @@ void fastGeometry::setLayerRadiusPower(int layer0, int layerN, float r0, float r
     fLayerIndex = Argsort(fLayerRadius);
 }
 
+void fastGeometry::setLayer(int iLayer, float radius,  float X0,float rho, float resol[2]) {
+  fLayerX0[iLayer] = X0;
+  fLayerRho[iLayer] = rho;
+  fLayerRadius[iLayer] = radius;
+  fLayerResolRPhi[iLayer] = resol[0];
+  fLayerResolZ[iLayer] = resol[1];
+}
+
 /// simulate particle    - barrel part, end cup and loopers not yet implemented
 /// \param geom          - geometry and B field description
 /// \param r             - initial position
@@ -674,7 +891,8 @@ void fastGeometry::setLayerRadiusPower(int layer0, int layerN, float r0, float r
 /// \return              - modify status of particles = create points along   - TODO status flags to be decides
 int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3], int pdgCode, float maxLength, int maxPoints){
   fMaxLayer=0;
-    const float kMaxSnp=0.90;
+  const float kMaxSnp=0.90;
+  const float kMaxLoss=0.5;
    double covar[21]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
   fPdgCodeMC=pdgCode;
   TParticlePDG * particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
@@ -684,7 +902,8 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
   }
   float sign = particle->Charge()/3.;
   float mass = particle->Mass();
-  AliExternalTrackParam4D param(AliExternalTrackParam(r,p,covar,sign),mass,1);
+  AliExternalTrackParam param0(r,p,covar,sign);
+  AliExternalTrackParam4D param(param0,mass,1);
   float length=0, time=0;
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
   float direction=r[0]*p[0]+r[1]*p[1]+r[2]*p[2];
@@ -772,9 +991,9 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     float xrho    = geom.fLayerRho[indexR];
     float xx0     = geom.fLayerX0[indexR];
     float tanPhi2 = par[2]*par[2];
-    tanPhi2=(1-tanPhi2);
+    tanPhi2/=(1-tanPhi2);
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
-    status = param.CorrectForMeanMaterialRK(crossLength*xx0,-crossLength*xrho,mass);
+    status = param.CorrectForMeanMaterialT4(crossLength*xx0,-crossLength*xrho,mass);
     if (gRandom->Rndm()<fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,-crossLength*xrho,mass,20);
     if (status) {
         fStatusMaskMC[nPoint]|=kTrackCorrectForMaterial;
@@ -927,6 +1146,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
 int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint layerStart){
   const Float_t chi2Cut=16;
   const float kMaxSnp=0.90;
+  const float kMaxLoss=0.3;
   fLengthIn=0;
   fPdgCodeRec   =pdgCode;
   TParticlePDG * particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
@@ -937,6 +1157,13 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
   float sign = particle->Charge()/3.;
   float mass = particle->Mass();
   uint layer1 = TMath::Min(layerStart,uint(fParamMC.size()-1));
+  fMaxLayerRec=layer1;
+  if ((fParamMC[layer1].P()/fParamMC[layer1].P())<kMaxLoss){
+    for (;layer1>0; layer1--){
+      if ((fParamMC[layer1].P()/fParamMC[layer1].P())>kMaxLoss) break;
+      fMaxLayerRec=layer1;
+    }
+  }
   AliExternalTrackParam4D param(fParamMC[layer1],mass,1);
   double *covar = (double*)param.GetCovariance();
   double covar0[5]={1,1,0.001*(1+1./param.Pt()),0.001*(1+1./param.Pt()),0.01*(1.+1./param.Pt())};
@@ -954,7 +1181,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
   double xyz[3];
   int status=0;
   const double *par = param.GetParameter();
-  for (int layer=layer1-1; layer>=1; layer--){   // dont propagate to vertex , will be done later ...
+  for (int layer=layer1-1; layer>=0; layer--){   // dont propagate to vertex , will be done later ...
       double resol=0;
       AliExternalTrackParam & p = fParamMC[layer];
       p.GetXYZ(xyz);
@@ -988,7 +1215,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
         ::Error("reconstructParticle", "Too big chi2 %f", chi2);
         break;
       }
-      if (TMath::Abs(param.GetSnp())<kMaxSnp) {
+      if (TMath::Abs(param.GetSnp())<kMaxSnp && cov[0]>0) {
         status = param.Update(pos, cov);
         if (status) {
           fStatusMaskIn[layer]|=kTrackUpdate;
@@ -999,9 +1226,10 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
       }
 
       float tanPhi2 = par[2]*par[2];
-      tanPhi2=(1-tanPhi2);
+      tanPhi2/=(1-tanPhi2);
       float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder
-      status = param.CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
+      //status = param.AliExternalTrackParam::CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
+      status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
       if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,crossLength*xrho,mass,20);
       if (status) {
         fStatusMaskIn[layer]|=kTrackCorrectForMaterial;
@@ -1024,7 +1252,8 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
 int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, uint layerStart){
   const Float_t chi2Cut=16;
   const float kMaxSnp=0.90;
-  double covar0[5]={0.1,0.1,0.001,0.001,0.01};
+  const float kMaxLoss=0.3;
+  //double covar0[5]={0.1,0.1,0.001,0.001,0.01};
   fLengthInRot=0;
   fPdgCodeRec   =pdgCode;
   TParticlePDG * particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
@@ -1035,17 +1264,24 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
   float sign = particle->Charge()/3.;
   float mass = particle->Mass();
   uint layer1 = TMath::Min(layerStart,uint(fParamMC.size()-1));
+  fMaxLayerRec=layer1;
+  if ((fParamMC[layer1].P()/fParamMC[layer1].P())<kMaxLoss){
+    for (;layer1>0; layer1--){
+      if ((fParamMC[layer1].P()/fParamMC[layer1].P())>kMaxLoss) break;
+      fMaxLayerRec=layer1;
+    }
+  }
   AliExternalTrackParam4D param(fParamMC[layer1],mass,1);
-  //
-  Double_t sinT=TMath::Sin(param.GetAlpha());
-  Double_t cosT=TMath::Cos(param.GetAlpha());
-  //
   double *covar = (double*)param.GetCovariance();
+  double covar0[5]={1,1,0.001*(1+1./param.Pt()),0.001*(1+1./param.Pt()),0.01*(1.+1./param.Pt())};
   covar[0]=covar0[0];
   covar[2]=covar0[1];
   covar[5]=covar0[2];
   covar[9]=covar0[3];
   covar[14]=covar0[4];
+  //
+  Double_t sinT=TMath::Sin(param.GetAlpha());
+  Double_t cosT=TMath::Cos(param.GetAlpha());
   //
   float length=0, time=0;
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
@@ -1088,7 +1324,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
       break;
     }
     //
-    if (TMath::Abs(param.GetSnp())<kMaxSnp) {
+    if (TMath::Abs(param.GetSnp())<kMaxSnp &&cov[0]>0)  {
       status = param.Update(pos, cov);
       if (status) {
         fStatusMaskInRot[layer] |= kTrackUpdate;
@@ -1098,9 +1334,9 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
       }
     }
     float tanPhi2 = par[2]*par[2];
-    tanPhi2=(1-tanPhi2);
+    tanPhi2/=(1-tanPhi2);
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder  = to be racalculated
-    status = param.CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
+    status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
     if (status) {
       fStatusMaskInRot[layer] |= kTrackCorrectForMaterial;
     } else {

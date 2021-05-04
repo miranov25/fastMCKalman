@@ -20,7 +20,7 @@ const Int_t kMaxLayers=10000;
 //#pragma link C++ class RVec<std::vector<int>>;
 
 class TTreeSRedirector;
-Float_t fracUnitTest=0.1;
+Float_t fracUnitTest=1.1;
 
 class AliExternalTrackParam4D: public AliExternalTrackParam{
 public:
@@ -31,6 +31,7 @@ public:
   Double_t GetOverThr(Float_t sigma=0.01, Float_t width=0.0005, Float_t threshold=0.1);
   //
   Bool_t PropagateTo(Double_t xk, Double_t b, Int_t timeDir);
+  Bool_t GetXYZatR(Double_t xr,Double_t bz, Double_t *xyz=0, Double_t* alpSect=0) const;
   //
   Bool_t CorrectForMeanMaterialRK(Double_t xOverX0, Double_t xTimesRho,Double_t mass,Float_t stepFraction=0.01,
 	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid );
@@ -42,7 +43,9 @@ public:
   // dPdx function
   static Double_t dPdx(Double_t p, Double_t mass, Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
   static Double_t dPdxEuler(Double_t p, Double_t mass, Double_t xTimesRho, Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
-  static Double_t dPdxCorr(Double_t p, Double_t mass, Double_t xTimesRho, Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
+  static Double_t dPdxEulerStep(Double_t p, Double_t mass, Double_t xTimesRho, Double_t step,  Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
+  static Double_t dPdxCorrT4(Double_t p, Double_t mass, Double_t xTimesRho,Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
+  static Double_t dPdxCorrT42(Double_t p, Double_t mass, Double_t xTimesRho,Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
   // Uit test functions
   void UnitTestDumpCorrectForMaterial(TTreeSRedirector * pcstream, Double_t xOverX0, Double_t xTimesRho,Double_t mass, Int_t nSteps, Float_t stepFraction=0.02);
 public:
@@ -61,6 +64,7 @@ public:
     fLayerRadius.resize(maxLayer); fLayerX0.resize(maxLayer);fLayerRho.resize(maxLayer);fLayerIndex.resize(maxLayer);fLayerResolRPhi.resize(maxLayer);fLayerResolZ.resize(maxLayer);
   }
   void setLayerRadiusPower(int layer0, int layerN, float r0, float rN, float power, float X0,float rho, float resol[2]);
+  void setLayer(int layer, float r0,  float X0,float rho, float resol[2]);
   void Print();
   RVec<float> fLayerRadius;        //   barrel radius array
   RVec<int>   fLayerIndex;         //   barrel indices for fast navigation
@@ -100,6 +104,7 @@ public:
   int                         fPdgCodeMC;  //   PDG code used in simulation
   int                         fPdgCodeRec; //   PDG code as used in reconstruction
   int                         fMaxLayer;   //   maximal layer position
+  int                         fMaxLayerRec;   //   maximal layer position in reconstruction
   int                         fLengthIn;   //   track length for in propagation
    int                         fLengthInRot;   //   track length for in propagation
   RVec<int>                   fLayerIndex; //   layer index    - important for loopers
