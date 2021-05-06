@@ -909,13 +909,19 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
   float direction=r[0]*p[0]+r[1]*p[1]+r[2]*p[2];
   direction=(direction>0)? 1.:-1.;
   if (radius==0) direction=1;
+  int loopCounter=0;
   uint indexR= uint(std::upper_bound (geom.fLayerRadius.begin(),geom.fLayerRadius.end(), radius)-geom.fLayerRadius.begin());
   int nPoint=0;
   fParamMC.resize(1);
   fParamMC[0]=param;
   fLayerIndex[0]=indexR;
+  fDirection[0]=0;
+  fLoop[0]=0;
   double *par = (double*)param.GetParameter();
   for (nPoint=1; nPoint<maxPoints&&length<maxLength; nPoint++){
+    fLoop.resize(nPoint+1);
+    fDirection.resize(nPoint+1);
+    fStatusMaskMC.resize(nPoint+1);
     //printf("%d\n",nPoint);
     //param.Print();
     if (indexR>geom.fLayerRadius.size()) {
@@ -930,7 +936,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     //Float_t x = param.GetXatLabR(r,localX,fBz,1);
     int status =  param.GetXYZatR(radius,geom.fBz,xyz);
     if (status==0){   // if not possible to propagate to next radius - assume looper - change direction
-      break;    //this is temporary
+      //break;    //this is temporary
       param.GetPxPyPz(pxyz);
       float C         = param.GetC(geom.fBz);
       float R         = TMath::Abs(1/C);
@@ -971,6 +977,9 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
       }
       param=AliExternalTrackParam4D(paramNew,mass,1);
       direction*=-1;
+      fDirection[nPoint]=direction;
+      loopCounter++;
+      fLoop[nPoint]=loopCounter;
     }else{
       double alpha  = TMath::ATan2(xyz[1],xyz[0]);
       fStatusMaskMC[nPoint]=0;
@@ -1003,6 +1012,8 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     fParamMC.resize(nPoint+1);
     fParamMC[nPoint]=param;
     fLayerIndex[nPoint]=indexR;
+    fLoop[nPoint]=loopCounter;
+    fDirection[nPoint]=direction;
     indexR+=direction;
     if (indexR>fMaxLayer) fMaxLayer=indexR;
   }
@@ -1145,33 +1156,39 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
 /// \return   -  TODO  status flags to be decides
 int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint layerStart){
   const Float_t chi2Cut=16;
-  const float kMaxSnp=0.90;
+  const float kMaxSnp=0.98;
   const float kMaxLoss=0.3;
   fLengthIn=0;
   fPdgCodeRec   =pdgCode;
   TParticlePDG * particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
   if (particle== nullptr) {
-    ::Error("fastParticle::simulateParticle","Invalid pdgCode %d",pdgCode);
+    ::Error("fastParticle::reconstructParticle","Invalid pdgCode %d",pdgCode);
     return -1;
   }
   float sign = particle->Charge()/3.;
   float mass = particle->Mass();
   uint layer1 = TMath::Min(layerStart,uint(fParamMC.size()-1));
   fMaxLayerRec=layer1;
-  if ((fParamMC[layer1].P()/fParamMC[layer1].P())<kMaxLoss){
-    for (;layer1>0; layer1--){
-      if ((fParamMC[layer1].P()/fParamMC[layer1].P())>kMaxLoss) break;
-      fMaxLayerRec=layer1;
-    }
+  for (;layer1>0; layer1--){
+    if (fLoop[layer1]>0) continue;
+    if (TMath::Abs(fParamMC[layer1].GetSnp())>kMaxSnp) continue;
+    if ((fParamMC[layer1].P()/fParamMC[0].P())>kMaxLoss) break;
+    fMaxLayerRec=layer1;
+  }
+
+  if (layer1<2){
+    ::Error("fastParticle::reconstructParticle","short track");
+    return -1;
   }
   AliExternalTrackParam4D param(fParamMC[layer1],mass,1);
   double *covar = (double*)param.GetCovariance();
-  double covar0[5]={1,1,0.001*(1+1./param.Pt()),0.001*(1+1./param.Pt()),0.01*(1.+1./param.Pt())};
-  covar[0]=covar0[0];
-  covar[2]=covar0[1];
-  covar[5]=covar0[2];
-  covar[9]=covar0[3];
-  covar[14]=covar0[4];
+  for (int i=0; i<15; i++)covar[i]*=2;
+  double covar0[5]={0.1,0.1,0.01,0.01,0.1};
+  //covar[0]=covar0[0]*covar0[0];
+  //covar[2]=covar0[1]*covar0[1];
+  //covar[5]=covar0[2]*covar0[2];
+  //covar[9]=covar0[3]*covar0[3];
+  //covar[14]=covar0[4]*covar0[4];
   //
   float length=0, time=0;
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
@@ -1188,7 +1205,9 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
       double alpha=TMath::ATan2(xyz[1],xyz[0]);
       double radius = TMath::Sqrt(xyz[0]*xyz[0]+xyz[1]*xyz[1]);
       fStatusMaskIn[layer]=0;
-      status = param.Rotate(alpha);
+      if (radius>0) {
+        status = param.Rotate(alpha);
+      }
       if (status) {
         fStatusMaskIn[layer]|=kTrackRotate;
       }else{
@@ -1228,8 +1247,8 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
       float tanPhi2 = par[2]*par[2];
       tanPhi2/=(1-tanPhi2);
       float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder
-      //status = param.AliExternalTrackParam::CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
-      status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
+      status = param.AliExternalTrackParam::CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
+      //status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
       if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,crossLength*xrho,mass,20);
       if (status) {
         fStatusMaskIn[layer]|=kTrackCorrectForMaterial;
@@ -1265,20 +1284,22 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
   float mass = particle->Mass();
   uint layer1 = TMath::Min(layerStart,uint(fParamMC.size()-1));
   fMaxLayerRec=layer1;
-  if ((fParamMC[layer1].P()/fParamMC[layer1].P())<kMaxLoss){
-    for (;layer1>0; layer1--){
-      if ((fParamMC[layer1].P()/fParamMC[layer1].P())>kMaxLoss) break;
-      fMaxLayerRec=layer1;
-    }
+  for (;layer1>0; layer1--){
+    if (fLoop[layer1]>0) continue;
+    if (TMath::Abs(fParamMC[layer1].GetSnp())>kMaxSnp) continue;
+    if ((fParamMC[layer1].P()/fParamMC[0].P())>kMaxLoss) break;
+    fMaxLayerRec=layer1;
   }
+
   AliExternalTrackParam4D param(fParamMC[layer1],mass,1);
   double *covar = (double*)param.GetCovariance();
-  double covar0[5]={1,1,0.001*(1+1./param.Pt()),0.001*(1+1./param.Pt()),0.01*(1.+1./param.Pt())};
-  covar[0]=covar0[0];
-  covar[2]=covar0[1];
-  covar[5]=covar0[2];
-  covar[9]=covar0[3];
-  covar[14]=covar0[4];
+  //double covar0[5]={0.1,0.1,0.01,0.01,0.1};
+  for (int i=0; i<15; i++)covar[i]*=5;
+  //covar[0]=covar0[0]*covar0[0];
+  //covar[2]=covar0[1]*covar0[1];
+  //covar[5]=covar0[2]*covar0[2];
+  //covar[9]=covar0[3]*covar0[3];
+  //covar[14]=covar0[4]*covar0[4];
   //
   Double_t sinT=TMath::Sin(param.GetAlpha());
   Double_t cosT=TMath::Cos(param.GetAlpha());
@@ -1336,7 +1357,8 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
     float tanPhi2 = par[2]*par[2];
     tanPhi2/=(1-tanPhi2);
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder  = to be racalculated
-    status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
+    status = param.AliExternalTrackParam::CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
+    //status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
     if (status) {
       fStatusMaskInRot[layer] |= kTrackCorrectForMaterial;
     } else {
@@ -1390,5 +1412,7 @@ void fastParticle::setAliases(TTree & tree){
   tree.SetAlias("sigmaqPt0Rot","sqrt(part.fParamInRot[1].fC[14])");
   // eloss aliases
   tree.SetAlias("eLossLog","log(AliExternalTrackParam::BetheBlochSolid(fParamMC[].P()/fParamMC[].fData.fMass)/AliExternalTrackParam::BetheBlochSolid(4))");
+  //
+  tree.SetAlias("c","(0+2.99792458e-2)");
 
 }

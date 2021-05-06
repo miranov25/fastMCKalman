@@ -18,7 +18,7 @@ const Int_t kMaxLayers=10000;
 //#pragma link C++ class RVec<std::vector<int>>;
 
 class TTreeSRedirector;
-Float_t fracUnitTest=1.1;
+Float_t fracUnitTest=0.1;
 
 class AliExternalTrackParam4D: public AliExternalTrackParam{
 public:
@@ -90,7 +90,7 @@ public:
   fastParticle(int nLayers){
     fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamInRot.reserve(nLayers);
     fParamOut.reserve(nLayers); fParamMC.reserve(nLayers);fStatusMaskMC.reserve(nLayers); fStatusMaskIn.reserve(nLayers);
-    fChi2.resize(nLayers);
+    fChi2.resize(nLayers);fLoop.reserve(nLayers);
     fMaxLayer=0;
   }
   int simulateParticle(fastGeometry     &geom, double r[3], double p[3], int pdgCode, float maxLength, int maxPoints);
@@ -106,7 +106,8 @@ public:
   int                         fLengthIn;   //   track length for in propagation
    int                         fLengthInRot;   //   track length for in propagation
   RVec<int>                   fLayerIndex; //   layer index    - important for looper
-  RVec<float>                 fDirection;  //   particle direction - Out=1, In = -1
+  RVec<float>                  fDirection;  //   particle direction - Out=1, In = -1
+  RVec<int>                   fLoop;          //   particle loop counter
   RVec<AliExternalTrackParam4D> fParamMC;    //   "simulate"      Param MC
   RVec<AliExternalTrackParam4D> fParamOut;   //   "reconstructed" Param Out
   RVec<AliExternalTrackParam4D> fParamIn;    //   "reconstructed" Param In
