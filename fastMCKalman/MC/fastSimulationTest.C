@@ -1,8 +1,9 @@
 /*
    .L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+g
     .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C+g
-    testPCStream(10000,kTRUE);  //setup for the looper development
-    testAlice(10000,kTRUE);   // ALICE setup
+    testPCStream(10000,kTRUE);       //setup for the looper development
+    testAlice(10000,kTRUE);          // ALICE setup
+    testAlice3Werner(50000,kTRUE)    // ALICE3 setup
     //initTreeFast()
     .> a.log
      testPCStream(5000,kTRUE);
@@ -20,6 +21,7 @@
 #include "TSystem.h"
 #include "TPad.h"
 #include "TCanvas.h"
+#include "AliPID.h"
 
 TChain * treeFast = 0;
 TChain * treeTurn=0;
@@ -30,17 +32,17 @@ void testDummy(){
   //particle.simulateParticle(geom, r,p,211,200,90);
 }
 
-/// test for looper development with continous tracking
+/// test for looper development with continous tracking - ALICE TPC gas cylinder without ITS - emulation of the gas detectors
 /// \param nParticles
 /// \param dumpStream
-void testPCStream(Int_t nParticles, bool dumpStream){
-    const Int_t   nLayerTPC=250;
-      const Float_t kMinPt=0.02;
+void testPCStream(Int_t nParticles, Float_t pressure=1, bool dumpStream=1){
+  const Int_t   nLayerTPC=250;
+  const Float_t kMinPt=0.02;
   const Float_t kMax1Pt=1./100.;
   const Float_t smearR=200;
   const Float_t smearZ=200;
-    const Float_t  xx0=7.8350968e-05;
-  const Float_t xrho=0.0016265266;
+  const Float_t  xx0=7.8350968e-05*pressure;
+  const Float_t  xrho=0.0016265266*pressure;
   TStopwatch timer;
   timer.Start();
   fastGeometry geom(nLayerTPC+1);
@@ -93,7 +95,7 @@ void testPCStream(Int_t nParticles, bool dumpStream){
   timer.Print();
 }
 
-/// testAlice configuration
+/// testAlice configuration ITS+TPC with material budget as in the Run1/2
 /// \param nParticles
 /// \param dumpStream
 void testAlice(Int_t nParticles, bool dumpStream){
@@ -171,46 +173,75 @@ void testAlice(Int_t nParticles, bool dumpStream){
 }
 
 
-/// testAlice configuration
+/// testAlice 3 configuration as proposed in https://github.com/preghenella/DelphesO2/blob/a058f94f6cb887edcf725fd991d16ca5f7b76e0b/src/lutWrite.werner.cc
 /// \param nParticles
 /// \param dumpStream
-void testAlice3(Int_t nParticles, bool dumpStream){
+void testAlice3Werner(Int_t nParticles, bool dumpStream){
+  // simulation setup parameters
   const Float_t smearR=10;
   const Float_t smearZ=10;
-  const Float_t resolY=0.1;
-  const Float_t resolZ=0.1;
-  const Float_t bz=5;
-  const Int_t   nLayerTPC=160;
+
   const Float_t kMinPt=0.02;
   const Float_t kMax1Pt=1./100.;
-  //const Float_t kMax1Pt=1./0.2;
+  //const Float_t kMax1Pt=1./0.1;
   const Float_t kThetaMax=2.;
   const Float_t kMaxLength=300;
-  // values as obtaied from the gromManager see -  https://alice.its.cern.ch/jira/browse/PWGPP-613?focusedCommentId=263181&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-263181
-  const Float_t  xx0=7.8350968e-05;
-  const Float_t xrho=0.0016265266;
+  //
+  // new ideal Pixel properties?
+  const Float_t x0IB     = 0.001;
+  const Float_t x0OB     = 0.01;
+  const Float_t xrhoIB     = 2.3292e-02; // 100 mum Si
+  const Float_t xrhoOB     = 2.3292e-01; // 1000 mum Si
+  const Float_t resRPhiIB     = 0.00025;
+  const Float_t resZIB        = 0.00025;
+  const Float_t resRPhiOB     = 0.00100;
+  const Float_t resZOB        = 0.00100;
+  const Float_t eff           = 0.98;
+  //
+  const Float_t bpipe0R       = 0.48;
+  const Float_t x0bpipe0      = 0.00042;
+  const Float_t xrhobpipe0    = 2.772e-02; // 150 mum Be
+  const Float_t bpipe1R       = 3.7 ;
+  const Float_t x0bpipe1      = 0.0014;
+  const Float_t xrhobpipe1    = 9.24e-02; // 500 mum Be
+  const Float_t xOuter        = 100.;
+  const Int_t nLayersFull=30;
+  //
+  Float_t resolNo[2]={0,0};
+  Float_t resolIB[2]={resRPhiIB,resRPhiIB};
+  Float_t resolOB[2]={resRPhiOB,resRPhiOB};
+  //
+  // parameters
+  float bz=0.5;
+  Double_t scaleR=1;
+  Int_t    nLayersIB=3;
+  Float_t  powerIB=1;
+  Int_t    nLayersOB=10;
+  Float_t  powerOB=1.0;
+  Int_t nLayersAll=2+(nLayersIB+nLayersOB);
+
   //
   TStopwatch timer;
   timer.Start();
-  fastGeometry geom= fastGeometry(nLayerTPC);
-  geom.fBz=bz;
-  fastParticle particle=fastParticle(nLayerTPC);
-  // ITS emulation  0 6 layers wit  O(0.001 cm) resolution
-  //     X0 is radiation length per layer and rho is the integrated density per layer - obtained from Geant simulation
-  float resol[2]={0.001,0.001};
-  geom.setLayerRadiusPower(0,5, 4,37, 1.0,0.006,0.16, resol);
-  // TPC emulation
-  //    X0 is radiation length per layer and rho is the integrated density per layer - obtained from Geant simulation
-  resol[0]=0.1;
-  resol[1]=0.1;
-  //geom.setLayerRadiusPower(6,nLayerTPC,89,260,1.0,0.000025,0.0009,resol);
-  geom.setLayerRadiusPower(6,nLayerTPC,89,260,1.0,xx0,xrho,resol);
-  //
-  TTreeSRedirector *pcstream = new TTreeSRedirector("fastParticleALICE.root","recreate");
-  particle.fgStreamer=pcstream;
+  TTreeSRedirector *pcstream = new TTreeSRedirector("fastParticle.root","recreate");
   TTree * tree = 0;
+  fastGeometry geom= fastGeometry(nLayersAll);
+  geom.fBz=bz;
+  fastParticle particle=fastParticle(2*nLayersAll);
+  particle.fgStreamer=pcstream;
+  //
+  geom.setLayer(0,bpipe0R*scaleR, x0bpipe0,xrhobpipe0 , resolNo);
+  geom.setLayerRadiusPower(1, nLayersIB+1,bpipe0R*1.02*scaleR, bpipe1R*0.98*scaleR, powerIB,x0IB,xrhoIB, resolIB);
+  geom.setLayer(nLayersIB+1, bpipe1R*scaleR, x0bpipe1,xrhobpipe1 , resolNo);
+  geom.setLayerRadiusPower(nLayersIB+2, nLayersIB+2+nLayersOB, bpipe1R*1.02*scaleR, xOuter *scaleR, 1, x0OB,xrhoOB , resolOB);
+  //
+
+  //geom.setLayerRadiusPower();
+
+  //
+
   for (Int_t i=0; i<nParticles; i++){
-    double r[]     = {0,0,0};
+    double r[]     = {0+gRandom->Rndm()*0.000000001,gRandom->Rndm()*0.000000001,0};
     Bool_t  isSecondary=gRandom->Rndm()<0.5;
     isSecondary=kFALSE;
     if (isSecondary){
@@ -225,9 +256,9 @@ void testAlice3(Int_t nParticles, bool dumpStream){
     int    pidCode=int(gRandom->Rndm()*5);                   // PID code of particles - 0-electron ,1-muon, 2-pion, 3-Kaon
     float  charge  = (gRandom->Rndm()<0.5) ? -1:1;
     int    pdgCode = AliPID::ParticleCode(pidCode)*charge;  // PID code covnerted to the PdgCode
-    particle.simulateParticle(geom, r,p,pdgCode, kMaxLength,nLayerTPC);
-    particle.reconstructParticle(geom,pdgCode,nLayerTPC);
-    particle.reconstructParticleRotate0(geom,pdgCode,nLayerTPC);
+    particle.simulateParticle(geom, r,p,pdgCode, kMaxLength,nLayersAll*2);
+    particle.reconstructParticle(geom,pdgCode,nLayersAll*2);
+    particle.reconstructParticleRotate0(geom,pdgCode,nLayersAll*2);
     Float_t mass =AliPID::ParticleMass(pidCode);
 
     if (dumpStream==kFALSE) continue;
@@ -276,10 +307,10 @@ void setAliases(TTree & tree){
 //  tree.SetAlias("elossTPCMC","(part.fParamMC[159].fData.GetP()-part.fParamMC[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
 }
 
-void initTreeFast(){
-  treeFast  = AliXRDPROOFtoolkit::MakeChainRandom("fastParticle.list","fastPart",0,10000);
-  treeTurn  = AliXRDPROOFtoolkit::MakeChainRandom("fastParticle.list","turn",0,10000);
-  treeUnit0  = AliXRDPROOFtoolkit::MakeChainRandom("fastParticle.list","UnitTestDumpCorrectForMaterial",0,10000);
+void initTreeFast(const char * inputList="fastParticle.list"){
+  treeFast  = AliXRDPROOFtoolkit::MakeChainRandom(inputList,"fastPart",0,10000);
+  treeTurn  = AliXRDPROOFtoolkit::MakeChainRandom(inputList,"turn",0,10000);
+  treeUnit0  = AliXRDPROOFtoolkit::MakeChainRandom(inputList,"UnitTestDumpCorrectForMaterial",0,10000);
   treeFast->SetMarkerStyle(21);
   treeFast->SetMarkerSize(0.5);
    treeUnit0->SetMarkerStyle(21);

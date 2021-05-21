@@ -31,13 +31,13 @@ public:
   Bool_t PropagateTo(Double_t xk, Double_t b, Int_t timeDir);
   Bool_t GetXYZatR(Double_t xr,Double_t bz, Double_t *xyz=0, Double_t* alpSect=0) const;
   //
+  Bool_t CorrectForMeanMaterial(Double_t xOverX0, Double_t xTimesRho,Double_t mass,Float_t stepFraction=0.01,
+	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid );
   Bool_t CorrectForMeanMaterialRK(Double_t xOverX0, Double_t xTimesRho,Double_t mass,Float_t stepFraction=0.01,
 	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid );
   Bool_t CorrectForMeanMaterialRKv2(Double_t xOverX0, Double_t xTimesRho,Double_t mass, Float_t stepFraction=0.01,
 	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
-  Bool_t CorrectForMeanMaterialRKP(Double_t xOverX0, Double_t xTimesRho,Double_t mass, Float_t stepFraction=0.01,
-	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
-  Bool_t CorrectForMeanMaterialT4(Double_t xOverX0, Double_t xTimesRho,Double_t mass, Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
+   Bool_t CorrectForMeanMaterialT4(Double_t xOverX0, Double_t xTimesRho,Double_t mass, Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
   // dPdx function
   static Double_t dPdx(Double_t p, Double_t mass, Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
   static Double_t dPdxEuler(Double_t p, Double_t mass, Double_t xTimesRho, Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
