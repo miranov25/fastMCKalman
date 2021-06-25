@@ -22,6 +22,7 @@
 #include "TPad.h"
 #include "TCanvas.h"
 #include "AliPID.h"
+const Float_t kDecayFraction=0.5;
 
 TChain * treeFast = 0;
 TChain * treeTurn=0;
@@ -36,6 +37,7 @@ void testDummy(){
 /// \param nParticles
 /// \param dumpStream
 void testPCStream(Int_t nParticles, Float_t pressure=1, bool dumpStream=1){
+
   const Int_t   nLayerTPC=250;
   const Float_t kMinPt=0.02;
   const Float_t kMax1Pt=1./100.;
@@ -73,6 +75,9 @@ void testPCStream(Int_t nParticles, Float_t pressure=1, bool dumpStream=1){
     int    pidCode=int(gRandom->Rndm()*5);
     float  charge  = (gRandom->Rndm()<0.5) ? -1:1;
     int    pdgCode = AliPID::ParticleCode(pidCode)*charge;
+    Bool_t  hasDecay=(gRandom->Rndm()<kDecayFraction);
+    Float_t decayLength= hasDecay ?gRandom->Rndm()*geom.fLayerRadius[geom.fLayerRadius.size()-1]:0;
+    particle.fDecayLength=decayLength;
     particle.simulateParticle(geom, r,p,pdgCode, 250,nLayerTPC);
     particle.reconstructParticle(geom,pdgCode,nLayerTPC);
     particle.reconstructParticleRotate0(geom,pdgCode,nLayerTPC);
@@ -83,6 +88,7 @@ void testPCStream(Int_t nParticles, Float_t pressure=1, bool dumpStream=1){
     else {
       (*pcstream) << "fastPart" <<
                   "i=" << i <<
+                  "hasDecay="<<hasDecay<<
                   "isSecondary="<<isSecondary<<
                   "pidCode="<<pidCode<<
                   "charge="<<charge<<
@@ -150,6 +156,8 @@ void testAlice(Int_t nParticles, bool dumpStream){
     //pidCode=2;
     float  charge  = (gRandom->Rndm()<0.5) ? -1:1;
     int    pdgCode = AliPID::ParticleCode(pidCode)*charge;  // PID code covnerted to the PdgCode
+     Float_t decayLength= (gRandom->Rndm()<kDecayFraction) ?gRandom->Rndm()*geom.fLayerRadius[geom.fLayerRadius.size()-1]:0;
+    particle.fDecayLength=decayLength;
     particle.simulateParticle(geom, r,p,pdgCode, kMaxLength,nLayerTPC);
     particle.reconstructParticle(geom,pdgCode,nLayerTPC);
     particle.reconstructParticleRotate0(geom,pdgCode,nLayerTPC);
@@ -256,6 +264,8 @@ void testAlice3Werner(Int_t nParticles, bool dumpStream){
     int    pidCode=int(gRandom->Rndm()*5);                   // PID code of particles - 0-electron ,1-muon, 2-pion, 3-Kaon
     float  charge  = (gRandom->Rndm()<0.5) ? -1:1;
     int    pdgCode = AliPID::ParticleCode(pidCode)*charge;  // PID code covnerted to the PdgCode
+     Float_t decayLength= (gRandom->Rndm()<kDecayFraction) ?gRandom->Rndm()*geom.fLayerRadius[geom.fLayerRadius.size()-1]:0;
+    particle.fDecayLength=decayLength;
     particle.simulateParticle(geom, r,p,pdgCode, kMaxLength,nLayersAll*2);
     particle.reconstructParticle(geom,pdgCode,nLayersAll*2);
     particle.reconstructParticleRotate0(geom,pdgCode,nLayersAll*2);
@@ -308,9 +318,10 @@ void setAliases(TTree & tree){
 }
 
 void initTreeFast(const char * inputList="fastParticle.list"){
-  treeFast  = AliXRDPROOFtoolkit::MakeChainRandom(inputList,"fastPart",0,10000);
-  treeTurn  = AliXRDPROOFtoolkit::MakeChainRandom(inputList,"turn",0,10000);
-  treeUnit0  = AliXRDPROOFtoolkit::MakeChainRandom(inputList,"UnitTestDumpCorrectForMaterial",0,10000);
+  const char* inputListPath=gSystem->ExpandPathName(inputList);
+  treeFast  = AliXRDPROOFtoolkit::MakeChainRandom(inputListPath,"fastPart",0,10000);
+  treeTurn  = AliXRDPROOFtoolkit::MakeChainRandom(inputListPath,"turn",0,10000);
+  treeUnit0  = AliXRDPROOFtoolkit::MakeChainRandom(inputListPath,"UnitTestDumpCorrectForMaterial",0,10000);
   treeFast->SetMarkerStyle(21);
   treeFast->SetMarkerSize(0.5);
    treeUnit0->SetMarkerStyle(21);

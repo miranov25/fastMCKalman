@@ -346,6 +346,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   Double_t dEdxM=f(p/mass),dEdxMRK=0;
   Double_t Ein=TMath::Sqrt(p2+mass2);
   Double_t dP= dPdxEulerStep(p,mass,xTimesRho,stepFraction);
+  if (dP==0) return kFALSE;
   Double_t pOut=p+dP;
   if ((pOut/mass)<kBGStop) return kFALSE;
   Double_t Eout=TMath::Sqrt(pOut*pOut+mass2);
@@ -976,6 +977,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     fDirection[nPoint]=direction;
     indexR+=direction;
     if (indexR>fMaxLayer) fMaxLayer=indexR;
+    if (fDecayLength>0 &&param.fLength>fDecayLength) break;   // decay particles
   }
   return 1;
 }
@@ -1376,16 +1378,17 @@ void fastParticle::setAliases(TTree & tree){
   tree.SetAlias("elossTPCIn","(part.fParamIn[159].fData.GetP()-part.fParamIn[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
   tree.SetAlias("elossTPCMC","(part.fParamMC[159].fData.GetP()-part.fParamMC[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
   //
-  tree.SetAlias("sigmaY0","sqrt(part.fParamIn[1].fC[0])");
-  tree.SetAlias("sigmaZ0","sqrt(part.fParamIn[1].fC[2])");
-  tree.SetAlias("sigmaqPt0","sqrt(part.fParamIn[1].fC[14])");
+  tree.SetAlias("sigmaY0","sqrt(part.fParamIn[1].fC[0]+0)");
+  tree.SetAlias("sigmaZ0","sqrt(part.fParamIn[1].fC[2]+0)");
+  tree.SetAlias("sigmaqPt0","sqrt(part.fParamIn[1].fC[14]+0)");
   //
-  tree.SetAlias("sigmaY0Rot","sqrt(part.fParamInRot[1].fC[0])");
-  tree.SetAlias("sigmaZ0Rot","sqrt(part.fParamInRot[1].fC[2])");
-  tree.SetAlias("sigmaqPt0Rot","sqrt(part.fParamInRot[1].fC[14])");
+  tree.SetAlias("sigmaY0Rot","sqrt(part.fParamInRot[1].fC[0]+0)");
+  tree.SetAlias("sigmaZ0Rot","sqrt(part.fParamInRot[1].fC[2]+0)");
+  tree.SetAlias("sigmaqPt0Rot","sqrt(part.fParamInRot[1].fC[14]+0)");
   // eloss aliases
   tree.SetAlias("eLossLog","log(AliExternalTrackParam::BetheBlochSolid(fParamMC[].P()/fParamMC[].fData.fMass)/AliExternalTrackParam::BetheBlochSolid(4))");
   //
   tree.SetAlias("c","(0+2.99792458e-2)");
+  tree.SetAlias("Larm","Max$(part.fParamMC.fX)-Min$(part.fParamMC.fX)");
 
 }

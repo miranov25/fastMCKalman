@@ -92,6 +92,7 @@ public:
     fParamOut.reserve(nLayers); fParamMC.reserve(nLayers);fStatusMaskMC.reserve(nLayers); fStatusMaskIn.reserve(nLayers);
     fChi2.resize(nLayers);fLoop.reserve(nLayers);
     fMaxLayer=0;
+    fDecayLength=0;
   }
   int simulateParticle(fastGeometry     &geom, double r[3], double p[3], int pdgCode, float maxLength, int maxPoints);
   int reconstructParticle(fastGeometry  &geom, int pdgCode, uint layerStart);
@@ -105,6 +106,7 @@ public:
   int                         fMaxLayerRec;   //   maximal layer position in reconstruction
   int                         fLengthIn;   //   track length for in propagation
    int                         fLengthInRot;   //   track length for in propagation
+   Float_t                     fDecayLength;  // decay length  -if length bigger than decay length - stop partilce
   RVec<int>                   fLayerIndex; //   layer index    - important for looper
   RVec<float>                  fDirection;  //   particle direction - Out=1, In = -1
   RVec<int>                   fLoop;          //   particle loop counter
