@@ -849,19 +849,27 @@ void fastGeometry::setLayer(int iLayer, float radius,  float X0,float rho, float
 /// \param maxLength     - max length to simulate
 /// \param maxPoints     - maximal number of points to simulate
 /// \return              - modify status of particles = create points along   - TODO status flags to be decides
-int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3], int pdgCode, float maxLength, int maxPoints){
+int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3], long pdgCode, float maxLength, int maxPoints){
   fMaxLayer=0;
   const float kMaxSnp=0.90;
   const float kMaxLoss=0.5;
    double covar[21]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+   float_t mass=0,sign=1;
   fPdgCodeMC=pdgCode;
-  TParticlePDG * particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
-  if (particle== nullptr) {
-    ::Error("fastParticle::simulateParticle","Invalid pdgCode %d",pdgCode);
-    return -1;
+  if (pdgCode==0){
+    fMassMC=gRandom->Rndm();
+    mass=fMassMC;
+    sign=-1+2*gRandom->Rndm();
+  }else {
+    TParticlePDG *particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
+    if (particle == nullptr) {
+      ::Error("fastParticle::simulateParticle", "Invalid pdgCode %lld", pdgCode);
+      return -1;
+    }
+    sign = particle->Charge() / 3.;
+    mass = particle->Mass();
+    fMassMC=mass;
   }
-  float sign = particle->Charge()/3.;
-  float mass = particle->Mass();
   AliExternalTrackParam param0(r,p,covar,sign);
   AliExternalTrackParam4D param(param0,mass,1);
   float length=0, time=0;
@@ -1116,19 +1124,25 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
 /// \param pdgCode       - pdgCode used in the reconstruction
 /// \param layerStart    - starting layer to do tracking
 /// \return   -  TODO  status flags to be decides
-int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint layerStart){
+int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint layerStart){
   const Float_t chi2Cut=16;
   const float kMaxSnp=0.95;
   const float kMaxLoss=0.3;
   fLengthIn=0;
+  float_t mass=0;
   fPdgCodeRec   =pdgCode;
-  TParticlePDG * particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
-  if (particle== nullptr) {
-    ::Error("fastParticle::reconstructParticle","Invalid pdgCode %d",pdgCode);
-    return -1;
+  if (pdgCode==0){
+    fMassRec=fMassMC;
+    mass=fMassMC;
+  }else {
+    TParticlePDG *particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
+    if (particle == nullptr) {
+      ::Error("fastParticle::reconstructParticle", "Invalid pdgCode %lld", pdgCode);
+      return -1;
+    }
+    mass = particle->Mass();
+    fMassRec=particle->Mass();
   }
-  float sign = particle->Charge()/3.;
-  float mass = particle->Mass();
   uint layer1 = TMath::Min(layerStart,uint(fParamMC.size()-1));
   fMaxLayerRec=layer1;
   for (;layer1>0; layer1--){
@@ -1234,20 +1248,26 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, int pdgCode, uint lay
 /// \param pdgCode       - pdgCode used in the reconstruction
 /// \param layerStart    - starting layer to do tracking
 /// \return   -  TODO  status flags to be decides
-int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, uint layerStart){
+int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, uint layerStart){
   const Float_t chi2Cut=16;
   const float kMaxSnp=0.95;
   const float kMaxLoss=0.3;
   //double covar0[5]={0.1,0.1,0.001,0.001,0.01};
   fLengthInRot=0;
   fPdgCodeRec   =pdgCode;
-  TParticlePDG * particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
-  if (particle== nullptr) {
-    ::Error("fastParticle::simulateParticle","Invalid pdgCode %d",pdgCode);
-    return -1;
-  }
-  float sign = particle->Charge()/3.;
-  float mass = particle->Mass();
+     float_t mass=0;
+  if (pdgCode==0){
+    fMassMC=gRandom->Rndm();
+    mass=fMassMC;
+  }else {
+      TParticlePDG *particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
+      if (particle == nullptr) {
+        ::Error("fastParticle::simulateParticle", "Invalid pdgCode %lld", pdgCode);
+        return -1;
+      }
+      mass = particle->Mass();
+      fMassRec=mass;
+    }
   uint layer1 = TMath::Min(layerStart,uint(fParamMC.size()-1));
   fMaxLayerRec=layer1;
   for (;layer1>0; layer1--){
@@ -1343,6 +1363,47 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, u
   return 1;
 }
 
+///
+/// \param valueType      0 - <pt>,  1 - <1/pt> - 2 -<dEdxExp>
+/// \param averageType    dummy
+/// \return
+Float_t fastParticle::getMean(Int_t valueType, Int_t averageType){
+  Float_t valueMean=0;
+  Float_t nPoints=0;
+  for (Int_t i=0; i<fMaxLayer;i++){
+    Float_t value=0;
+    if (valueType==0) value=fParamMC[i].Pt();
+    if (valueType==1) value=1/fParamMC[i].Pt();
+    if (valueType==2) value=AliExternalTrackParam4D::BetheBlochAleph(fParamMC[i].GetP()/fMassMC);
+     if (valueType==3) value=1/AliExternalTrackParam4D::BetheBlochAleph(fParamMC[i].GetP()/fMassMC);
+    valueMean+=value;
+    nPoints++;
+  }
+  if (nPoints==0) return 0;
+  return  valueMean/nPoints;
+}
+///
+/// \param valueType      0 - LArmMC
+/// \param averageType    dummy
+/// \return
+Float_t fastParticle::getStat(Int_t valueType){
+  Float_t valueMean=0;
+  Float_t nPoints=0;
+  if (valueType==0) {
+    Float_t rMin = -1;
+    Float_t rMax = -1;
+    for (Int_t i = 0; i < fMaxLayer; i++) {
+      Float_t x=  fParamMC[i].GetX();
+      if (rMin>x || rMin<0)  rMin=x;
+      if (rMax<x || rMax==0) rMax=x;
+    }
+    return rMax-rMin;
+  }
+  return 0;
+}
+
+
+
 
 /// set derived varaibles as alaiases to tree
 /// \param tree
@@ -1369,12 +1430,12 @@ void fastParticle::setAliases(TTree & tree){
   tree.SetAlias("c2In","sqrt(part.fParamIn[].fC[2])");
   tree.SetAlias("c0InRot","sqrt(part.fParamInRot[].fC[0])");
   tree.SetAlias("c2InRot","sqrt(part.fParamInRot[].fC[2])");
-  tree.SetAlias("dEdxExp","AliExternalTrackParam::BetheBlochAleph(pMC/AliPID::ParticleMass(pidCode))");
-  tree.SetAlias("dEdxExpSolidN","AliExternalTrackParam::BetheBlochSolid(pMC/AliPID::ParticleMass(pidCode))/AliExternalTrackParam::BetheBlochSolid(4)");
+  tree.SetAlias("dEdxExp","AliExternalTrackParam::BetheBlochAleph(pMC/fMassMC)");
+  tree.SetAlias("dEdxExpSolidN","AliExternalTrackParam::BetheBlochSolid(pMC/fMassMC)/AliExternalTrackParam::BetheBlochSolid(4)");
 
-  tree.SetAlias("dEdxExpSolid","AliExternalTrackParam::BetheBlochSolid(pMC/AliPID::ParticleMass(pidCode))");
-  tree.SetAlias("dEdxExpSolidL","AliExternalTrackParam::BetheBlochSolid(part.fParamMC[].fData.P()/AliPID::ParticleMass(pidCode))");
-  tree.SetAlias("dEdxExpSolidL1","AliExternalTrackParam::BetheBlochSolid(part.fParamMC[Iteration$-1].fData.P()/AliPID::ParticleMass(pidCode))");
+  tree.SetAlias("dEdxExpSolid","AliExternalTrackParam::BetheBlochSolid(pMC/fMassMC)");
+  tree.SetAlias("dEdxExpSolidL","AliExternalTrackParam::BetheBlochSolid(part.fParamMC[].fData.P()/fMassMC)");
+  tree.SetAlias("dEdxExpSolidL1","AliExternalTrackParam::BetheBlochSolid(part.fParamMC[Iteration$-1].fData.P()/fMassMC)");
   tree.SetAlias("elossTPCIn","(part.fParamIn[159].fData.GetP()-part.fParamIn[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
   tree.SetAlias("elossTPCMC","(part.fParamMC[159].fData.GetP()-part.fParamMC[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
   //
@@ -1389,6 +1450,6 @@ void fastParticle::setAliases(TTree & tree){
   tree.SetAlias("eLossLog","log(AliExternalTrackParam::BetheBlochSolid(fParamMC[].P()/fParamMC[].fData.fMass)/AliExternalTrackParam::BetheBlochSolid(4))");
   //
   tree.SetAlias("c","(0+2.99792458e-2)");
-  tree.SetAlias("Larm","Max$(part.fParamMC.fX)-Min$(part.fParamMC.fX)");
+  tree.SetAlias("Larm","part.getStat(0)");
 
 }

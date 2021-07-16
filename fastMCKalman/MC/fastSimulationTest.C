@@ -1,7 +1,8 @@
 /*
    .L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+g
     .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C+g
-    testPCStream(10000,kTRUE);       //setup for the looper development
+    AliPDG::AddParticlesToPdgDataBase();
+    testTPC(25000,kTRUE);            //setup for the looper development
     testAlice(10000,kTRUE);          // ALICE setup
     testAlice3Werner(50000,kTRUE)    // ALICE3 setup
     //initTreeFast()
@@ -23,6 +24,7 @@
 #include "TCanvas.h"
 #include "AliPID.h"
 const Float_t kDecayFraction=0.5;
+const Float_t kRandomPDGFraction=0.5;
 
 TChain * treeFast = 0;
 TChain * treeTurn=0;
@@ -36,15 +38,23 @@ void testDummy(){
 /// test for looper development with continous tracking - ALICE TPC gas cylinder without ITS - emulation of the gas detectors
 /// \param nParticles
 /// \param dumpStream
-void testPCStream(Int_t nParticles, Float_t pressure=1, bool dumpStream=1){
+void testTPC(Int_t nParticles, bool dumpStream=1){
 
   const Int_t   nLayerTPC=250;
   const Float_t kMinPt=0.02;
   const Float_t kMax1Pt=1./100.;
+  const Float_t kFlatPtMax=50;
+  const Float_t kFlatPtFraction=0.3;
   const Float_t smearR=200;
   const Float_t smearZ=200;
-  const Float_t  xx0=7.8350968e-05*pressure;
-  const Float_t  xrho=0.0016265266*pressure;
+  const Float_t  xx0=7.8350968e-05;
+  const Float_t  xrho=0.0016265266;
+  const Float_t kNominalFraction=0.3;     // fraction of nominal properties
+  const Float_t kMaterialScaling=10;      // material random scaling to
+  const Float_t kMaxResol=0.2;            // point resolution scan max resolution
+  const Float_t kMinResol=0.01;           //  point resolution scan min resolution
+  const Float_t kDefResol=0.1;           //  point resolution scan min resolution
+
   TStopwatch timer;
   timer.Start();
   fastGeometry geom(nLayerTPC+1);
@@ -60,6 +70,15 @@ void testPCStream(Int_t nParticles, Float_t pressure=1, bool dumpStream=1){
   particle.fgStreamer=pcstream;
   TTree * tree = 0;
   for (Int_t i=0; i<nParticles; i++){
+    // generate scan detector properties
+    Float_t matScaling  =(gRandom->Rndm()<kNominalFraction) ? 1.:  (gRandom->Rndm()*kMaterialScaling)+1;
+    Float_t resolScan=(gRandom->Rndm()<kNominalFraction) ? kDefResol: gRandom->Rndm()*kMaxResol;
+    for (Int_t iLayer=0; iLayer<geom.fLayerX0.size();iLayer++) {
+      geom.fLayerX0[iLayer] = xx0 * matScaling;
+      geom.fLayerRho[iLayer] = xrho * matScaling;
+      geom.fLayerResolRPhi[iLayer] = resolScan;
+      geom.fLayerResolZ[iLayer] = resolScan;
+    }
     double r[]     = {0,0,0};
     Bool_t  isSecondary=gRandom->Rndm()<0.5;
     isSecondary=kFALSE;
@@ -69,12 +88,14 @@ void testPCStream(Int_t nParticles, Float_t pressure=1, bool dumpStream=1){
         r[2]=2*(gRandom->Rndm()-0.5)*smearZ;
     }
     double pt      = kMinPt/(kMax1Pt*kMinPt+gRandom->Rndm());
+    if (gRandom->Rndm()<kFlatPtFraction) pt= gRandom->Rndm()*kFlatPtMax;
     double phi     = gRandom->Rndm()*TMath::TwoPi();
     double theta = (gRandom->Rndm()-0.5)*3;
     double p[]={pt*sin(phi),pt*cos(phi),pt*theta};
-    int    pidCode=int(gRandom->Rndm()*5);
-    float  charge  = (gRandom->Rndm()<0.5) ? -1:1;
-    int    pdgCode = AliPID::ParticleCode(pidCode)*charge;
+    int    pidCode=int(gRandom->Rndm()*8);
+    long  charge  = (gRandom->Rndm()<0.5) ? -1:1;
+    long   pdgCode = AliPID::ParticleCode(pidCode)*charge;
+    if (gRandom->Rndm()<kRandomPDGFraction) pdgCode=0;
     Bool_t  hasDecay=(gRandom->Rndm()<kDecayFraction);
     Float_t decayLength= hasDecay ?gRandom->Rndm()*geom.fLayerRadius[geom.fLayerRadius.size()-1]:0;
     particle.fDecayLength=decayLength;
@@ -88,9 +109,11 @@ void testPCStream(Int_t nParticles, Float_t pressure=1, bool dumpStream=1){
     else {
       (*pcstream) << "fastPart" <<
                   "i=" << i <<
+                  "geom.="<<&geom<<
                   "hasDecay="<<hasDecay<<
                   "isSecondary="<<isSecondary<<
                   "pidCode="<<pidCode<<
+                  "pdgCode="<<pdgCode<<
                   "charge="<<charge<<
                   "part.=" << &particle <<
                   "\n";
@@ -152,16 +175,17 @@ void testAlice(Int_t nParticles, bool dumpStream){
     double phi     = gRandom->Rndm()*TMath::TwoPi();
     double theta = 2.*(gRandom->Rndm()-0.5)*kThetaMax;
     double p[]={pt*sin(phi),pt*cos(phi),pt*theta};
-    int    pidCode=int(gRandom->Rndm()*5);                   // PID code of particles - 0-electron ,1-muon, 2-pion, 3-Kaon
+    int    pidCode=int(gRandom->Rndm()*8);                   // PID code of particles - 0-electron ,1-muon, 2-pion, 3-Kaon
+
     //pidCode=2;
-    float  charge  = (gRandom->Rndm()<0.5) ? -1:1;
-    int    pdgCode = AliPID::ParticleCode(pidCode)*charge;  // PID code covnerted to the PdgCode
+    long  charge  = (gRandom->Rndm()<0.5) ? -1:1;
+    long    pdgCode = AliPID::ParticleCode(pidCode)*charge;  // PID code covnerted to the PdgCode
+    if (gRandom->Rndm()<kRandomPDGFraction) pdgCode=0;
      Float_t decayLength= (gRandom->Rndm()<kDecayFraction) ?gRandom->Rndm()*geom.fLayerRadius[geom.fLayerRadius.size()-1]:0;
     particle.fDecayLength=decayLength;
     particle.simulateParticle(geom, r,p,pdgCode, kMaxLength,nLayerTPC);
     particle.reconstructParticle(geom,pdgCode,nLayerTPC);
     particle.reconstructParticleRotate0(geom,pdgCode,nLayerTPC);
-    Float_t mass =AliPID::ParticleMass(pidCode);
 
     if (dumpStream==kFALSE) continue;
     if (tree) tree->Fill();
@@ -170,6 +194,7 @@ void testAlice(Int_t nParticles, bool dumpStream){
                   "i=" << i <<
                   "isSecondary="<<isSecondary<<
                   "pidCode="<<pidCode<<
+                  "pdgCode="<<pdgCode<<
                   "charge="<<charge<<
                   "part.=" << &particle <<
                   "\n";
@@ -261,15 +286,15 @@ void testAlice3Werner(Int_t nParticles, bool dumpStream){
     double phi     = gRandom->Rndm()*TMath::TwoPi();
     double theta = 2.*(gRandom->Rndm()-0.5)*kThetaMax;
     double p[]={pt*sin(phi),pt*cos(phi),pt*theta};
-    int    pidCode=int(gRandom->Rndm()*5);                   // PID code of particles - 0-electron ,1-muon, 2-pion, 3-Kaon
-    float  charge  = (gRandom->Rndm()<0.5) ? -1:1;
-    int    pdgCode = AliPID::ParticleCode(pidCode)*charge;  // PID code covnerted to the PdgCode
+    int    pidCode=int(gRandom->Rndm()*8);                   // PID code of particles - 0-electron ,1-muon, 2-pion, 3-Kaon
+    long  charge  = (gRandom->Rndm()<0.5) ? -1:1;
+    long    pdgCode = AliPID::ParticleCode(pidCode)*charge;  // PID code covnerted to the PdgCode
+    if (gRandom->Rndm()<kRandomPDGFraction) pdgCode=0;
      Float_t decayLength= (gRandom->Rndm()<kDecayFraction) ?gRandom->Rndm()*geom.fLayerRadius[geom.fLayerRadius.size()-1]:0;
     particle.fDecayLength=decayLength;
     particle.simulateParticle(geom, r,p,pdgCode, kMaxLength,nLayersAll*2);
     particle.reconstructParticle(geom,pdgCode,nLayersAll*2);
     particle.reconstructParticleRotate0(geom,pdgCode,nLayersAll*2);
-    Float_t mass =AliPID::ParticleMass(pidCode);
 
     if (dumpStream==kFALSE) continue;
     if (tree) tree->Fill();
@@ -278,6 +303,7 @@ void testAlice3Werner(Int_t nParticles, bool dumpStream){
                   "i=" << i <<
                   "isSecondary="<<isSecondary<<
                   "pidCode="<<pidCode<<
+                  "pdgCode="<<pdgCode<<
                   "charge="<<charge<<
                   "part.=" << &particle <<
                   "\n";

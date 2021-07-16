@@ -94,14 +94,23 @@ public:
     fMaxLayer=0;
     fDecayLength=0;
   }
-  int simulateParticle(fastGeometry     &geom, double r[3], double p[3], int pdgCode, float maxLength, int maxPoints);
-  int reconstructParticle(fastGeometry  &geom, int pdgCode, uint layerStart);
-  int reconstructParticleRotate0(fastGeometry  &geom, int pdgCode, uint layerStart);
+  Float_t GetMass(Int_t pidCode);
+  Float_t GetZ(Int_t pidCode);
+  Float_t getMean(Int_t valueType, Int_t averageType);
+  Float_t getStat(Int_t valueType);
+  int simulateParticle(fastGeometry     &geom, double r[3], double p[3], long pdgCode, float maxLength, int maxPoints);
+  int reconstructParticle(fastGeometry  &geom, long pdgCode, uint layerStart);
+  int reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, uint layerStart);
   static void setAliases(TTree & tree);           //   set aliases for derived variables
   double fR[3];                            //   initial position
   double fP[3];                            //   initial momentum
-  int                         fPdgCodeMC;  //   PDG code used in simulation
-  int                         fPdgCodeRec; //   PDG code as used in reconstruction
+  long                         fPdgCodeMC;  //   PDG code used in simulation
+  long                         fPdgCodeRec; //   PDG code as used in reconstruction
+  float                       fMassMC;       //   mass of particle used in the simulation
+  float                       fMassRec;      //   mass of  particle used in the reconstruction
+  float                       fZMC;         //   Z of particle used in the simulation
+  float                       fZRec;        //   Z of particle used in the reconstruction
+
   int                         fMaxLayer;   //   maximal layer position
   int                         fMaxLayerRec;   //   maximal layer position in reconstruction
   int                         fLengthIn;   //   track length for in propagation
