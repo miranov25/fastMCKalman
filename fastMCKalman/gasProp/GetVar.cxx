@@ -3,6 +3,16 @@
 #include "gasMixer.h"
 #include "GetVar.h"
 
+bool GetVar::Init(){
+  static bool isInitialized=kFALSE;
+  if (isInitialized==false){
+    gSystem->Load("libgasElement.so");
+    gSystem->Load("libgasMixer.so");
+    gSystem->Load("libGasUtils.so");
+    isInitialized=kTRUE;
+  }
+  return isInitialized;
+}
 
 bool GetVar::CreateOrganicCompound(gasMixer & gQuencher, int nC, int nH, int nF, gasMixer gC, gasMixer gH, gasMixer gF)
 {
@@ -95,9 +105,7 @@ float GetVar::GetSigmaTErr(int fquencher, int p, int nC, int nH, int Zgas, int A
 
 float GetVar::GetX0(int fquencher, int p , int nC, int nH, int Zgas, int Agas) //fquencher in percentage, p in mBar2
 {
-    gSystem->Load("libgasElement.so");
-    gSystem->Load("libgasMixer.so");
-    gSystem->Load("libGasUtils.so");
+    Init();
 
     //Define building blocks
     const gasMixer gC(6, 12), gH(1, 1), gF(9,19);
@@ -121,9 +129,7 @@ float GetVar::GetX0(int fquencher, int p , int nC, int nH, int Zgas, int Agas) /
 
 float GetVar::GetX0F(int fquencher, int p , int nC, int nH, int nF, int Zgas, int Agas, int mC, int mH, int mF) //fquencher in percentage, p in mBar2
 {
-    gSystem->Load("libgasElement.so");
-    gSystem->Load("libgasMixer.so");
-    gSystem->Load("libGasUtils.so");
+  Init();
 
     //Define building blocks
     const gasMixer gC(6, 12), gH(1, 1), gF(9,19);
