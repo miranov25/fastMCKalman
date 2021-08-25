@@ -212,7 +212,7 @@ void GetVar::makeGasFunction(int minEntries, const char * output){
 }
 
 
-double GetVar::getDt(int id,  float fquencher, float ep){
+double GetVar::getDtNorm(int id,  float fquencher, float ep){
   AliNDLocalRegression * regresion=mapRegressionDtInt[id];
   if (regresion==0) return 0;
   Double_t inData[2]={fquencher,ep};
@@ -233,7 +233,7 @@ void GetVar::initTree(){ //TODO - load from the source github
   tree = (TTree*) f->Get("gastree");
 }
 
-float GetVar::GetDensity(int fquencher, int p , int nC, int nH, int Zgas, int Agas) //fquencher in percentage, p in mBar2
+float GetVar::GetDensity(int fquencher, int p , int nC, int nH, int Zgas, int Agas) //fquencher in percentage, p in mBar2 -> g/cm^3
 {
     Init();
 
@@ -262,7 +262,7 @@ float GetVar::GetDensity(int fquencher, int p , int nC, int nH, int Zgas, int Ag
     
     case 2:  // He
       noble_stp = 1.615e-4;
-    
+      break;
     default:
       std::cout << "Unknown noble gas requested in gasMixer::getGasDensity - aborting" << std::endl;
       printf("nC\t%d\tnH\t%d\tZ\t%d\tA\t%d\n",nC,nH,Zgas,Agas);
@@ -283,8 +283,10 @@ float GetVar::GetDensity(int fquencher, int p , int nC, int nH, int Zgas, int Ag
       break;
 
     default:
-      std::cout << "Unknown quenching gas requested in gasMixer::getGasDensity - aborting" << std::endl;
-      exit(1);
+      quencher_stp=6.486e-4*(nH*1+nC*12.)/(4.+12.);   //effective scaling
+      //std::cout << "Unknown quenching gas requested in gasMixer::getGasDensity - aborting" << std::endl;
+      // printf("nC\t%d\tnH\t%d\tZ\t%d\tA\t%d\n",nC,nH,Zgas,Agas);
+      //exit(1);
       break;
     }
 
