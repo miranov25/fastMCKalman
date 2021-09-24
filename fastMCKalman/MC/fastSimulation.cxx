@@ -1160,7 +1160,9 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint la
   Double_t dEdx=AliExternalTrackParam::BetheBlochAleph(param.P()/mass);
   double *covar = (double*)param.GetCovariance();
   for (int i=0; i<15; i++)covar[i]*=2;
-  double covar0[5]={0.1,0.1,0.01*(1.+2.*dEdx/param.P()),0.01*(1.+2.*dEdx/param.P()),0.1*(1.+2.*dEdx/param.P())};
+  Double_t LArm=getStat(0);
+  Double_t resFactor=(geom.fLayerResolRPhi[0]*geom.fLayerResolRPhi[0]/0.01)+0.2; // this is hack - we will need to
+  double covar0[5]={0.1,0.1,(1.+2.*dEdx/param.P())/(1.+LArm),(1.+2.*dEdx/param.P())/(1.+LArm),resFactor*400*(1.+2.*dEdx/param.P())/(1.+LArm*LArm)};
   covar[0]+=covar0[0]*covar0[0];
   covar[2]+=covar0[1]*covar0[1];
   covar[5]+=covar0[2]*covar0[2];
@@ -1283,7 +1285,9 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
   AliExternalTrackParam4D param(fParamMC[layer1],mass,1);
   Double_t dEdx=AliExternalTrackParam::BetheBlochAleph(param.P()/mass);
   double *covar = (double*)param.GetCovariance();
-  double covar0[5]={0.1,0.1,0.01*(1+2.*dEdx/param.P()),0.01*(1+2.*dEdx/param.P()),0.1*(1+2.*dEdx/param.P())};
+  Double_t LArm=getStat(0);
+   Double_t resFactor=(geom.fLayerResolRPhi[0]*geom.fLayerResolRPhi[0]/0.01)+0.2; // this is hack - we will need to
+  double covar0[5]={0.1,0.1,(1+2.*dEdx/param.P())/(1+LArm),(1+2.*dEdx/param.P())/(1+LArm),resFactor*20*20*(1+2.*dEdx/param.P())/(1+LArm*LArm)};
   for (int i=0; i<15; i++)covar[i]*=5;
   covar[0]+=covar0[0]*covar0[0];
   covar[2]+=covar0[1]*covar0[1];
@@ -1370,7 +1374,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
 Float_t fastParticle::getMean(Int_t valueType, Int_t averageType){
   Float_t valueMean=0;
   Float_t nPoints=0;
-  for (Int_t i=0; i<fMaxLayer;i++){
+  for (Int_t i=0; i<fParamMC.size();i++){
     Float_t value=0;
     if (valueType==0) value=fParamMC[i].Pt();
     if (valueType==1) value=1/fParamMC[i].Pt();
@@ -1392,7 +1396,7 @@ Float_t fastParticle::getStat(Int_t valueType){
   if (valueType==0) {
     Float_t rMin = -1;
     Float_t rMax = -1;
-    for (Int_t i = 0; i < fMaxLayer; i++) {
+    for (Int_t i = 0; i < fParamMC.size(); i++) {
       Float_t x=  fParamMC[i].GetX();
       if (rMin>x || rMin<0)  rMin=x;
       if (rMax<x || rMax==0) rMax=x;
@@ -1453,3 +1457,4 @@ void fastParticle::setAliases(TTree & tree){
   tree.SetAlias("Larm","part.getStat(0)");
 
 }
+
