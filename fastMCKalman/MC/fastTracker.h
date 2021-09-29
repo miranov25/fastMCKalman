@@ -2,12 +2,14 @@
 #define fastTracker_H
 /*
  .L $fastMCKalman/fastMCKalman/MC/fastTracker.h
-
+ code based on the AliTPCtracker.
 */
 // basic tracking functionality extracked https://github.com/miranov25/AliRoot/blob/master/TPC/TPCrec/AliTPCtracker.cxx#L1325
+#include "AliExternalTrackParam.h"
 
 class fastTracker{
-  static AliExternalTrackParam* makeSeed(double xyz0[3], double xyz1[3], double xyz2[3], double sy, double sz);
+public:
+  static AliExternalTrackParam* makeSeed(double xyz0[3], double xyz1[3], double xyz2[3], double sy, double sz, float bz);
   static Double_t makeC(Double_t x1,Double_t y1, Double_t x2,Double_t y2, Double_t x3,Double_t y3);     // F1
   static Double_t makeSnp(Double_t x1,Double_t y1,Double_t x2,Double_t y2,Double_t x3,Double_t y3);     // F2
   static Double_t makeTgl(Double_t x1,Double_t y1, Double_t x2,Double_t y2, Double_t z1,Double_t z2);   // F3
@@ -70,7 +72,7 @@ Double_t fastTracker::makeTgl(Double_t x1,Double_t y1, Double_t x2,Double_t y2,D
   return (z1 - z2)/sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
 }
 
-AliExternalTrackParam * fastTracker::makeSeed(double xyz0[3], double xyz1[3], double xyz2[3], double sy, double sz){
+AliExternalTrackParam * fastTracker::makeSeed(double xyz0[3], double xyz1[3], double xyz2[3], double sy, double sz, float bz){
   Double_t param[5];
   Double_t c[15];
   // calculate initial param
@@ -100,7 +102,21 @@ AliExternalTrackParam * fastTracker::makeSeed(double xyz0[3], double xyz1[3], do
   c[13]=f30*sy*f40+f32*sy*f42;
   c[14]=f40*sy*f40+f42*sy*f42+f43*sy*f43;
 
-  return 0;
+  if (TMath::Abs(bz)>kAlmost0Field) {
+    c[14]/=(bz*kB2C)*(bz*kB2C);
+    param[4]/=(bz*kB2C); // transform to 1/pt
+  }
+  else { // assign 0.6 GeV pT
+    const double kq2pt = 1./0.6;
+    param[4] = kq2pt;
+    c[14] = (0.5*0.5)*kq2pt;
+  }
+
+  //
+  //AliExternalTrackParam *param=new AliExternalTrackParam(
+  //AliExternalTrackParam AliExternalTrackParam(Double_t x, Double_t alpha, const Double_t[5] param, const Double_t[15] covar)
+  AliExternalTrackParam *extParam=new AliExternalTrackParam(xyz0[0],0,param,c);
+  return extParam;
 }
 
 
