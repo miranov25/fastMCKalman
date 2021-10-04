@@ -103,16 +103,17 @@ AliExternalTrackParam * fastTracker::makeSeed(double xyz0[3], double xyz1[3], do
   Double_t f20=(makeSnp(xyz2[0],xyz2[1]+sy,xyz1[0],xyz1[1],xyz0[0],xyz0[1])-param[2])/sy;
   Double_t f22=(makeSnp(xyz2[0],xyz2[1],xyz1[0],xyz1[1]+sy,xyz0[0],xyz0[1])-param[2])/sy;
   Double_t f23=(makeSnp(xyz2[0],xyz2[1],xyz1[0],xyz1[1],xyz0[0],xyz0[1]+sy)-param[2])/sy;
-	
-  Double_t f30=(makeTgl(xyz2[0],xyz2[1]+sy,xyz1[0],xyz1[1],xyz2[2],xyz1[2])-param[3])/sy;
-  Double_t f31=(makeTgl(xyz2[0],xyz2[1],xyz1[0],xyz1[1],xyz2[2]+sz,xyz1[2])-param[3])/sz;
-  Double_t f32=(makeTgl(xyz2[0],xyz2[1],xyz1[0],xyz1[1]+sy,xyz2[2],xyz1[2])-param[3])/sy;
-  Double_t f34=(makeTgl(xyz2[0],xyz2[1],xyz1[0],xyz1[1],xyz2[2],xyz1[2]+sz)-param[3])/sz;
+  //
+  //  makeTgln(xyz2[0],xyz2[1],xyz1[0],xyz1[1],xyz2[2],xyz1[2],param[4]);
+  Double_t f30=(makeTgln(xyz2[0],xyz2[1]+sy,xyz1[0],xyz1[1],xyz2[2],xyz1[2],param[4])-param[3])/sy;
+  Double_t f31=(makeTgln(xyz2[0],xyz2[1],xyz1[0],xyz1[1],xyz2[2]+sz,xyz1[2],param[4])-param[3])/sz;
+  Double_t f32=(makeTgln(xyz2[0],xyz2[1],xyz1[0],xyz1[1]+sy,xyz2[2],xyz1[2],param[4])-param[3])/sy;
+  Double_t f34=(makeTgln(xyz2[0],xyz2[1],xyz1[0],xyz1[1],xyz2[2],xyz1[2]+sz,param[4])-param[3])/sz;
   c[0]=sy;
   c[1]=0.;       c[2]=sz;
   c[3]=f20*sy;  c[4]=0.;       c[5]=f20*sy*f20+f22*sy*f22+f23*sy*f23;
   c[6]=f30*sy;  c[7]=f31*sz;  c[8]=f30*sy*f20+f32*sy*f22;
-  c[9]=f30*sy*f30+f31*sz*f31+f32*sy*f32+f34*sz*f34;
+  c[9]=f30*sy*sy*f30+f31*sz*sz*f31+f32*sy*sy*f32+f34*sz*sz*f34;
   c[10]=f40*sy; c[11]=0.; c[12]=f40*sy*f20+f42*sy*f22+f43*sy*f23;
   c[13]=f30*sy*f40+f32*sy*f42;
   c[14]=f40*sy*f40+f42*sy*f42+f43*sy*f43;
