@@ -2,7 +2,7 @@
 /*
   .L $fastMCKalman/fastMCKalman/MC/fastTracker.h
   .L $fastMCKalman/fastMCKalman/MC/testFastTracker.C
-  testFasTrackerSimul(1000);
+  testFasTrackerSimul(100000);
 
  */
 TTree * tree = 0;
@@ -16,9 +16,9 @@ void testFasTracker(Float_t pt, Float_t bz, Float_t tgl){
   //AliExternalTrackParam AliExternalTrackParam(Double_t[3] xyz, Double_t[3] pxpypz, Double_t[21] cv, Short_t sign)
   AliExternalTrackParam param(xyz,pxpypz,cov,1);
   Double_t xyz0[3], xyz1[3],xyz2[3];
-  param.GetXYZatR(1, bz, xyz0);
-  param.GetXYZatR(85, bz, xyz1);
-  param.GetXYZatR(250, bz, xyz2);
+  param.GetXYZAt(1, bz, xyz0);
+  param.GetXYZAt(85, bz, xyz1);
+  param.GetXYZAt(250, bz, xyz2);
   //
   AliExternalTrackParam * paramSeed = fastTracker::makeSeed(xyz0,xyz1,xyz2,0.1,0.1,bz);
 }
@@ -32,21 +32,24 @@ void testFasTrackerSimul(Int_t nPoints){
 
   Double_t pxpypz[3]={};
   Double_t xyz[3]={1,0,0};
+
   Double_t cov[21]={0};
   for (Int_t i=0; i<nPoints; i++){
      Float_t tgl=gRandom->Rndm();
-     Float_t pt=(gRandom->Rndm()+0.05)*5;
-     Float_t sy=(gRandom->Rndm()+0.1)*0.01;
-     Float_t sz=(gRandom->Rndm()+0.1)*0.01;
+     Float_t pt=(gRandom->Rndm()+0.2)*5;
+     Float_t sy=(gRandom->Rndm()+0.001)*0.1;
+     Float_t sz=(gRandom->Rndm()+0.001)*0.1;
+     xyz[1]=gRandom->Gaus()*5;
+     xyz[2]=gRandom->Gaus()*5;
      pxpypz[0]=pt;
-     pxpypz[1]=0;
+     pxpypz[1]=pt*(gRandom->Gaus()*0.05);
      pxpypz[2]=pt*tgl;
      AliExternalTrackParam param(xyz,pxpypz,cov,1);
      param.Rotate(0);
      Double_t xyz0[3], xyz1[3],xyz2[3];
-    param.GetXYZatR(1, bz, xyz0);
-    param.GetXYZatR(85, bz, xyz1);
-    param.GetXYZatR(250, bz, xyz2);
+    param.GetXYZAt(1, bz, xyz0);
+    param.GetXYZAt(85, bz, xyz1);
+    param.GetXYZAt(250, bz, xyz2);
     xyz0[1]+=gRandom->Gaus()*sy;
     xyz1[1]+=gRandom->Gaus()*sy;
     xyz2[1]+=gRandom->Gaus()*sy;
@@ -55,6 +58,8 @@ void testFasTrackerSimul(Int_t nPoints){
     xyz2[2]+=gRandom->Gaus()*sz;
     //
     AliExternalTrackParam * paramSeed = fastTracker::makeSeed(xyz0,xyz1,xyz2,sy,sz,bz);
+    paramSeed->Rotate(param.GetAlpha());
+    paramSeed->PropagateTo(param.GetX(),bz);
     (*pcstream)<<"seed"<<
       "param.="<<&param<<
        "paramSeed.="<<paramSeed<<
@@ -80,5 +85,28 @@ void testFastTrackerEval(){
     ::Error("testFastTracker P3 Test1 ","pullAnalytical");
   }
   tree->Draw("(paramSeed.fP[3]-param.fP[3])/sqrt(paramSeed.fC[9])","","");
+  //
+  tree->Draw("(paramSeed.fP[0]-param.fP[0])/sy","paramSeed.fX>0.1","");   // OK
+  tree->Draw("(paramSeed.fP[0]-param.fP[0])/sqrt(paramSeed.fC[0])","paramSeed.fX>0.1","");    // OK
+  //
+  tree->Draw("(paramSeed.fP[1]-param.fP[1])/sz","paramSeed.fX>0.1","");   // OK
+  tree->Draw("(paramSeed.fP[1]-param.fP[1])/sqrt(paramSeed.fC[2])","paramSeed.fX>0.1","");    // Ok
+  //
+  tree->Draw("(paramSeed.fP[4]-param.fP[4])/sqrt(paramSeed.fC[14])","paramSeed.fX>0.1","");   // OK
+  //
+  tree->Draw("(paramSeed.fP[3]-param.fP[3])/sqrt(paramSeed.fC[9])","paramSeed.fX>0.1","");    // for samll error approximation not sufficiet  for realistic pulls~1
+  tree->Draw("paramSeed.fP[2]:param.fP[2]","paramSeed.fX>0.1","");                            // for samll error <0.01 approximation not sufficiet  for realistic pulls~1
+  //constant bias  dependeing on the curvature 5 10^-5 - linear with curvature
+  tree->Draw("(paramSeed.fP[2]-param.fP[2]):sy","paramSeed.fX>0.1","prof");
+  // Diagonal elemets are fine  - non diagoal looks wrong
+  // tree->Draw("paramSeed.fC[3]/sqrt(paramSeed.fC[0]*paramSeed.fC[5])","paramSeed.fX>0.1&&sy>0.01");  // looks OK -0.66
+  // tree->Draw("paramSeed.fC[7]/sqrt(paramSeed.fC[2]*paramSeed.fC[9])","paramSeed.fX>0.1&&sy>0.01");  // looks OK 0.7
+
 
 }
+//
+// 0
+// 1  2
+// 3  4   5
+// 6  7   8  9
+// 10 11  12 13 14
