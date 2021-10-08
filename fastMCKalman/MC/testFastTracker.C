@@ -25,47 +25,49 @@ void testFasTracker(Float_t pt, Float_t bz, Float_t tgl){
 
 /// generate random tracks smear them and make kalman estimator
 ///    the error estimatro and the data should be within error
-void testFasTrackerSimul(Int_t nPoints){
+void testFasTrackerSimul(Int_t nPoints) {
   // Double_t pt=0.2,bz=0.5, tgl=0.1;
-  float bz=0.5;
-   TTreeSRedirector *pcstream = new TTreeSRedirector("testSeed.root","recreate");
+  float bz = 0.5;
+  TTreeSRedirector *pcstream = new TTreeSRedirector("testSeed.root", "recreate");
 
-  Double_t pxpypz[3]={};
-  Double_t xyz[3]={1,0,0};
+  Double_t pxpypz[3] = {};
+  Double_t xyz[3] = {1, 0, 0};
 
-  Double_t cov[21]={0};
-  for (Int_t i=0; i<nPoints; i++){
-     Float_t tgl=gRandom->Rndm();
-     Float_t pt=(gRandom->Rndm()+0.2)*5;
-     Float_t sy=(gRandom->Rndm()+0.001)*0.1;
-     Float_t sz=(gRandom->Rndm()+0.001)*0.1;
-     xyz[1]=gRandom->Gaus()*5;
-     xyz[2]=gRandom->Gaus()*5;
-     pxpypz[0]=pt;
-     pxpypz[1]=pt*(gRandom->Gaus()*0.05);
-     pxpypz[2]=pt*tgl;
-     AliExternalTrackParam param(xyz,pxpypz,cov,1);
-     param.Rotate(0);
-     Double_t xyz0[3], xyz1[3],xyz2[3];
-    param.GetXYZAt(1, bz, xyz0);
-    param.GetXYZAt(85, bz, xyz1);
-    param.GetXYZAt(250, bz, xyz2);
-    xyz0[1]+=gRandom->Gaus()*sy;
-    xyz1[1]+=gRandom->Gaus()*sy;
-    xyz2[1]+=gRandom->Gaus()*sy;
-    xyz0[2]+=gRandom->Gaus()*sz;
-    xyz1[2]+=gRandom->Gaus()*sz;
-    xyz2[2]+=gRandom->Gaus()*sz;
+  Double_t cov[21] = {0};
+  for (Int_t i = 0; i < nPoints; i++) {
+    Float_t tgl = gRandom->Rndm();
+    Float_t pt = (gRandom->Rndm() + 0.2) * 5;
+    Float_t sy = (gRandom->Rndm() + 0.001) * 0.001;
+    Float_t sz = (gRandom->Rndm() + 0.001) * 0.001;
+    xyz[1] = gRandom->Gaus() * 5;
+    xyz[2] = gRandom->Gaus() * 5;
+    pxpypz[0] = pt;
+    pxpypz[1] = pt * (gRandom->Gaus() * 0.05);
+    pxpypz[2] = pt * tgl;
+    AliExternalTrackParam param(xyz, pxpypz, cov, 1);
+    param.Rotate(0);
+    param.PropagateTo(250, bz);
     //
-    AliExternalTrackParam * paramSeed = fastTracker::makeSeed(xyz0,xyz1,xyz2,sy,sz,bz);
-    paramSeed->Rotate(param.GetAlpha());
-    paramSeed->PropagateTo(param.GetX(),bz);
-    (*pcstream)<<"seed"<<
-      "param.="<<&param<<
-       "paramSeed.="<<paramSeed<<
-       "sy="<<sy<<
-       "sz="<<sz<<
-       "\n";
+    Double_t xyz0[3], xyz1[3], xyz2[3];
+    param.GetXYZAt(250, bz, xyz0);
+    param.GetXYZAt(85, bz, xyz1);
+    param.GetXYZAt(1, bz, xyz2);
+    xyz0[1] += gRandom->Gaus() * sy;
+    xyz1[1] += gRandom->Gaus() * sy;
+    xyz2[1] += gRandom->Gaus() * sy;
+    xyz0[2] += gRandom->Gaus() * sz;
+    xyz1[2] += gRandom->Gaus() * sz;
+    xyz2[2] += gRandom->Gaus() * sz;
+    //
+    AliExternalTrackParam *paramSeed = fastTracker::makeSeed(xyz0, xyz1, xyz2, sy, sz, bz);
+    param.Rotate(paramSeed->GetAlpha());
+    param.PropagateTo(paramSeed->GetX(), bz);
+    (*pcstream) << "seed" <<
+                "param.=" << &param <<
+                "paramSeed.=" << paramSeed <<
+                "sy=" << sy <<
+                "sz=" << sz <<
+                "\n";
   }
   delete pcstream;
 }
