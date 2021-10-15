@@ -3,7 +3,8 @@
   .L $fastMCKalman/fastMCKalman/MC/fastTracker.h
   .L $fastMCKalman/fastMCKalman/MC/testFastTracker.C
   testFasTrackerSimul(100000);
-
+  WDir:
+      /home2/miranov/github/fastMCKalman/data/testSeed
  */
 TTree * tree = 0;
 
@@ -78,31 +79,39 @@ void testFastTrackerEval(){
   tree = (TTree *) f->Get("seed");
   Bool_t isOK=0;
   tree->SetAlias("errP3A","(sqrt(2.)*sz/(245-85))");
-  // test 0
-  tree->Draw("(paramSeed.fP[3]-param.fP[3])/(sqrt(2.)*sz/(245-85))","",""); // should be gaus with width ~ 1 - OK
+  //
+  // test P[0]
+  tree->Draw("(paramSeed.fP[0]-param.fP[0])/sy","",""); // should be gaus with width ~ 1 - OK
   isOK= abs(1-tree->GetHistogram()->GetRMS())<4*tree->GetHistogram()->GetRMSError();
-  if (isOK) {
-    ::Info("testFastTracker P3 Test1","pullAnalytical");
-  }else{
-    ::Error("testFastTracker P3 Test1 ","pullAnalytical");
+  if (isOK) {::Info("testFastTracker pull test P0","pullAnalytical - OK");
+  }else{::Error("testFastTracker pull test P0","pullAnalytical- FAILED");
   }
-  tree->Draw("(paramSeed.fP[3]-param.fP[3])/sqrt(paramSeed.fC[9])","","");
-  //
-  tree->Draw("(paramSeed.fP[0]-param.fP[0])/sy","paramSeed.fX>0.1","");   // OK
-  tree->Draw("(paramSeed.fP[0]-param.fP[0])/sqrt(paramSeed.fC[0])","paramSeed.fX>0.1","");    // OK
-  //
-  tree->Draw("(paramSeed.fP[1]-param.fP[1])/sz","paramSeed.fX>0.1","");   // OK
-  tree->Draw("(paramSeed.fP[1]-param.fP[1])/sqrt(paramSeed.fC[2])","paramSeed.fX>0.1","");    // Ok
-  //
-  tree->Draw("(paramSeed.fP[4]-param.fP[4])/sqrt(paramSeed.fC[14])","paramSeed.fX>0.1","");   // OK
-  //
-  tree->Draw("(paramSeed.fP[3]-param.fP[3])/sqrt(paramSeed.fC[9])","paramSeed.fX>0.1","");    // for samll error approximation not sufficiet  for realistic pulls~1
-  tree->Draw("paramSeed.fP[2]:param.fP[2]","paramSeed.fX>0.1","");                            // for samll error <0.01 approximation not sufficiet  for realistic pulls~1
-  //constant bias  dependeing on the curvature 5 10^-5 - linear with curvature
-  tree->Draw("(paramSeed.fP[2]-param.fP[2]):sy","paramSeed.fX>0.1","prof");
-  // Diagonal elemets are fine  - non diagoal looks wrong
-  // tree->Draw("paramSeed.fC[3]/sqrt(paramSeed.fC[0]*paramSeed.fC[5])","paramSeed.fX>0.1&&sy>0.01");  // looks OK -0.66
-  // tree->Draw("paramSeed.fC[7]/sqrt(paramSeed.fC[2]*paramSeed.fC[9])","paramSeed.fX>0.1&&sy>0.01");  // looks OK 0.7
+  // test P[1]
+  tree->Draw("(paramSeed.fP[1]-param.fP[1])/sz","",""); // should be gaus with width ~ 1 - OK
+  isOK= abs(1-tree->GetHistogram()->GetRMS())<4*tree->GetHistogram()->GetRMSError();
+  if (isOK) {::Info("testFastTracker pull test P1","pullAnalytical - OK");
+  }else{::Error("testFastTracker pull test P1","pullAnalytical- FAILED");
+  }
+  // test P[2]
+  tree->Draw("(paramSeed.fP[2]-param.fP[2])/sqrt(paramSeed.fC[5])","",""); // should be gaus with width ~ 1 - OK
+  isOK= abs(1-tree->GetHistogram()->GetRMS())<4*tree->GetHistogram()->GetRMSError();
+  if (isOK) {::Info("testFastTracker pull test P2","pullAnalytical - OK");
+  }else{::Error("testFastTracker pull test P2","pullAnalytical- FAILED");
+  }
+  // test P[3]
+  tree->Draw("(paramSeed.fP[3]-param.fP[3])/sqrt(paramSeed.fC[9])","",""); // should be gaus with width ~ 1 - OK
+  isOK= abs(1-tree->GetHistogram()->GetRMS())<4*tree->GetHistogram()->GetRMSError();
+  if (isOK) {::Info("testFastTracker pull test P3","pullAnalytical - OK");
+  }else{::Error("testFastTracker pull test P3","pullAnalytical- FAILED");
+  }
+  // test P[4]
+  tree->Draw("(paramSeed.fP[4]-param.fP[4])/sqrt(paramSeed.fC[14])","",""); // should be gaus with width ~ 1 - OK
+  isOK= abs(1-tree->GetHistogram()->GetRMS())<4*tree->GetHistogram()->GetRMSError();
+  if (isOK) {::Info("testFastTracker pull test P4","pullAnalytical - OK");
+  }else{::Error("testFastTracker pull test P4","pullAnalytical- FAILED");
+  }
+
+
 
 
 }
