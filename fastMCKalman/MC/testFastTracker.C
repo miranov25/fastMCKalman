@@ -1,13 +1,25 @@
-#include "fastTracker.h"
+
 /*
-  .L $fastMCKalman/fastMCKalman/MC/fastTracker.h
-  .L $fastMCKalman/fastMCKalman/MC/testFastTracker.C
+     gSystem->Load("AliSkimmedDataAnalysisMaker.so");
+  //.L $fastMCKalman/fastMCKalman/MC/fastTracker.h
+  .L $fastMCKalman/fastMCKalman/MC/testFastTracker.C++g
   testFasTrackerSimul(100000);
   testFastTrackerEval();
   WDir:
       /home2/miranov/github/fastMCKalman/data/testSeed
  */
+
+#include "TFile.h"
+#include "TTree.h"
+#include "TTree.h"
+#include "TRandom.h"
+#include "TH1.h"
+#include "TTreeStream.h"
+#include "fastTracker.h"
+
+
 TTree * tree = 0;
+
 
 /// test if the track properties from seedign the same as from external track param
 void testFasTracker(Float_t pt, Float_t bz, Float_t tgl){
@@ -38,9 +50,9 @@ void testFasTrackerSimul(Int_t nPoints) {
   Double_t cov[21] = {0};
   for (Int_t i = 0; i < nPoints; i++) {
     Float_t tgl = gRandom->Rndm();
-    Float_t pt = (gRandom->Rndm() + 0.2) * 5;
-    Float_t sy = (gRandom->Rndm() + 0.001) * 0.001;
-    Float_t sz = (gRandom->Rndm() + 0.001) * 0.001;
+    Float_t pt = (gRandom->Rndm() + 0.05) * 5;
+    Float_t sy = (gRandom->Rndm() + 0.01) * 0.001;
+    Float_t sz = (gRandom->Rndm() + 0.01) * 0.001;
     xyz[1] = gRandom->Gaus() * 5;
     xyz[2] = gRandom->Gaus() * 5;
     pxpypz[0] = pt;
