@@ -5,6 +5,8 @@
 #include "AliExternalTrackParam.h"
 #include "TParticlePDG.h"
 #include "TDatabasePDG.h"
+
+
 #include "ROOT/RVec.hxx"
 
 class TTree;
@@ -14,6 +16,7 @@ const Int_t kMaxLayers=10000;
 #pragma link C++ class RVec<AliExternalTrackParam>+;
 #pragma link C++ class RVec<AliExternalTrackParam4D>+;
 #pragma link C++ class RVec<int>+;
+#pragma link C++ class RVec<float>+;
 //#pragma link C++ class std::vector<int>;
 //#pragma link C++ class RVec<std::vector<int>>;
 
@@ -44,6 +47,8 @@ public:
   static Double_t dPdxEulerStep(Double_t p, Double_t mass, Double_t xTimesRho, Double_t step,  Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
   static Double_t dPdxCorrT4(Double_t p, Double_t mass, Double_t xTimesRho,Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
   static Double_t dPdxCorrT42(Double_t p, Double_t mass, Double_t xTimesRho,Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
+  //
+  Bool_t GetXYZAt(Double_t x, Double_t b, Double_t *r) const;
   // Uit test functions
   void UnitTestDumpCorrectForMaterial(TTreeSRedirector * pcstream, Double_t xOverX0, Double_t xTimesRho,Double_t mass, Int_t nSteps, Float_t stepFraction=0.02);
 public:
@@ -138,7 +143,6 @@ public:
   static TTreeSRedirector * fgStreamer;    //   debug streamer
   ClassDef(fastParticle, 1)
 };
-
 
 #endif
 

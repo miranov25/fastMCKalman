@@ -2,7 +2,7 @@
     .L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+
     geom= fastGeometry(201.)
     particle=fastParticle(200);
-    geom.setLayerRadiusPower(0,10,1,20,1.2,0);
+    geom.setLayerRadiusPower(0,10,1,20,1.2,0);f0.0
     geom.setLayerRadiusPower(11,200,20,150,1.2,0);
 */
 
@@ -65,7 +65,7 @@ Bool_t AliExternalTrackParam4D::PropagateTo(Double_t xk, Double_t b, Int_t timeD
   Double_t time = length * mBeta / kcc;
   fTime += timeDir*time;
 }
-///  Clone of the original method removing one protection
+///  Clone of the original method removing one protection - here we disable  TMath::Abs(cosT)>kAlmost1 check (lAlmost1 was very restrictive)
 ///  // This method has 3 modes of behaviour
 ///  // 1) xyz[3] array is provided but alpSect pointer is 0: calculate the position of track intersection
 ///  //    with circle of radius xr and fill it in xyz array
@@ -192,7 +192,7 @@ Bool_t AliExternalTrackParam4D::GetXYZatR(Double_t xr,Double_t bz, Double_t *xyz
     if (xyz) {
       xyz[0] = xr;
       xyz[1] = yloc;
-      if (TMath::Abs(x2r) < 0.05) xyz[2] = fz + dx * (r2 + f2 * dy2dx) * tgl;
+      if (TMath::Abs(x2r) < 0.001) xyz[2] = fz + dx * (r2 + f2 * dy2dx) * tgl;
       else {
         // for small dx/R the linear apporximation of the arc by the segment is OK,
         // but at large dx/R the error is very large and leads to incorrect Z propagation
