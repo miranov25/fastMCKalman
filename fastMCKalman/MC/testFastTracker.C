@@ -123,7 +123,28 @@ void testFastTrackerEval(){
   if (isOK) {::Info("testFastTracker pull test P4","pullAnalytical - OK");
   }else{::Error("testFastTracker pull test P4","pullAnalytical- FAILED");
   }
-
+  //
+  tree->SetAlias("pull0","(paramSeed.fP[0]-param.fP[0])/sqrt(paramSeed.fC[0])");
+  tree->SetAlias("pull1","(paramSeed.fP[1]-param.fP[1])/sqrt(paramSeed.fC[2])");
+  tree->SetAlias("pull2","(paramSeed.fP[2]-param.fP[2])/sqrt(paramSeed.fC[5])");
+  tree->SetAlias("pull3","(paramSeed.fP[3]-param.fP[3])/sqrt(paramSeed.fC[9])");
+  tree->SetAlias("pull4","(paramSeed.fP[4]-param.fP[4])/sqrt(paramSeed.fC[14])");
+  //
+  tree->SetAlias("c02","(paramSeed.fC[3])/sqrt(paramSeed.fC[0]*paramSeed.fC[5])");
+  tree->SetAlias("c13","(paramSeed.fC[7])/sqrt(paramSeed.fC[2]*paramSeed.fC[9])");
+  tree->SetAlias("c24","(paramSeed.fC[12])/sqrt(paramSeed.fC[5]*paramSeed.fC[14])");
+  // corels
+  {
+    TF1 *f1 = new TF1("f1", "[0]*x");
+    tree->Draw("(paramSeed.fP[1]-param.fP[1])*(paramSeed.fP[3]-param.fP[3]):paramSeed.fC[7]", "sz>0.0005", "prof");
+    tree->GetHistogram()->Fit("f1"); // ~ 1 - looks OK
+    tree->Draw("(paramSeed.fP[0]-param.fP[0])*(paramSeed.fP[2]-param.fP[2]):paramSeed.fC[3]", "sz>0.0005", "prof");
+    tree->GetHistogram()->Fit("f1"); //  ~1 - looks OK
+    tree->Draw("(paramSeed.fP[2]-param.fP[2])*(paramSeed.fP[4]-param.fP[4]):paramSeed.fC[12]", "sz>0.0005", "prof");
+    tree->GetHistogram()->Fit("f1"); //  ~1 - looks OK
+    tree->Draw("(paramSeed.fP[0]-param.fP[0])*(paramSeed.fP[4]-param.fP[4]):paramSeed.fC[10]", "sz>0.0005", "prof");
+    tree->GetHistogram()->Fit("f1"); //  ~
+  }
 
 
 
