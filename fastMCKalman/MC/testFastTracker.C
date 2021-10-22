@@ -3,7 +3,6 @@
   .L $fastMCKalman/fastMCKalman/MC/fastTracker.h
   .L $fastMCKalman/fastMCKalman/MC/testFastTracker.C
   testFasTrackerSimul(100000);
-  testFastTrackerEval();
   WDir:
       /home2/miranov/github/fastMCKalman/data/testSeed
  */
@@ -38,7 +37,7 @@ void testFasTrackerSimul(Int_t nPoints) {
   Double_t cov[21] = {0};
   for (Int_t i = 0; i < nPoints; i++) {
     Float_t tgl = gRandom->Rndm();
-    Float_t pt = (gRandom->Rndm() + 0.04)  * 5;
+    Float_t pt = (gRandom->Rndm() + 0.2) * 5;
     Float_t sy = (gRandom->Rndm() + 0.001) * 0.001;
     Float_t sz = (gRandom->Rndm() + 0.001) * 0.001;
     xyz[1] = gRandom->Gaus() * 5;
@@ -63,7 +62,7 @@ void testFasTrackerSimul(Int_t nPoints) {
     //
     AliExternalTrackParam *paramSeed = fastTracker::makeSeed(xyz0, xyz1, xyz2, sy, sz, bz);
     param.Rotate(paramSeed->GetAlpha());
-    //param.PropagateTo(paramSeed->GetX(), bz);
+    param.PropagateTo(paramSeed->GetX(), bz);
     (*pcstream) << "seed" <<
                 "param.=" << &param <<
                 "paramSeed.=" << paramSeed <<
@@ -82,20 +81,20 @@ void testFastTrackerEval(){
   tree->SetAlias("errP3A","(sqrt(2.)*sz/(245-85))");
   //
   // test P[0]
-  tree->Draw("(paramSeed.fP[0]-param.fP[0])/sqrt(paramSeed.fC[0])","",""); // should be gaus with width ~ 1 - OK
+  tree->Draw("(paramSeed.fP[0]-param.fP[0])/sy","",""); // should be gaus with width ~ 1 - OK
   isOK= abs(1-tree->GetHistogram()->GetRMS())<4*tree->GetHistogram()->GetRMSError();
   if (isOK) {::Info("testFastTracker pull test P0","pullAnalytical - OK");
   }else{::Error("testFastTracker pull test P0","pullAnalytical- FAILED");
   }
   // test P[1]
-  tree->Draw("(paramSeed.fP[1]-param.fP[1])/sqrt(paramSeed.fC[2])","sz>0.0001",""); // should be gaus with width ~ 1 - OK
+  tree->Draw("(paramSeed.fP[1]-param.fP[1])/sz","",""); // should be gaus with width ~ 1 - OK
   isOK= abs(1-tree->GetHistogram()->GetRMS())<4*tree->GetHistogram()->GetRMSError();
   if (isOK) {::Info("testFastTracker pull test P1","pullAnalytical - OK");
   }else{::Error("testFastTracker pull test P1","pullAnalytical- FAILED");
   }
   // test P[2]
   tree->Draw("(paramSeed.fP[2]-param.fP[2])/sqrt(paramSeed.fC[5])","",""); // should be gaus with width ~ 1 - OK
-  isOK= abs(1-tree->GetHistogram()->GetRMS())<6.*tree->GetHistogram()->GetRMSError();
+  isOK= abs(1-tree->GetHistogram()->GetRMS())<4*tree->GetHistogram()->GetRMSError();
   if (isOK) {::Info("testFastTracker pull test P2","pullAnalytical - OK");
   }else{::Error("testFastTracker pull test P2","pullAnalytical- FAILED");
   }
@@ -112,7 +111,7 @@ void testFastTrackerEval(){
   }else{::Error("testFastTracker pull test P4","pullAnalytical- FAILED");
   }
 
-  //
+
 
 
 }
