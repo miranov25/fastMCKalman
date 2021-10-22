@@ -2,7 +2,7 @@
 Fast simulation and performance parameterization - primary for ALICE3 and DUNE  
 
 
-# Visualiation using RootInteractive
+# Visualization using RootInteractive
 * RootInteractive activelly developped
   * compression on the client->server
   * interactive histogram
