@@ -60,8 +60,7 @@ Double_t fastTracker::makeSnp(Double_t x1,Double_t y1, Double_t x2,Double_t y2, 
   Double_t x0 = x3*0.5-y3*u; 
   Double_t y0 = y3*0.5+x3*u;
   Double_t c2 = 1/TMath::Sqrt(x0*x0+y0*y0);
-  if (det<0) c2*=-1;
-  x0+=x1;
+  if (det>0) c2*=-1;
   x0*=c2;  
   return x0;
 }
