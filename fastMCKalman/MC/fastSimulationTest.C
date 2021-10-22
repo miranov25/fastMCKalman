@@ -81,7 +81,7 @@ void testTPC(Int_t nParticles, bool dumpStream=1){
     }
     double r[]     = {0,0,0};
     Bool_t  isSecondary=gRandom->Rndm()<0.5;
-    isSecondary=kFALSE;
+    // isSecondary=kFALSE;
     if (isSecondary){
         r[0]=2*(gRandom->Rndm()-0.5)*smearR;
         r[1]=2*(gRandom->Rndm()-0.5)*smearR;
