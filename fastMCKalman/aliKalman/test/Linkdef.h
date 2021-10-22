@@ -20,5 +20,8 @@
 #pragma link C++ class TrackFlatAna+;
 #pragma link C++ class AliSkimmedDataAnalysisMaker+;
 
+#pragma link C++ class AliVParticle+;
+#pragma link C++ class AliVTrack+;
+#pragma link C++ class AliVVertex+;
 
 #endif

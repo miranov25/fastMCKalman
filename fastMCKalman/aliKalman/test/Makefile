@@ -2,9 +2,11 @@
 
 PROGRAM = AliSkimmedDataAnalysisMaker
 
-HDRS =  TStatToolkit.h AliTMinuitToolkit.h AliPDG.h AliPID.h AliDrawStyle.h AliSysInfo.h AliXRDPROOFtoolkit.h TTreeStream.h AliLog.h AliExternalTrackParam.h V0FlatAna.h TrackFlatAna.h AliSkimmedDataAnalysisMaker.h\
+HDRS =   AliVMisc.h  AliVParticle.h  AliVTrack.h  AliVVertex.h\
+        TStatToolkit.h AliTMinuitToolkit.h AliPDG.h AliPID.h AliDrawStyle.h AliSysInfo.h AliXRDPROOFtoolkit.h TTreeStream.h AliLog.h AliExternalTrackParam.h V0FlatAna.h TrackFlatAna.h AliSkimmedDataAnalysisMaker.h\
 
-OBJS = TStatToolkit.o AliTMinuitToolkit.o AliPDG.o AliPID.o AliDrawStyle.o AliSysInfo.o AliXRDPROOFtoolkit.o TTreeStream.o AliLog.o AliExternalTrackParam.o V0FlatAna.o TrackFlatAna.o AliSkimmedDataAnalysisMaker.o\
+OBJS = AliVMisc.o  AliVParticle.o  AliVTrack.o  AliVVertex.o \
+        TStatToolkit.o AliTMinuitToolkit.o AliPDG.o AliPID.o AliDrawStyle.o AliSysInfo.o AliXRDPROOFtoolkit.o TTreeStream.o AliLog.o AliExternalTrackParam.o V0FlatAna.o TrackFlatAna.o AliSkimmedDataAnalysisMaker.o\
         dict_$(PROGRAM).o
 
 #-----------------------------------------------------------------------------

@@ -20,16 +20,12 @@
  *****************************************************************************/
 #include "TMath.h"
 
-const Double_t kAlmost1=1. - Double_t(FLT_EPSILON);
-const Double_t kAlmost0=Double_t(FLT_MIN);
+#include "AliVTrack.h"
+#include "AliVMisc.h"
 const Double_t kVeryBig=1./kAlmost0;
 const Double_t kMostProbablePt=0.35;
 
-
-const Double_t kB2C=-0.299792458e-3;
-const Double_t kAlmost0Field=1.e-13;
-
-
+class AliVVertex;
 class TPolyMarker3D; 
 
 const Double_t kC0max=100*100, // SigmaY<=100cm
@@ -38,7 +34,7 @@ const Double_t kC0max=100*100, // SigmaY<=100cm
                kC9max=1*1,     // SigmaTan<=1
                kC14max=100*100; // Sigma1/Pt<=100 1/GeV
 
-class AliExternalTrackParam: public TObject {
+class AliExternalTrackParam: public AliVTrack {
  public:
   AliExternalTrackParam();
   AliExternalTrackParam(const AliExternalTrackParam &);
@@ -47,9 +43,12 @@ class AliExternalTrackParam: public TObject {
 			const Double_t param[5], const Double_t covar[15]);
   AliExternalTrackParam(Double_t xyz[3],Double_t pxpypz[3],
 			Double_t cv[21],Short_t sign);
-
+  // constructor for reinitialisation of vtable
+  AliExternalTrackParam( AliVConstructorReinitialisationFlag f) :AliVTrack(f), fX(), fAlpha(){}
+  void Reinitialize() { new (this) AliExternalTrackParam( AliVReinitialize ); }
 
   virtual ~AliExternalTrackParam(){}
+  void CopyFromVTrack(const AliVTrack *vTrack);
   
   template <typename T>
   void Set(T x, T alpha, const T param[5], const T covar[15]) {
@@ -91,6 +90,7 @@ class AliExternalTrackParam: public TObject {
   Double_t GetZ()    const {return fP[1];}
   Double_t GetSnp()  const {return fP[2];}
   virtual Double_t GetTgl()  const {return fP[3];}
+  using AliVTrack::GetImpactParameters;
   virtual void GetImpactParameters(Float_t& ,Float_t&) const {}
   Double_t GetSigned1Pt()  const {return fP[4];}
 
@@ -213,13 +213,18 @@ class AliExternalTrackParam: public TObject {
 
   static void g3helx3(Double_t qfield, Double_t step, Double_t vect[7]); 
   Bool_t PropagateToBxByBz(Double_t x, const Double_t b[3]);
-
+  Bool_t RelateToVVertexBxByBzDCA(const AliVVertex *vtx, Double_t b[3], Double_t maxd,
+    AliExternalTrackParam *cParam=NULL, Double_t dz[2]=NULL, Double_t dzcov[3]=NULL);
 
   void GetHelixParameters(Double_t h[6], Double_t b) const;
   Double_t GetDCA(const AliExternalTrackParam *p, Double_t b,
     Double_t &xthis,Double_t &xp) const;
   Double_t PropagateToDCA(AliExternalTrackParam *p, Double_t b);
-
+  Bool_t PropagateToDCA(const AliVVertex *vtx, Double_t b, Double_t maxd,
+                        Double_t dz[2]=0, Double_t cov[3]=0);
+  Bool_t PropagateToDCABxByBz(const AliVVertex *vtx, Double_t b[3], 
+         Double_t maxd, Double_t dz[2]=0, Double_t cov[3]=0);
+  Bool_t ConstrainToVertex(const AliVVertex* vtx, Double_t b[3]);
   
   void GetDirection(Double_t d[3]) const;
   Bool_t GetPxPyPz(Double_t *p) const;  
@@ -273,13 +278,9 @@ class AliExternalTrackParam: public TObject {
   virtual Int_t GetTrackParamOp       ( AliExternalTrackParam & ) const {return 0;}
   virtual Int_t GetTrackParamCp       ( AliExternalTrackParam & ) const {return 0;}
   virtual Int_t GetTrackParamITSOut   ( AliExternalTrackParam & ) const {return 0;}
-  // coordinate system conversions
-  Bool_t   Local2GlobalMomentum(Double_t p[3], Double_t alpha) const;
-  Bool_t   Local2GlobalPosition(Double_t r[3], Double_t alpha) const;
-  Bool_t   Global2LocalMomentum(Double_t p[3], Short_t charge, Double_t &alpha) const;
-  Bool_t   Global2LocalPosition(Double_t r[3], Double_t alpha) const;
 
  protected:
+  AliExternalTrackParam(const AliVTrack *vTrack);
 
 /*  protected: */
  private:
