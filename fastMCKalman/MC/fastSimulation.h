@@ -27,7 +27,7 @@ class AliExternalTrackParam4D: public AliExternalTrackParam{
 public:
   AliExternalTrackParam4D();
   AliExternalTrackParam4D(const AliExternalTrackParam &, Double_t mass,Int_t z);
-  virtual ~AliExternalTrackParam4D(){}
+  virtual ~AliExternalTrackParam4D();
   Double_t Beta(){ Double_t p2=GetP();p2*=p2; return TMath::Sqrt(p2/(p2+fMass*fMass));}
   Double_t GetOverThr(Float_t sigma=0.01, Float_t width=0.0005, Float_t threshold=0.1);
   //
@@ -48,7 +48,7 @@ public:
   static Double_t dPdxCorrT4(Double_t p, Double_t mass, Double_t xTimesRho,Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
   static Double_t dPdxCorrT42(Double_t p, Double_t mass, Double_t xTimesRho,Double_t (*fundEdx)(Double_t)=AliExternalTrackParam::BetheBlochSolid);
   //
-  Bool_t GetXYZAt(Double_t x, Double_t b, Double_t *r) const;
+  //Bool_t GetXYZAt(Double_t x, Double_t b, Double_t *r) const;
   // Uit test functions
   void UnitTestDumpCorrectForMaterial(TTreeSRedirector * pcstream, Double_t xOverX0, Double_t xTimesRho,Double_t mass, Int_t nSteps, Float_t stepFraction=0.02);
 public:

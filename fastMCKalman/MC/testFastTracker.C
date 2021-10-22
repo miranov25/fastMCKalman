@@ -3,6 +3,7 @@
   .L $fastMCKalman/fastMCKalman/MC/fastTracker.h
   .L $fastMCKalman/fastMCKalman/MC/testFastTracker.C
   testFasTrackerSimul(100000);
+  testFastTrackerEval();
   WDir:
       /home2/miranov/github/fastMCKalman/data/testSeed
  */

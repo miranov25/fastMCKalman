@@ -1,5 +1,6 @@
 /*
  *
+  gSystem->Load("AliSkimmedDataAnalysisMaker.so");
   .L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+g
     .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C
     .L $fastMCKalman/fastMCKalman/MC/fastSimulationFit.C

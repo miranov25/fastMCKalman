@@ -2,7 +2,7 @@
     .L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+
     geom= fastGeometry(201.)
     particle=fastParticle(200);
-    geom.setLayerRadiusPower(0,10,1,20,1.2,0);f0.0
+    geom.setLayerRadiusPower(0,10,1,20,1.2,0);
     geom.setLayerRadiusPower(11,200,20,150,1.2,0);
 */
 
@@ -33,6 +33,8 @@ AliExternalTrackParam4D::AliExternalTrackParam4D(const AliExternalTrackParam &t,
   fLength(0),
   fTime(0){
 }
+
+AliExternalTrackParam4D::~AliExternalTrackParam4D(){};
 
 /// Estimate shape size for particle - shape is determined by the diffusion, angles and deposited charge
 /// \param sigma           -  diffusion sigma ~ induction gap - if as in the TPC
