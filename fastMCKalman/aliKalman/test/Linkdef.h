@@ -4,6 +4,10 @@
 #pragma link off all classes;
 #pragma link off all functions;
 
+#pragma link C++ namespace TStatToolkit;
+#pragma link C++ class AliTMinuitToolkit+;
+#pragma link C++ class AliPID+;
+#pragma link C++ class AliPDG+;
 #pragma link C++ class AliExternalTrackParam+;
 #pragma link C++ class AliDrawStyle+;
 #pragma link C++ class AliSysInfo+;
