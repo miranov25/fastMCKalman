@@ -14,6 +14,7 @@
 #include "TTree.h"
 #include "TRandom.h"
 #include "TH1.h"
+#include "TF1.h"
 #include "TTreeStream.h"
 #include "fastTracker.h"
 
@@ -51,8 +52,8 @@ void testFasTrackerSimul(Int_t nPoints) {
   for (Int_t i = 0; i < nPoints; i++) {
     Float_t tgl = gRandom->Rndm();
     Float_t pt = (gRandom->Rndm() + 0.05) * 5;
-    Float_t sy = (gRandom->Rndm() + 0.01) * 0.001;
-    Float_t sz = (gRandom->Rndm() + 0.01) * 0.001;
+    Float_t sy = (gRandom->Rndm() + 0.01) * 0.01;
+    Float_t sz = (gRandom->Rndm() + 0.01) * 0.01;
     xyz[1] = gRandom->Gaus() * 5;
     xyz[2] = gRandom->Gaus() * 5;
     pxpypz[0] = pt;
@@ -83,6 +84,16 @@ void testFasTrackerSimul(Int_t nPoints) {
                 "sz=" << sz <<
                 "\n";
   }
+  TTree * tree =((*pcstream) << "seed").GetTree();
+  tree->SetAlias("pull0","(paramSeed.fP[0]-param.fP[0])/sqrt(paramSeed.fC[0])");
+  tree->SetAlias("pull1","(paramSeed.fP[1]-param.fP[1])/sqrt(paramSeed.fC[2])");
+  tree->SetAlias("pull2","(paramSeed.fP[2]-param.fP[2])/sqrt(paramSeed.fC[5])");
+  tree->SetAlias("pull3","(paramSeed.fP[3]-param.fP[3])/sqrt(paramSeed.fC[9])");
+  tree->SetAlias("pull4","(paramSeed.fP[4]-param.fP[4])/sqrt(paramSeed.fC[14])");
+  tree->SetAlias("c02","(paramSeed.fC[3])/sqrt(paramSeed.fC[0]*paramSeed.fC[5])");
+  tree->SetAlias("c13","(paramSeed.fC[7])/sqrt(paramSeed.fC[2]*paramSeed.fC[9])");
+  tree->SetAlias("c04","(paramSeed.fC[10])/sqrt(paramSeed.fC[0]*paramSeed.fC[14])");
+  tree->SetAlias("c24","(paramSeed.fC[12])/sqrt(paramSeed.fC[5]*paramSeed.fC[14])");
   delete pcstream;
 }
 ///
@@ -123,27 +134,31 @@ void testFastTrackerEval(){
   if (isOK) {::Info("testFastTracker pull test P4","pullAnalytical - OK");
   }else{::Error("testFastTracker pull test P4","pullAnalytical- FAILED");
   }
-  //
-  tree->SetAlias("pull0","(paramSeed.fP[0]-param.fP[0])/sqrt(paramSeed.fC[0])");
-  tree->SetAlias("pull1","(paramSeed.fP[1]-param.fP[1])/sqrt(paramSeed.fC[2])");
-  tree->SetAlias("pull2","(paramSeed.fP[2]-param.fP[2])/sqrt(paramSeed.fC[5])");
-  tree->SetAlias("pull3","(paramSeed.fP[3]-param.fP[3])/sqrt(paramSeed.fC[9])");
-  tree->SetAlias("pull4","(paramSeed.fP[4]-param.fP[4])/sqrt(paramSeed.fC[14])");
-  //
-  tree->SetAlias("c02","(paramSeed.fC[3])/sqrt(paramSeed.fC[0]*paramSeed.fC[5])");
-  tree->SetAlias("c13","(paramSeed.fC[7])/sqrt(paramSeed.fC[2]*paramSeed.fC[9])");
-  tree->SetAlias("c24","(paramSeed.fC[12])/sqrt(paramSeed.fC[5]*paramSeed.fC[14])");
-  // corels
+  // corelation tests
   {
     TF1 *f1 = new TF1("f1", "[0]*x");
     tree->Draw("(paramSeed.fP[1]-param.fP[1])*(paramSeed.fP[3]-param.fP[3]):paramSeed.fC[7]", "sz>0.0005", "prof");
     tree->GetHistogram()->Fit("f1"); // ~ 1 - looks OK
+    if (TMath::Abs(f1->GetParameter(0) - 1) < 0.05) {
+      ::Info("testFastTracker C(1,3)", "pullAnalytical - OK");
+    } else { ::Error("testFastTracker pull test C(1,2)", "pullAnalytical- FAILED"); };
+    //
     tree->Draw("(paramSeed.fP[0]-param.fP[0])*(paramSeed.fP[2]-param.fP[2]):paramSeed.fC[3]", "sz>0.0005", "prof");
     tree->GetHistogram()->Fit("f1"); //  ~1 - looks OK
+    if (TMath::Abs(f1->GetParameter(0) - 1) < 0.05) {
+      ::Info("testFastTracker C(0,2)", "pullAnalytical - OK");
+    } else { ::Error("testFastTracker pull test C(0,2)", "pullAnalytical- FAILED"); };
+    //
     tree->Draw("(paramSeed.fP[2]-param.fP[2])*(paramSeed.fP[4]-param.fP[4]):paramSeed.fC[12]", "sz>0.0005", "prof");
     tree->GetHistogram()->Fit("f1"); //  ~1 - looks OK
+    if (TMath::Abs(f1->GetParameter(0) - 1) < 0.05) {
+      ::Info("testFastTracker C(2,4)", "pullAnalytical - OK");
+    } else { ::Error("testFastTracker pull test C(2,4)", "pullAnalytical- FAILED"); };
     tree->Draw("(paramSeed.fP[0]-param.fP[0])*(paramSeed.fP[4]-param.fP[4]):paramSeed.fC[10]", "sz>0.0005", "prof");
-    tree->GetHistogram()->Fit("f1"); //  ~
+    tree->GetHistogram()->Fit("f1"); //  ~  looks OK
+    if (TMath::Abs(f1->GetParameter(0) - 1) < 0.05) {
+      ::Info("testFastTracker C(0,4)", "pullAnalytical - OK");
+    } else { ::Error("testFastTracker pull test C(0,4)", "pullAnalytical- FAILED"); };
   }
 
 
