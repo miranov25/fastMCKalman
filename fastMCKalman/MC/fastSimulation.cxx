@@ -10,6 +10,7 @@
 //#include "AliHelix.h"
 #include "TTreeStream.h"
 #include "TRandom.h"
+#include "fastTracker.h"
 
 TTreeSRedirector* fastParticle::fgStreamer = nullptr;
 
@@ -1158,18 +1159,44 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint la
     //::Error("fastParticle::reconstructParticle","short track");
     return -1;
   }
-  AliExternalTrackParam4D param(fParamMC[layer1],mass,1);
-  Double_t dEdx=AliExternalTrackParam::BetheBlochAleph(param.P()/mass);
-  double *covar = (double*)param.GetCovariance();
-  for (int i=0; i<15; i++)covar[i]*=2;
   Double_t LArm=getStat(0);
-  Double_t resFactor=(geom.fLayerResolRPhi[0]*geom.fLayerResolRPhi[0]/0.01)+0.2; // this is hack - we will need to
-  double covar0[5]={0.1,0.1,(1.+2.*dEdx/param.P())/(1.+LArm),(1.+2.*dEdx/param.P())/(1.+LArm),resFactor*400*(1.+2.*dEdx/param.P())/(1.+LArm*LArm)};
-  covar[0]+=covar0[0]*covar0[0];
-  covar[2]+=covar0[1]*covar0[1];
-  covar[5]+=covar0[2]*covar0[2];
-  covar[9]+=covar0[3]*covar0[3];
-  covar[14]+=covar0[4]*covar0[4];
+  //AliExternalTrackParam4D param(fParamMC[layer1],mass,1);
+  Double_t xyzS[3][3];
+  Int_t step=layer1/3;
+  if (step>10) step=10;
+  float sign0=(fParamMC[layer1-1].GetX()>fParamMC[layer1-2].GetX())? 1.:-1.;
+  for (int dLayer=0; dLayer<3  && layer1-step*dLayer>0; dLayer++) {
+        fParamMC[layer1-step*dLayer-1].GetXYZ(xyzS[dLayer]);
+  }
+  AliExternalTrackParam * paramSeed = fastTracker::makeSeed(xyzS[0],xyzS[1],xyzS[2],0.1,0.1,geom.fBz);
+  AliExternalTrackParam4D param(*paramSeed,mass,1);
+  if (sign0<0) {
+    ((double*)param.GetParameter())[4]*=-1;
+    ((double*)param.GetParameter())[3]*=-1;
+  }
+  param.Rotate(fParamMC[layer1-1].GetAlpha());
+  //param.fMass=.fMass;
+  delete paramSeed;
+
+  Double_t dEdx=AliExternalTrackParam::BetheBlochAleph(param.P()/mass);
+  //Double_t dPdx=AliExternalTrackParam4D::dPdx(fParamMC[layer1-1]);
+  (*fgStreamer)<<"seedDump"<<   // seeding not ideal in case significant energy loss
+    "dEdx="<<dEdx<<
+    "step="<<step<<
+    "seed.="<<&param<<
+    "input.="<<&fParamMC[layer1-1]<<
+    "input2.="<<&fParamMC[layer1-2*step-1]<<
+    "\n";
+  //double *covar = (double*)param.GetCovariance();
+  //for (int i=0; i<15; i++)covar[i]*=2;
+
+//  Double_t resFactor=(geom.fLayerResolRPhi[0]*geom.fLayerResolRPhi[0]/0.01)+0.2; // this is hack - we will need to
+//  double covar0[5]={0.1,0.1,(1.+2.*dEdx/param.P())/(1.+LArm),(1.+2.*dEdx/param.P())/(1.+LArm),resFactor*400*(1.+2.*dEdx/param.P())/(1.+LArm*LArm)};
+//  covar[0]+=covar0[0]*covar0[0];
+//  covar[2]+=covar0[1]*covar0[1];
+//  covar[5]+=covar0[2]*covar0[2];
+//  covar[9]+=covar0[3]*covar0[3];
+//  covar[14]+=covar0[4]*covar0[4];
   //
   float length=0, time=0;
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
