@@ -207,4 +207,10 @@ void testFastTrackerEvalMB() {
   if (isOK) {::Info("testFastTracker","MB correction P - OK");
   }else{::Error("testFastTracker","MB correction P- FAILED");
   }
+  // test covariance matrix
+  tree->Draw("(paramSeedMB.fC[9]):(0.5*paramFull.fC[9]+paramSeed.fC[9])","","profgoff");
+  tree->GetHistogram()->Fit("f1","w=1"); //  ~  looks OK
+    if (TMath::Abs(f1->GetParameter(0) - 1) < 0.1) {
+      ::Info("testFastTracker C(9)", "covar 9  - OK");
+    } else { ::Error("testFastTracker  C(9)", "covar 9- FAILED"); };
 }
