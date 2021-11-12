@@ -72,6 +72,7 @@ void testFasTrackerSimul(Int_t nPoints) {
     param.Rotate(0);
     param.PropagateTo(xRef[0], bz);
     AliExternalTrackParam paramFull(param);
+    AliExternalTrackParam paramHalf; // for debugging
     //
     Double_t xyz[3][3];
     Double_t xyzF[3][3];
@@ -95,6 +96,7 @@ void testFasTrackerSimul(Int_t nPoints) {
           propStatus &= paramFull.CorrectForMeanMaterial(crossLength * xx0/nSteps, crossLength * xrho/nSteps, mass, kFALSE);
         }
       }
+      if (i==1) paramHalf=paramFull;
     }
     //
     AliExternalTrackParam *paramSeed = fastTracker::makeSeed(xyz[0], xyz[1], xyz[2], sy, sz, bz);
@@ -109,6 +111,7 @@ void testFasTrackerSimul(Int_t nPoints) {
                 "mass="<<mass<<
                 "propStatus="<<propStatus<<
                 "param.=" << &param <<
+                "paramHalf.="<<&paramHalf<<
                 "paramFull.="<<&paramFull<<
                 "paramSeed.=" << paramSeed <<
                 "paramSeedMB.=" << paramSeedMB <<
