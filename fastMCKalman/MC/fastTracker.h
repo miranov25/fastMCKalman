@@ -12,7 +12,7 @@
 class fastTracker{
 public:
   static AliExternalTrackParam* makeSeed(double xyz0[3], double xyz1[3], double xyz2[3], double sy, double sz, float bz);
-  static AliExternalTrackParam* makeSeedMB(double xyz0[3], double xyz1[3], double xyz2[3], double sy, double sz, float bz, float xx0, float xrho, float mass);
+  static AliExternalTrackParam* makeSeedMB(double xyz0[3], double xyz1[3], double xyz2[3], double sy, double sz, float bz, float xx0, float xrho, float mass,int nSteps=5);
   static Double_t makeC(Double_t x1,Double_t y1, Double_t x2,Double_t y2, Double_t x3,Double_t y3);     // F1
   static Double_t makeSnp(Double_t x1,Double_t y1,Double_t x2,Double_t y2,Double_t x3,Double_t y3);     // F2
   static Double_t makeTgln(Double_t x1,Double_t y1, Double_t x2,Double_t y2, Double_t z1,Double_t z2,Double_t c);   // F3n
@@ -146,7 +146,7 @@ AliExternalTrackParam * fastTracker::makeSeed(double xyz0[3], double xyz1[3], do
 /// \param xrhotocm
 /// \param mass
 /// \return
-AliExternalTrackParam* fastTracker::makeSeedMB(double xyz0[3], double xyz1[3], double xyz2[3], double sy, double sz, float bz, float xx0tocm, float xrhotocm, float mass){
+AliExternalTrackParam* fastTracker::makeSeedMB(double xyz0[3], double xyz1[3], double xyz2[3], double sy, double sz, float bz, float xx0tocm, float xrhotocm, float mass, int nSteps){
   // calculate momentum loss between the seeding points
   // linear approximation   p0 -> p1 -> p2
   // in case seeding radius is homogenous - pSeed ~ (p0+p1+p2)/3    p0~ pSeed*3-p1-p2
@@ -159,16 +159,17 @@ AliExternalTrackParam* fastTracker::makeSeedMB(double xyz0[3], double xyz1[3], d
   Bool_t propStatus=kTRUE;
   for (int i=1; i<3; i++) {
     propStatus &= paramFull.PropagateTo(xyz[i][0], bz);
-    if (i > 0) {
-      double crossLength = (xyz[i][0] - xyz[i - 1][0]) * (xyz[i][0] - xyz[i - 1][0]) +
-                           (xyz[i][1] - xyz[i - 1][1]) * (xyz[i][1] - xyz[i - 1][1]) +
-                           (xyz[i][2] - xyz[i - 1][2]) * (xyz[i][2] - xyz[i - 1][2]);
-      crossLength = TMath::Sqrt(crossLength);
-      propStatus &= paramFull.CorrectForMeanMaterial(crossLength * xx0tocm, crossLength * xrhotocm, mass, kFALSE);
-      if (i == 1) {
-        for (int iCovar = 0; iCovar < 15; iCovar++) {
-          deltaCovar[iCovar] = paramFull.GetCovariance()[iCovar] - extParam->GetCovariance()[iCovar];
-        }
+    for (int iCovar = 0; iCovar < 15; iCovar++) deltaCovar[iCovar] = paramFull.GetCovariance()[iCovar];
+    double crossLength = (xyz[i][0] - xyz[i - 1][0]) * (xyz[i][0] - xyz[i - 1][0]) +
+                         (xyz[i][1] - xyz[i - 1][1]) * (xyz[i][1] - xyz[i - 1][1]) +
+                         (xyz[i][2] - xyz[i - 1][2]) * (xyz[i][2] - xyz[i - 1][2]);
+    crossLength = TMath::Sqrt(crossLength);
+    for (int i = 0; i < nSteps; i++) {
+      propStatus &= paramFull.CorrectForMeanMaterial(crossLength * xx0tocm / nSteps, crossLength * xrhotocm / nSteps, mass, kFALSE);
+    }
+    if (i == 1) {
+      for (int iCovar = 0; iCovar < 15; iCovar++) {
+        deltaCovar[iCovar] = paramFull.GetCovariance()[iCovar] - deltaCovar[iCovar];
       }
     }
   }

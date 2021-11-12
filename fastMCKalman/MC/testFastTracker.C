@@ -51,6 +51,7 @@ void testFasTrackerSimul(Int_t nPoints) {
   Double_t xyz[3] = {1, 0, 0};
   Double_t cov[21] = {0};
   Double_t xRef[3]={250,230,210};
+  const Int_t nSteps=5;
   for (Int_t i = 0; i < nPoints; i++) {
     float bzSign=(gRandom->Rndm()>0.5)? 1:-1;
     float bz = 0.5*bzSign;
@@ -90,7 +91,9 @@ void testFasTrackerSimul(Int_t nPoints) {
                 (xyzF[i][1]-xyzF[i-1][1])*(xyzF[i][1]-xyzF[i-1][1])+
                 (xyzF[i][2]-xyzF[i-1][2])*(xyzF[i][2]-xyzF[i-1][2]);
         crossLength=TMath::Sqrt(crossLength);
-        propStatus &= paramFull.CorrectForMeanMaterial(crossLength * xx0, crossLength * xrho, mass, kFALSE);
+        for (Int_t iStep=0; iStep<nSteps; iStep++) {
+          propStatus &= paramFull.CorrectForMeanMaterial(crossLength * xx0/nSteps, crossLength * xrho/nSteps, mass, kFALSE);
+        }
       }
     }
     //
@@ -198,16 +201,17 @@ void testFastTrackerEval(){
 // 10 11  12 13 14
 
 void testFastTrackerEvalMB() {
+      TF1 *f1 = new TF1("f1", "[0]*x");
   if (tree==NULL) {
     TFile *f = new TFile("testSeed.root");
     tree = (TTree *) f->Get("seed");
   }
-  tree->Draw("(paramSeedMB.P()/paramSeed.P()-0.5*(paramFull.P()+param.P())/param.P())","sqrt(paramFull.fC[14])*paramFull.Pt()<0.2","colz")
-  isOK= abs(tree->GetHistogram()->GetRMS())<0.01;
+  tree->Draw("(paramSeedMB.P()/paramSeed.P()-0.5*(paramFull.P()+param.P())/param.P())","sqrt(paramFull.fC[14])*paramFull.Pt()<0.2","colz");
+  bool isOK= abs(tree->GetHistogram()->GetRMS())<0.01;
   if (isOK) {::Info("testFastTracker","MB correction P - OK");
   }else{::Error("testFastTracker","MB correction P- FAILED");
   }
-  // test covariance matrix
+  // test covariance matrix 0 usnder assumption of symetric seeding region distance
   tree->Draw("(paramSeedMB.fC[9]):(0.5*paramFull.fC[9]+paramSeed.fC[9])","","profgoff");
   tree->GetHistogram()->Fit("f1","w=1"); //  ~  looks OK
     if (TMath::Abs(f1->GetParameter(0) - 1) < 0.1) {
