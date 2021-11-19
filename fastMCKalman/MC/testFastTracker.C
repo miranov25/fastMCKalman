@@ -6,6 +6,7 @@
   .L $fastMCKalman/fastMCKalman/MC/testFastTracker.C++g
   testFasTrackerSimul(50000);
   testFastTrackerEval();
+  testFastTrackerEvalMB();
   WDir:
       /home2/miranov/github/fastMCKalman/data/testSeed
  */
@@ -72,7 +73,7 @@ void testFasTrackerSimul(Int_t nPoints) {
     param.Rotate(0);
     param.PropagateTo(xRef[0], bz);
     AliExternalTrackParam paramFull(param);
-    AliExternalTrackParam paramHalf; // for debugging
+    AliExternalTrackParam paramMiddle(param); // for debugging
     //
     Double_t xyz[3][3];
     Double_t xyzF[3][3];
@@ -81,6 +82,7 @@ void testFasTrackerSimul(Int_t nPoints) {
     for (int i=0; i<3; i++){
       param.GetXYZAt(xRef[i], bz, xyz[i]);
       propStatus&=paramFull.PropagateTo(xRef[i],bz);
+      if (i==1) paramMiddle.PropagateTo(xRef[i],bz);
       paramFull.GetXYZ(xyzF[i]);
       Float_t dy=gRandom->Gaus() * sy, dz=gRandom->Gaus() * sz;
       xyz[i][1] += dy;
@@ -94,9 +96,10 @@ void testFasTrackerSimul(Int_t nPoints) {
         crossLength=TMath::Sqrt(crossLength);
         for (Int_t iStep=0; iStep<nSteps; iStep++) {
           propStatus &= paramFull.CorrectForMeanMaterial(crossLength * xx0/nSteps, crossLength * xrho/nSteps, mass, kFALSE);
+          if (i==1) paramMiddle.CorrectForMeanMaterial(crossLength * xx0/nSteps, crossLength * xrho/nSteps, mass, kFALSE);
         }
       }
-      if (i==1) paramHalf=paramFull;
+      //if (i==2) printf("%f\t%f\t%f\n",paramFull.GetSigmaTgl2(),paramMiddle.GetSigmaTgl2(), paramFull.GetSigmaTgl2()/paramMiddle.GetSigmaTgl2());
     }
     //
     AliExternalTrackParam *paramSeed = fastTracker::makeSeed(xyz[0], xyz[1], xyz[2], sy, sz, bz);
@@ -111,7 +114,7 @@ void testFasTrackerSimul(Int_t nPoints) {
                 "mass="<<mass<<
                 "propStatus="<<propStatus<<
                 "param.=" << &param <<
-                "paramHalf.="<<&paramHalf<<
+                "paramMiddle.="<<&paramMiddle<<
                 "paramFull.="<<&paramFull<<
                 "paramSeed.=" << paramSeed <<
                 "paramSeedMB.=" << paramSeedMB <<
@@ -214,8 +217,8 @@ void testFastTrackerEvalMB() {
   if (isOK) {::Info("testFastTracker","MB correction P - OK");
   }else{::Error("testFastTracker","MB correction P- FAILED");
   }
-  // test covariance matrix 0 usnder assumption of symetric seeding region distance
-  tree->Draw("(paramSeedMB.fC[9]):(0.5*paramFull.fC[9]+paramSeed.fC[9])","","profgoff");
+  // test covariance matrix
+  tree->Draw("(paramSeedMB.fC[9]):(paramMiddle.fC[9]+paramSeed.fC[9])","","prof");
   tree->GetHistogram()->Fit("f1","w=1"); //  ~  looks OK
     if (TMath::Abs(f1->GetParameter(0) - 1) < 0.1) {
       ::Info("testFastTracker C(9)", "covar 9  - OK");
