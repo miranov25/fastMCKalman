@@ -1,6 +1,6 @@
 /*
  *
-  gSystem->Load("AliSkimmedDataAnalysisMaker.so");
+  gSystem->Load("$fastMCKalman/fastMCKalman/aliKalman/test/AliExternalTrackParam.so");
   .L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+g
     .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C
     .L $fastMCKalman/fastMCKalman/MC/fastSimulationFit.C
