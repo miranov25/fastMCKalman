@@ -12,6 +12,7 @@
 class fastTracker{
 public:
   static AliExternalTrackParam* makeSeed(double xyz0[3], double xyz1[3], double xyz2[3], double sy, double sz, float bz);
+  static AliExternalTrackParam* makeSeedMB(double xyz0[3], double xyz1[3], double xyz2[3], double sy, double sz, float bz, float xx0, float xrho, float mass,int nSteps=5);
   static Double_t makeC(Double_t x1,Double_t y1, Double_t x2,Double_t y2, Double_t x3,Double_t y3);     // F1
   static Double_t makeSnp(Double_t x1,Double_t y1,Double_t x2,Double_t y2,Double_t x3,Double_t y3);     // F2
   static Double_t makeTgln(Double_t x1,Double_t y1, Double_t x2,Double_t y2, Double_t z1,Double_t z2,Double_t c);   // F3n
@@ -60,8 +61,7 @@ Double_t fastTracker::makeSnp(Double_t x1,Double_t y1, Double_t x2,Double_t y2, 
   Double_t x0 = x3*0.5-y3*u; 
   Double_t y0 = y3*0.5+x3*u;
   Double_t c2 = 1/TMath::Sqrt(x0*x0+y0*y0);
-  if (det<0) c2*=-1;
-  x0+=x1;
+  if (det>0) c2*=-1;
   x0*=c2;  
   return x0;
 }
@@ -118,6 +118,8 @@ AliExternalTrackParam * fastTracker::makeSeed(double xyz0[3], double xyz1[3], do
 
   if (TMath::Abs(bz)>kAlmost0Field) {
     c[14]/=(bz*kB2C)*(bz*kB2C);
+    c[12]/=(bz*kB2C);
+    c[10]/=(bz*kB2C);
     param[4]/=(bz*kB2C); // transform to 1/pt
   }
   else { // assign 0.6 GeV pT
@@ -130,6 +132,53 @@ AliExternalTrackParam * fastTracker::makeSeed(double xyz0[3], double xyz1[3], do
   //AliExternalTrackParam *param=new AliExternalTrackParam(
   //AliExternalTrackParam AliExternalTrackParam(Double_t x, Double_t alpha, const Double_t[5] param, const Double_t[15] covar)
   AliExternalTrackParam *extParam=new AliExternalTrackParam(xyz0[0],0,param,c);
+  return extParam;
+}
+
+/// make seed correcting for the material budget  -assuming particle mass and mean x0 and density
+/// \param xyz0
+/// \param xyz1
+/// \param xyz2
+/// \param sy
+/// \param sz
+/// \param bz
+/// \param xx0tocm
+/// \param xrhotocm
+/// \param mass
+/// \return
+AliExternalTrackParam* fastTracker::makeSeedMB(double xyz0[3], double xyz1[3], double xyz2[3], double sy, double sz, float bz, float xx0tocm, float xrhotocm, float mass, int nSteps){
+  // calculate momentum loss between the seeding points
+  // linear approximation   p0 -> p1 -> p2
+  // in case seeding radius is homogenous - pSeed ~ (p0+p1+p2)/3    p0~ pSeed*3-p1-p2
+  // in case different gaps - TODO later
+  AliExternalTrackParam *extParam = makeSeed(xyz0,xyz1,xyz2,sy,sz,bz);   // first estimation
+  AliExternalTrackParam paramFull=*extParam;
+  Double_t *xyz[3]={xyz0,xyz1,xyz2};
+  Double_t deltaCovar[15];
+
+  Bool_t propStatus=kTRUE;
+  for (int i=1; i<3; i++) {
+    propStatus &= paramFull.PropagateTo(xyz[i][0], bz);
+    for (int iCovar = 0; iCovar < 15; iCovar++) deltaCovar[iCovar] = paramFull.GetCovariance()[iCovar];
+    double crossLength = (xyz[i][0] - xyz[i - 1][0]) * (xyz[i][0] - xyz[i - 1][0]) +
+                         (xyz[i][1] - xyz[i - 1][1]) * (xyz[i][1] - xyz[i - 1][1]) +
+                         (xyz[i][2] - xyz[i - 1][2]) * (xyz[i][2] - xyz[i - 1][2]);
+    crossLength = TMath::Sqrt(crossLength);
+    for (int i = 0; i < nSteps; i++) {
+      propStatus &= paramFull.CorrectForMeanMaterial(crossLength * xx0tocm / nSteps, crossLength * xrhotocm / nSteps, mass, kFALSE);
+    }
+    if (i == 1) {
+      for (int iCovar = 0; iCovar < 15; iCovar++) {
+        deltaCovar[iCovar] = paramFull.GetCovariance()[iCovar] - deltaCovar[iCovar];
+      }
+    }
+  }
+  // Formula below approximation in case equal material distance of seeding layer
+  Double_t ratioP= 2*extParam->P()/(extParam->P()+paramFull.P());
+  ((double*)extParam->GetParameter())[4]*=  ratioP;
+  ((double*)extParam->GetCovariance())[5] +=deltaCovar[5];
+  ((double*)extParam->GetCovariance())[9] +=deltaCovar[9];
+  ((double*)extParam->GetCovariance())[14]+=deltaCovar[14];
   return extParam;
 }
 

@@ -1,10 +1,14 @@
 #-----------------------------------------------------------------------------
 
-PROGRAM = AliSkimmedDataAnalysisMaker
+PROGRAM = AliExternalTrackParam
 
-HDRS =  AliDrawStyle.h AliSysInfo.h AliXRDPROOFtoolkit.h TTreeStream.h AliLog.h AliExternalTrackParam.h V0FlatAna.h TrackFlatAna.h AliSkimmedDataAnalysisMaker.h\
+HDRS =   AliVMisc.h  AliVParticle.h  AliVTrack.h  AliVVertex.h\
+        TStatToolkit.h AliTMinuitToolkit.h AliPDG.h AliPID.h AliDrawStyle.h AliSysInfo.h AliXRDPROOFtoolkit.h TTreeStream.h AliLog.h \
+        AliExternalTrackParam.h
 
-OBJS = AliDrawStyle.o AliSysInfo.o AliXRDPROOFtoolkit.o TTreeStream.o AliLog.o AliExternalTrackParam.o V0FlatAna.o TrackFlatAna.o AliSkimmedDataAnalysisMaker.o\
+OBJS = AliVMisc.o  AliVParticle.o  AliVTrack.o  AliVVertex.o \
+        TStatToolkit.o AliTMinuitToolkit.o AliPDG.o AliPID.o AliDrawStyle.o AliSysInfo.o AliXRDPROOFtoolkit.o TTreeStream.o AliLog.o \
+        AliExternalTrackParam.o \
         dict_$(PROGRAM).o
 
 #-----------------------------------------------------------------------------
@@ -15,7 +19,7 @@ DllSuf = so
 OutPutOpt = -o
 
 ROOTCFLAGS = $(shell root-config --cflags)
-ROOTLIBS = $(shell root-config --libs)
+ROOTLIBS = $(shell root-config --libs) -lMinuit
 ROOTGLIBS = $(shell root-config --glibs)
 
 # Directories
@@ -38,7 +42,7 @@ GLIBS = $(ROOTGLIBS)
 
 
 %/%.o: %.cpp
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c "$<" -o "$@" 
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c "$<" -o "$@"
 
 $(PROGRAM).so: $(OBJS)
 	@echo "Linking $(PROGRAM).so ..."

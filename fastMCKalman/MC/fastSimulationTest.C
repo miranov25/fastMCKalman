@@ -1,8 +1,10 @@
 /*
+    gSystem->AddIncludePath("-I\"$fastMCKalman/fastMCKalman/fastMCKalman/aliKalman/test/\"")
+      gSystem->Load("$fastMCKalman/fastMCKalman/aliKalman/test/AliExternalTrackParam.so");
    .L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+g
     .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C+g
     AliPDG::AddParticlesToPdgDataBase();
-    testTPC(25000,kTRUE);            //setup for the looper development
+    testTPC(5000,kTRUE);            //setup for the looper development
     testAlice(10000,kTRUE);          // ALICE setup
     testAlice3Werner(50000,kTRUE)    // ALICE3 setup
     //initTreeFast()

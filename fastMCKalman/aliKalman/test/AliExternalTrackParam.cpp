@@ -34,17 +34,16 @@
 #include <TMatrixD.h>
 
 #include "AliExternalTrackParam.h"
-//#include "AliVVertex.h"
+#include "AliVVertex.h"
 #include "AliLog.h"
 
 ClassImp(AliExternalTrackParam)
-
 
 Double32_t AliExternalTrackParam::fgMostProbablePt=kMostProbablePt;
 Bool_t AliExternalTrackParam::fgUseLogTermMS = kFALSE;; 
 //_____________________________________________________________________________
 AliExternalTrackParam::AliExternalTrackParam() :
-  TObject(),
+  AliVTrack(),
   fX(0),
   fAlpha(0)
 {
@@ -57,7 +56,7 @@ AliExternalTrackParam::AliExternalTrackParam() :
 
 //_____________________________________________________________________________
 AliExternalTrackParam::AliExternalTrackParam(const AliExternalTrackParam &track):
-  TObject(track),
+  AliVTrack(track),
   fX(track.fX),
   fAlpha(track.fAlpha)
 {
@@ -77,7 +76,7 @@ AliExternalTrackParam& AliExternalTrackParam::operator=(const AliExternalTrackPa
   //
   
   if (this!=&trkPar) {
-    TObject::operator=(trkPar);
+    AliVTrack::operator=(trkPar);
     fX = trkPar.fX;
     fAlpha = trkPar.fAlpha;
 
@@ -93,7 +92,7 @@ AliExternalTrackParam& AliExternalTrackParam::operator=(const AliExternalTrackPa
 AliExternalTrackParam::AliExternalTrackParam(Double_t x, Double_t alpha, 
 					     const Double_t param[5], 
 					     const Double_t covar[15]) :
-  TObject(),
+  AliVTrack(),
   fX(x),
   fAlpha(alpha)
 {
@@ -106,9 +105,72 @@ AliExternalTrackParam::AliExternalTrackParam(Double_t x, Double_t alpha,
 }
 
 //_____________________________________________________________________________
+void AliExternalTrackParam::CopyFromVTrack(const AliVTrack *vTrack)
+{
+  //
+  // Recreate TrackParams from VTrack
+  // This is not a copy contructor !
+  //
+  if (!vTrack) {
+    AliError("Source VTrack is NULL");
+    return;
+  }
+  if (this==vTrack) {
+    AliError("Copy of itself is requested");
+    return;
+  }
+  //
+  if (vTrack->InheritsFrom(AliExternalTrackParam::Class())) {
+    AliDebug(1,"Source itself is AliExternalTrackParam, using assignment operator");
+    *this = *(AliExternalTrackParam*)vTrack;
+    return;
+  }
+  //
+  AliVTrack::operator=( *vTrack );
+  //
+  Double_t xyz[3],pxpypz[3],cv[21];
+  vTrack->GetXYZ(xyz);
+  pxpypz[0]=vTrack->Px();
+  pxpypz[1]=vTrack->Py();
+  pxpypz[2]=vTrack->Pz();
+  vTrack->GetCovarianceXYZPxPyPz(cv);
+  Short_t sign = (Short_t)vTrack->Charge();
+  Set(xyz,pxpypz,cv,sign);
+}
+
+//_____________________________________________________________________________
+AliExternalTrackParam::AliExternalTrackParam(const AliVTrack *vTrack) :
+  AliVTrack(),
+  fX(0.),
+  fAlpha(0.)
+{
+  //
+  // Constructor from virtual track,
+  // This is not a copy contructor !
+  //
+
+  if (vTrack->InheritsFrom("AliExternalTrackParam")) {
+     AliError("This is not a copy constructor. Use AliExternalTrackParam(const AliExternalTrackParam &) !");
+     AliWarning("Calling the default constructor...");
+     AliExternalTrackParam();
+     return;
+  }
+
+  Double_t xyz[3],pxpypz[3],cv[21];
+  vTrack->GetXYZ(xyz);
+  pxpypz[0]=vTrack->Px();
+  pxpypz[1]=vTrack->Py();
+  pxpypz[2]=vTrack->Pz();
+  vTrack->GetCovarianceXYZPxPyPz(cv);
+  Short_t sign = (Short_t)vTrack->Charge();
+
+  Set(xyz,pxpypz,cv,sign);
+}
+
+//_____________________________________________________________________________
 AliExternalTrackParam::AliExternalTrackParam(Double_t xyz[3],Double_t pxpypz[3],
 					     Double_t cv[21],Short_t sign) :
-  TObject(),
+  AliVTrack(),
   fX(0.),
   fAlpha(0.)
 {
@@ -1631,6 +1693,119 @@ PropagateToDCA(AliExternalTrackParam *p, Double_t b) {
 }
 
 
+Bool_t AliExternalTrackParam::PropagateToDCA(const AliVVertex *vtx, 
+Double_t b, Double_t maxd, Double_t dz[2], Double_t covar[3]) {
+  //
+  // Propagate this track to the DCA to vertex "vtx", 
+  // if the (rough) transverse impact parameter is not bigger then "maxd". 
+  //            Magnetic field is "b" (kG).
+  //
+  // a) The track gets extapolated to the DCA to the vertex.
+  // b) The impact parameters and their covariance matrix are calculated.
+  //
+  //    In the case of success, the returned value is kTRUE
+  //    (otherwise, it's kFALSE)
+  //  
+  Double_t alpha=GetAlpha();
+  Double_t sn=TMath::Sin(alpha), cs=TMath::Cos(alpha);
+  Double_t x=GetX(), y=GetParameter()[0], snp=GetParameter()[2];
+  Double_t xv= vtx->GetX()*cs + vtx->GetY()*sn;
+  Double_t yv=-vtx->GetX()*sn + vtx->GetY()*cs, zv=vtx->GetZ();
+  x-=xv; y-=yv;
+
+  //Estimate the impact parameter neglecting the track curvature
+  double csp = TMath::Sqrt((1.-snp)*(1.+snp));
+  Double_t d=TMath::Abs(x*snp - y*csp);
+  if (d > maxd) return kFALSE; 
+
+  //Propagate to the DCA
+  Double_t crv=GetC(b);
+  if (TMath::Abs(b) < kAlmost0Field) crv=0.;
+
+  Double_t tgfv=-(crv*x - snp)/(crv*y + csp);  
+  cs = 1./TMath::Sqrt(1+tgfv*tgfv);
+  sn = cs<1. ? tgfv*cs : 0.;
+
+  x = xv*cs + yv*sn;
+  yv=-xv*sn + yv*cs; xv=x;
+
+  if (!Propagate(alpha+TMath::ASin(sn),xv,b)) return kFALSE;
+
+  if (dz==0) return kTRUE;
+  dz[0] = GetParameter()[0] - yv;
+  dz[1] = GetParameter()[1] - zv;
+  
+  if (covar==0) return kTRUE;
+  Double_t cov[6]; vtx->GetCovarianceMatrix(cov);
+
+  //***** Improvements by A.Dainese
+  alpha=GetAlpha(); sn=TMath::Sin(alpha); cs=TMath::Cos(alpha);
+  Double_t s2ylocvtx = cov[0]*sn*sn + cov[2]*cs*cs - 2.*cov[1]*cs*sn;
+  covar[0] = GetCovariance()[0] + s2ylocvtx;   // neglecting correlations
+  covar[1] = GetCovariance()[1];               // between (x,y) and z
+  covar[2] = GetCovariance()[2] + cov[5];      // in vertex's covariance matrix
+  //*****
+
+  return kTRUE;
+}
+
+Bool_t AliExternalTrackParam::PropagateToDCABxByBz(const AliVVertex *vtx, 
+Double_t b[3], Double_t maxd, Double_t dz[2], Double_t covar[3]) {
+  //
+  // Propagate this track to the DCA to vertex "vtx", 
+  // if the (rough) transverse impact parameter is not bigger then "maxd". 
+  //
+  // This function takes into account all three components of the magnetic
+  // field given by the b[3] arument (kG)
+  //
+  // a) The track gets extapolated to the DCA to the vertex.
+  // b) The impact parameters and their covariance matrix are calculated.
+  //
+  //    In the case of success, the returned value is kTRUE
+  //    (otherwise, it's kFALSE)
+  //  
+  Double_t alpha=GetAlpha();
+  Double_t sn=TMath::Sin(alpha), cs=TMath::Cos(alpha);
+  Double_t x=GetX(), y=GetParameter()[0], snp=GetParameter()[2];
+  Double_t xv= vtx->GetX()*cs + vtx->GetY()*sn;
+  Double_t yv=-vtx->GetX()*sn + vtx->GetY()*cs, zv=vtx->GetZ();
+  x-=xv; y-=yv;
+
+  //Estimate the impact parameter neglecting the track curvature
+  double csp = TMath::Sqrt((1.-snp)*(1.+snp));
+  Double_t d=TMath::Abs(x*snp - y*csp);
+  if (d > maxd) return kFALSE; 
+
+  //Propagate to the DCA
+  Double_t crv=GetC(b[2]);
+  if (TMath::Abs(b[2]) < kAlmost0Field) crv=0.;
+
+  Double_t tgfv=-(crv*x - snp)/(crv*y + csp);
+  cs = 1./TMath::Sqrt(1+tgfv*tgfv);
+  sn = cs<1. ? tgfv*cs : 0.;
+  
+  x = xv*cs + yv*sn;
+  yv=-xv*sn + yv*cs; xv=x;
+
+  if (!PropagateBxByBz(alpha+TMath::ASin(sn),xv,b)) return kFALSE;
+
+  if (dz==0) return kTRUE;
+  dz[0] = GetParameter()[0] - yv;
+  dz[1] = GetParameter()[1] - zv;
+  
+  if (covar==0) return kTRUE;
+  Double_t cov[6]; vtx->GetCovarianceMatrix(cov);
+
+  //***** Improvements by A.Dainese
+  alpha=GetAlpha(); sn=TMath::Sin(alpha); cs=TMath::Cos(alpha);
+  Double_t s2ylocvtx = cov[0]*sn*sn + cov[2]*cs*cs - 2.*cov[1]*cs*sn;
+  covar[0] = GetCovariance()[0] + s2ylocvtx;   // neglecting correlations
+  covar[1] = GetCovariance()[1];               // between (x,y) and z
+  covar[2] = GetCovariance()[2] + cov[5];      // in vertex's covariance matrix
+  //*****
+
+  return kTRUE;
+}
 
 void AliExternalTrackParam::GetDirection(Double_t d[3]) const {
   //----------------------------------------------------------------
@@ -1953,7 +2128,11 @@ AliExternalTrackParam::GetXYZAt(Double_t x, Double_t b, Double_t *r) const {
   r[0] = x;
   r[1] = fP[0] + dx*dy2dx;
   if (TMath::Abs(x2r)<0.05) {
-    r[2] = fP[1] + dx*(r2 + f2*dy2dx)*fP[3];//Thanks to Andrea & Peter
+    double chord = dx*TMath::Sqrt(1+dy2dx*dy2dx);   // distance from old position to new one
+    double rot = (0.5*chord*crv); // angular difference seen from the circle center
+    rot*=(1.+rot*rot/6.);
+    r[2] = fP[1] + 2*rot/crv*fP[3];
+    //r[2] = fP[1] + dx*(r2 + f2*dy2dx)*fP[3];//Thanks to Andrea & Peter
   }
   else {
     // for small dx/R the linear apporximation of the arc by the segment is OK,
@@ -2582,6 +2761,32 @@ void AliExternalTrackParam::CheckCovariance() {
 //     }
 }
 
+Bool_t AliExternalTrackParam::ConstrainToVertex(const AliVVertex* vtx, Double_t b[3])
+{
+  // Constrain TPC inner params constrained
+  //
+  if (!vtx) 
+    return kFALSE;
+
+  Double_t dz[2], cov[3];
+  if (!PropagateToDCABxByBz(vtx, b, 3, dz, cov)) 
+    return kFALSE; 
+
+  Double_t covar[6]; 
+  vtx->GetCovarianceMatrix(covar);
+  
+  Double_t p[2]= { fP[0] - dz[0], fP[1] - dz[1] };
+  Double_t c[3]= { covar[2], 0., covar[5] };
+  
+  Double_t chi2C = GetPredictedChi2(p,c);
+  if (chi2C>kVeryBig) 
+    return kFALSE; 
+
+  if (!Update(p,c)) 
+    return kFALSE; 
+
+  return kTRUE;
+}
 
 //___________________________________________________________________________________________
 Bool_t AliExternalTrackParam::GetXatLabR(Double_t r,Double_t &x, Double_t bz, Int_t dir) const
@@ -2892,6 +3097,7 @@ Double_t  AliExternalTrackParam::GetParameterAtRadius(Double_t r, Double_t bz, I
   //    parType =11  - local sector (int)
   //    parType =12  - radial distance to closest edge (cm)
   //    parType =13  - delta sector (unit)
+  //    parType =14  - sector
   if (parType<0) {
     parType=-1;
      return 0;
@@ -2946,79 +3152,40 @@ Double_t  AliExternalTrackParam::GetParameterAtRadius(Double_t r, Double_t bz, I
   return 0;
 }
 
-Bool_t AliExternalTrackParam::Local2GlobalMomentum(Double_t p[3], Double_t alpha) const {
-  //----------------------------------------------------------------
-  // This function performs local->global transformation of the
-  // track momentum.
-  // When called, the arguments are:
-  //    p[0] = 1/pt * charge of the track;
-  //    p[1] = sine of local azim. angle of the track momentum;
-  //    p[2] = tangent of the track momentum dip angle;
-  //   alpha - rotation angle. 
-  // The result is returned as:
-  //    p[0] = px
-  //    p[1] = py
-  //    p[2] = pz
-  // Results for (nearly) straight tracks are meaningless !
-  //----------------------------------------------------------------
-  if (TMath::Abs(p[0])<=kAlmost0) return kFALSE;
-  if (TMath::Abs(p[1])> kAlmost1) return kFALSE;
+//_______________________________________________________________________
+Bool_t AliExternalTrackParam::RelateToVVertexBxByBzDCA(const AliVVertex *vtx, Double_t b[3], Double_t maxd, AliExternalTrackParam *cParam, Double_t dz[2], Double_t dzcov[3]) {
+  //
+  // Try to relate the track parameters to the vertex "vtx", 
+  // if the (rough) transverse impact parameter is not bigger then "maxd". 
+  //
+  // All three components of the magnetic field ,"b[3]" (kG), 
+  // are taken into account.
+  //
+  // a) The paramters are extapolated to the DCA to the vertex.
+  // b) The impact parameters and their covariance matrix are calculated.
+  // c) An attempt to constrain the params to the vertex is done.
+  //    The constrained params are returned via "cParam".
+  //
+  // In the case of success, the returned value is kTRUE
+  // otherwise, it's kFALSE)
+  // 
 
-  Double_t pt=1./TMath::Abs(p[0]);
-  Double_t cs=TMath::Cos(alpha), sn=TMath::Sin(alpha);
-  Double_t r=TMath::Sqrt((1. - p[1])*(1. + p[1]));
-  p[0]=pt*(r*cs - p[1]*sn); p[1]=pt*(p[1]*cs + r*sn); p[2]=pt*p[2];
+  if (!vtx) return kFALSE;
 
-  return kTRUE;
-}
+  if (!PropagateToDCABxByBz(vtx, b, maxd, dz, dzcov)) return kFALSE;
 
-Bool_t AliExternalTrackParam::Local2GlobalPosition(Double_t r[3], Double_t alpha) const {
-  //----------------------------------------------------------------
-  // This function performs local->global transformation of the
-  // track position.
-  // When called, the arguments are:
-  //    r[0] = local x
-  //    r[1] = local y
-  //    r[2] = local z
-  //   alpha - rotation angle. 
-  // The result is returned as:
-  //    r[0] = global x
-  //    r[1] = global y
-  //    r[2] = global z
-  //----------------------------------------------------------------
-  Double_t cs=TMath::Cos(alpha), sn=TMath::Sin(alpha), x=r[0];
-  r[0]=x*cs - r[1]*sn; r[1]=x*sn + r[1]*cs;
+  Double_t covar[6]; vtx->GetCovarianceMatrix(covar);
+  Double_t p[2]={GetParameter()[0]-dz[0],GetParameter()[1]-dz[1]};
+  Double_t c[3]={covar[2],0.,covar[5]};
+
+  Double_t chi2=GetPredictedChi2(p,c);
+  if (chi2>kVeryBig) return kFALSE;
+
+  if (!cParam) return kTRUE;
+
+  *cParam = *this;
+  if (!cParam->Update(p,c)) return kFALSE;
 
   return kTRUE;
 }
 
-Bool_t AliExternalTrackParam::Global2LocalMomentum(Double_t p[3], Short_t charge, Double_t &alpha) const {
-  //----------------------------------------------------------------
-  // This function performs global->local transformation of the
-  // track momentum.
-  // When called, the arguments are:
-  //    p[0] = px
-  //    p[1] = py
-  //    p[2] = pz
-  //   charge - of the track
-  //   alpha - rotation angle. 
-  // The result is returned as:
-  //    p[0] = 1/pt * charge of the track;
-  //    p[1] = sine of local azim. angle of the track momentum;
-  //    p[2] = tangent of the track momentum dip angle;
-  // Results for (nearly) straight tracks are meaningless !
-  //----------------------------------------------------------------
-  double pt = TMath::Sqrt(p[0]*p[0]+p[1]*p[1]);
-  if (pt == 0.) return kFALSE;
-  alpha = TMath::Pi() + TMath::ATan2(-p[1], -p[0]);
-  
-  p[0] = 1./pt * (float)charge;
-  p[1] = 0.;
-  p[2] = p[2]/pt;
-
-  return kTRUE;
-}
-
-Bool_t AliExternalTrackParam::Global2LocalPosition(Double_t r[3], Double_t alpha) const {
-  return Local2GlobalPosition(r, -alpha);
-}
