@@ -207,20 +207,32 @@ void testFastTrackerEval(){
 // 10 11  12 13 14
 
 void testFastTrackerEvalMB() {
-      TF1 *f1 = new TF1("f1", "[0]*x");
+  TF1 *fpol0 = new TF1("fpol0", "[0]*x");
+  TF1 *fpol1 = new TF1("fpol1", "[0]+[1]*x");
   if (tree==NULL) {
     TFile *f = new TFile("testSeed.root");
     tree = (TTree *) f->Get("seed");
   }
-  tree->Draw("(paramSeedMB.P()/paramSeed.P()-0.5*(paramFull.P()+param.P())/param.P())","sqrt(paramFull.fC[14])*paramFull.Pt()<0.2","colz");
-  bool isOK= abs(tree->GetHistogram()->GetRMS())<0.01;
-  if (isOK) {::Info("testFastTracker","MB correction P - OK");
-  }else{::Error("testFastTracker","MB correction P- FAILED");
-  }
-  // test covariance matrix
+
+   tree->Draw("(paramSeedMB.fP[4]-param.fP[4])/sqrt(paramSeedMB.fC[14]):paramFull.P()/param.P()>>his(100,1,1.4)","","prof");
+  tree->GetHistogram()->Fit("fpol1","w=1"); //  ~  looks OK
+    if (TMath::Abs(fpol1->GetParameter(1) ) < 0.1) {
+      ::Info("testFastTracker deltaP4", "deltaP4 - OK");
+    } else { ::Error("testFastTracker  deltap4", "deltaP4- FAILED"); };
+
+
+  // test covariance matrix fC[9]
   tree->Draw("(paramSeedMB.fC[9]):(paramMiddle.fC[9]+paramSeed.fC[9])","","prof");
-  tree->GetHistogram()->Fit("f1","w=1"); //  ~  looks OK
-    if (TMath::Abs(f1->GetParameter(0) - 1) < 0.1) {
+  tree->GetHistogram()->Fit("fpol0","w=1"); //  ~  looks OK
+    if (TMath::Abs(fpol0->GetParameter(0) - 1) < 0.1) {
       ::Info("testFastTracker C(9)", "covar 9  - OK");
     } else { ::Error("testFastTracker  C(9)", "covar 9- FAILED"); };
+     // test covariance matrix fC[9]
+  tree->Draw("(paramSeedMB.fC[5]):(paramMiddle.fC[5]+paramSeed.fC[5])","","prof");
+  tree->GetHistogram()->Fit("fpol0","w=1"); //  ~  looks OK
+    if (TMath::Abs(fpol0->GetParameter(0) - 1) < 0.2) {
+      ::Info("testFastTracker C(5)", "covar 5  - OK");
+    } else { ::Error("testFastTracker  C(5)", "covar 5- FAILED"); };
+
+
 }

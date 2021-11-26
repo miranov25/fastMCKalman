@@ -157,6 +157,7 @@ AliExternalTrackParam* fastTracker::makeSeedMB(double xyz0[3], double xyz1[3], d
   Double_t deltaCovar[15];
 
   Bool_t propStatus=kTRUE;
+  Double_t p0[3]={paramFull.Pt()};
   for (int i=1; i<3; i++) {
     propStatus &= paramFull.PropagateTo(xyz[i][0], bz);
     for (int iCovar = 0; iCovar < 15; iCovar++) deltaCovar[iCovar] = paramFull.GetCovariance()[iCovar];
@@ -167,6 +168,7 @@ AliExternalTrackParam* fastTracker::makeSeedMB(double xyz0[3], double xyz1[3], d
     for (int i = 0; i < nSteps; i++) {
       propStatus &= paramFull.CorrectForMeanMaterial(crossLength * xx0tocm / nSteps, crossLength * xrhotocm / nSteps, mass, kFALSE);
     }
+    p0[i]=paramFull.Pt();
     if (i == 1) {
       for (int iCovar = 0; iCovar < 15; iCovar++) {
         deltaCovar[iCovar] = paramFull.GetCovariance()[iCovar] - deltaCovar[iCovar];
@@ -174,8 +176,13 @@ AliExternalTrackParam* fastTracker::makeSeedMB(double xyz0[3], double xyz1[3], d
     }
   }
   // Formula below approximation in case equal material distance of seeding layer
-  Double_t ratioP= 2*extParam->P()/(extParam->P()+paramFull.P());
-  ((double*)extParam->GetParameter())[4]*=  ratioP;
+  //Double_t ratio1= p0[1]/p0[0];
+  //Double_t ratio2= p0[2]/p0[0];
+  //Double_t p0N=3.*p0[0]/(ratio2+ratio1+1.);
+  //Double_t p0NRatio=3./(ratio2+ratio1+1.);
+  //p0NRatio=1-((1-p0NRatio)*2.);                                  /// This hack - we should get proper curvature/sagita formula
+  //
+  //((double*)extParam->GetParameter())[4]*=  p0NRatio;
   ((double*)extParam->GetCovariance())[5] +=deltaCovar[5];
   ((double*)extParam->GetCovariance())[9] +=deltaCovar[9];
   ((double*)extParam->GetCovariance())[14]+=deltaCovar[14];
