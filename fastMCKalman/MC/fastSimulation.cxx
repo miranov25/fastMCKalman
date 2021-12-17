@@ -866,7 +866,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
   }else {
     TParticlePDG *particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
     if (particle == nullptr) {
-      ::Error("fastParticle::simulateParticle", "Invalid pdgCode %lld", pdgCode);
+      ::Error("fastParticle::simulateParticle", "Invalid pdgCode %ld", pdgCode);
       return -1;
     }
     sign = particle->Charge() / 3.;
@@ -1140,7 +1140,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint la
   }else {
     TParticlePDG *particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
     if (particle == nullptr) {
-      ::Error("fastParticle::reconstructParticle", "Invalid pdgCode %lld", pdgCode);
+      ::Error("fastParticle::reconstructParticle", "Invalid pdgCode %ld", pdgCode);
       return -1;
     }
     mass = particle->Mass();
@@ -1165,28 +1165,44 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint la
   Int_t step=layer1/3;
   if (step>10) step=10;
   float sign0=(fParamMC[layer1-1].GetX()>fParamMC[layer1-2].GetX())? 1.:-1.;
+  Float_t alpha0=fParamMC[layer1-1].GetAlpha();
   for (int dLayer=0; dLayer<3  && layer1-step*dLayer>0; dLayer++) {
-        fParamMC[layer1-step*dLayer-1].GetXYZ(xyzS[dLayer]);
+        Int_t layer=layer1-step*dLayer-1;
+        Int_t layer0=layer1-1;
+        //fParamMC[layer1-step*dLayer-1].GetXYZ(xyzS[dLayer]);
+        xyzS[dLayer][0]=fParamMC[layer].GetX();
+        xyzS[dLayer][1]=fParamMC[layer].GetY();
+        xyzS[dLayer][2]=fParamMC[layer].GetZ();
+        fParamMC[layer].Local2GlobalPosition(xyzS[dLayer],fParamMC[layer].GetAlpha()-alpha0);
   }
-  AliExternalTrackParam * paramSeed = fastTracker::makeSeed(xyzS[0],xyzS[1],xyzS[2],0.1,0.1,geom.fBz);
-  AliExternalTrackParam4D param(*paramSeed,mass,1);
+  /// seeds in alpha0 coordinate frame
+  AliExternalTrackParam * paramSeedI = fastTracker::makeSeed(xyzS[0],xyzS[1],xyzS[2],0.1,0.1,geom.fBz);
+  AliExternalTrackParam * paramSeed = fastTracker::makeSeedMB(xyzS[0],xyzS[1],xyzS[2],0.1,0.1,
+                                                              geom.fBz,geom.fLayerX0[layer1-1],geom.fLayerRho[layer1-1],fMassMC);
+  AliExternalTrackParam   paramRot(paramSeed->GetX(),alpha0, paramSeed->GetParameter(),paramSeed->GetCovariance());
+  AliExternalTrackParam4D param(paramRot,mass,1);
   if (sign0<0) {
     ((double*)param.GetParameter())[4]*=-1;
     ((double*)param.GetParameter())[3]*=-1;
+    ((double*)param.GetParameter())[2]*=-1;
   }
-  param.Rotate(fParamMC[layer1-1].GetAlpha());
   //param.fMass=.fMass;
-  delete paramSeed;
 
   Double_t dEdx=AliExternalTrackParam::BetheBlochAleph(param.P()/mass);
   //Double_t dPdx=AliExternalTrackParam4D::dPdx(fParamMC[layer1-1]);
   (*fgStreamer)<<"seedDump"<<   // seeding not ideal in case significant energy loss
+    "sign0="<<sign0<<
     "dEdx="<<dEdx<<
     "step="<<step<<
     "seed.="<<&param<<
     "input.="<<&fParamMC[layer1-1]<<
     "input2.="<<&fParamMC[layer1-2*step-1]<<
+    "paramSeed.="<<paramSeed<<
+    "paramSeedI.="<<paramSeedI<<
+    "paramRot.="<<&paramRot<<
     "\n";
+  delete paramSeed;
+  delete paramSeedI;
   //double *covar = (double*)param.GetCovariance();
   //for (int i=0; i<15; i++)covar[i]*=2;
 
@@ -1293,7 +1309,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
   }else {
       TParticlePDG *particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
       if (particle == nullptr) {
-        ::Error("fastParticle::simulateParticle", "Invalid pdgCode %lld", pdgCode);
+        ::Error("fastParticle::simulateParticle", "Invalid pdgCode %ld", pdgCode);
         return -1;
       }
       mass = particle->Mass();
@@ -1403,7 +1419,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
 Float_t fastParticle::getMean(Int_t valueType, Int_t averageType){
   Float_t valueMean=0;
   Float_t nPoints=0;
-  for (Int_t i=0; i<fParamMC.size();i++){
+  for (UInt_t i=0; i<fParamMC.size();i++){
     Float_t value=0;
     if (valueType==0) value=fParamMC[i].Pt();
     if (valueType==1) value=1/fParamMC[i].Pt();
@@ -1425,7 +1441,7 @@ Float_t fastParticle::getStat(Int_t valueType){
   if (valueType==0) {
     Float_t rMin = -1;
     Float_t rMax = -1;
-    for (Int_t i = 0; i < fParamMC.size(); i++) {
+    for (UInt_t i = 0; i < fParamMC.size(); i++) {
       Float_t x=  fParamMC[i].GetX();
       if (rMin>x || rMin<0)  rMin=x;
       if (rMax<x || rMax==0) rMax=x;
