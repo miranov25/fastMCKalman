@@ -176,13 +176,13 @@ AliExternalTrackParam* fastTracker::makeSeedMB(double xyz0[3], double xyz1[3], d
     }
   }
   // Formula below approximation in case equal material distance of seeding layer
-  //Double_t ratio1= p0[1]/p0[0];
-  //Double_t ratio2= p0[2]/p0[0];
+  Double_t ratio1= p0[1]/p0[0];
+  Double_t ratio2= p0[2]/p0[0];
   //Double_t p0N=3.*p0[0]/(ratio2+ratio1+1.);
-  //Double_t p0NRatio=3./(ratio2+ratio1+1.);
-  //p0NRatio=1-((1-p0NRatio)*2.);                                  /// This hack - we should get proper curvature/sagita formula
+  Double_t p0NRatio=3./(ratio2+ratio1+1.);
+  /// This hack - we should get proper curvature/sagita formula
   //
-  //((double*)extParam->GetParameter())[4]*=  p0NRatio;
+  ((double*)extParam->GetParameter())[4]/=  p0NRatio;
   ((double*)extParam->GetCovariance())[5] +=deltaCovar[5];
   ((double*)extParam->GetCovariance())[9] +=deltaCovar[9];
   ((double*)extParam->GetCovariance())[14]+=deltaCovar[14];

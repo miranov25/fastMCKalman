@@ -1192,10 +1192,12 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint la
   //Double_t dPdx=AliExternalTrackParam4D::dPdx(fParamMC[layer1-1]);
   (*fgStreamer)<<"seedDump"<<   // seeding not ideal in case significant energy loss
     "sign0="<<sign0<<
+    "fMassMC="<<fMassMC<<
     "dEdx="<<dEdx<<
     "step="<<step<<
     "seed.="<<&param<<
     "input.="<<&fParamMC[layer1-1]<<
+    "input1.="<<&fParamMC[layer1-step-1]<<
     "input2.="<<&fParamMC[layer1-2*step-1]<<
     "paramSeed.="<<paramSeed<<
     "paramSeedI.="<<paramSeedI<<
