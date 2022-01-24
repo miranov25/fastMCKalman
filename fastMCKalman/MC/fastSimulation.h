@@ -101,7 +101,7 @@ public:
   }
   Float_t GetMass(Int_t pidCode);
   Float_t GetZ(Int_t pidCode);
-  Float_t getMean(Int_t valueType, Int_t averageType);
+  Float_t getMean(Int_t valueType,  Float_t beginF=0, Float_t endF=1, Int_t powerType=0);
   Float_t getStat(Int_t valueType);
   int simulateParticle(fastGeometry     &geom, double r[3], double p[3], long pdgCode, float maxLength, int maxPoints);
   int reconstructParticle(fastGeometry  &geom, long pdgCode, uint layerStart);

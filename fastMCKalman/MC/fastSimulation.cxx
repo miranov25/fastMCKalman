@@ -1275,7 +1275,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint la
       float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder
       //status = param.AliExternalTrackParam::CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
       for (Int_t ic=0;ic<5; ic++) {
-        status*= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho, mass, 0.01);
+        status*= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho/5., mass, 0.01);
       }
       //status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
       if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,crossLength*xrho,mass,20);
@@ -1400,7 +1400,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder  = to be racalculated
     //status = param.AliExternalTrackParam::CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
     for (Int_t ic=0;ic<5; ic++) {
-      status *= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho, mass, 0.01);
+      status *= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho/5., mass, 0.01);
     }
     //status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
     if (status) {
@@ -1415,18 +1415,23 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
 }
 
 ///
-/// \param valueType      0 - <pt>,  1 - <1/pt> - 2 -<dEdxExp>
-/// \param averageType    dummy
+/// \param valueType      0 - <pt>,  1 - <1/pt> - 2 -<dEdxExp>, 3 - 1/dEdx, 4 - dEdx/p**2
 /// \return
-Float_t fastParticle::getMean(Int_t valueType, Int_t averageType){
+Float_t fastParticle::getMean(Int_t valueType,Float_t beginF, Float_t endF, Int_t powerType){
   Float_t valueMean=0;
   Float_t nPoints=0;
-  for (UInt_t i=0; i<fParamMC.size();i++){
+  if (beginF<0 || beginF>=1 || beginF>endF) return 0;
+  if (endF<0 || endF>1) return 0;
+  for (UInt_t i=beginF*fParamMC.size(); i<endF*fParamMC.size();i++){
     Float_t value=0;
     if (valueType==0) value=fParamMC[i].Pt();
     if (valueType==1) value=1/fParamMC[i].Pt();
-    if (valueType==2) value=AliExternalTrackParam4D::BetheBlochAleph(fParamMC[i].GetP()/fMassMC);
-     if (valueType==3) value=1/AliExternalTrackParam4D::BetheBlochAleph(fParamMC[i].GetP()/fMassMC);
+    if (valueType==2) value=TMath::Max(AliExternalTrackParam4D::BetheBlochAleph(fParamMC[i].GetP()/fMassMC),0.);
+    if (valueType==3) value=TMath::Max(1/AliExternalTrackParam4D::BetheBlochAleph(fParamMC[i].GetP()/fMassMC),0.);
+    if (valueType==4) value=TMath::Max(AliExternalTrackParam4D::BetheBlochAleph(fParamMC[i].GetP()/fMassMC),.0)/(fParamMC[i].P()*fParamMC[i].P());
+    //
+    if (powerType==2) value*=value;
+    if (powerType==-1) value=1./value;
     valueMean+=value;
     nPoints++;
   }

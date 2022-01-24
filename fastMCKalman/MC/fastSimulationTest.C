@@ -19,7 +19,7 @@
 #include "TRandom.h"
 #include "TChain.h"
 #include "AliXRDPROOFtoolkit.h"
-#include "AliDrawStyle.h"
+//#include "AliDrawStyle.h"
 #include "TStyle.h"
 #include "TSystem.h"
 #include "TPad.h"
@@ -355,8 +355,8 @@ void initTreeFast(const char * inputList="fastParticle.list"){
    treeUnit0->SetMarkerStyle(21);
   treeUnit0->SetMarkerSize(0.5);
 
-  AliDrawStyle::SetDefaults();
-  AliDrawStyle::ApplyStyle("figTemplate");
+  //AliDrawStyle::SetDefaults();
+  //AliDrawStyle::ApplyStyle("figTemplate");
   gStyle->SetOptTitle(1);
   setAliases(*treeFast);
   //
