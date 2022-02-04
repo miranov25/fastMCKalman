@@ -212,7 +212,11 @@ Bool_t AliExternalTrackParam4D::GetXYZatR(Double_t xr,Double_t bz, Double_t *xyz
   return kTRUE;
   //
 }
-
+/// get radiial direction sign
+Int_t AliExternalTrackParam4D::GetDirectionSign(){
+  Float_t dir = GetX()*Px()+GetY()*Py();
+  return (dir>0)? 1:-1;
+}
 
 /// Runge-Kuta energy loss correction  - https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
 /// WARNING - we use strange ALICE convention signing Z==2 particle with negative mass - TODO - replace it with explicit Q
@@ -1191,6 +1195,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint la
   Double_t dEdx=AliExternalTrackParam::BetheBlochAleph(param.P()/mass);
   //Double_t dPdx=AliExternalTrackParam4D::dPdx(fParamMC[layer1-1]);
   (*fgStreamer)<<"seedDump"<<   // seeding not ideal in case significant energy loss
+    "gid="<<gid<<
     "sign0="<<sign0<<
     "fMassMC="<<fMassMC<<
     "dEdx="<<dEdx<<
@@ -1507,6 +1512,7 @@ void fastParticle::setAliases(TTree & tree){
   //
   tree.SetAlias("c","(0+2.99792458e-2)");
   tree.SetAlias("Larm","part.getStat(0)");
+  tree.SetAlias("dir1","part.fParamIn[1].GetDirectionSign()");
 
 }
 

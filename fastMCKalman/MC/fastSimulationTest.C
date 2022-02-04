@@ -31,6 +31,7 @@ const Float_t kRandomPDGFraction=0.5;
 TChain * treeFast = 0;
 TChain * treeTurn=0;
 TChain * treeUnit0=0;
+TChain * treeSeed=0;
 void testDummy(){
   double r[]={0,0,0};
   double p[]={1,0,0};
@@ -61,7 +62,7 @@ void testTPC(Int_t nParticles, bool dumpStream=1){
   timer.Start();
   fastGeometry geom(nLayerTPC+1);
   geom.fBz=5;
-  fastParticle particle(nLayerTPC+1);
+
 
   float resol[2]={0.001,0.001};
   resol[0]=0.1;
@@ -69,9 +70,11 @@ void testTPC(Int_t nParticles, bool dumpStream=1){
   geom.setLayerRadiusPower(0,nLayerTPC,1,nLayerTPC,1.0,xx0,xrho,resol);
 
   TTreeSRedirector *pcstream = new TTreeSRedirector("fastParticle.root","recreate");
-  particle.fgStreamer=pcstream;
   TTree * tree = 0;
   for (Int_t i=0; i<nParticles; i++){
+    fastParticle particle(nLayerTPC+1);
+    particle.fgStreamer=pcstream;
+    particle.gid=i;
     // generate scan detector properties
     Float_t matScaling  =(gRandom->Rndm()<kNominalFraction) ? 1.:  (gRandom->Rndm()*kMaterialScaling)+1;
     Float_t resolScan=(gRandom->Rndm()<kNominalFraction) ? kDefResol: gRandom->Rndm()*kMaxResol;
@@ -350,10 +353,14 @@ void initTreeFast(const char * inputList="fastParticle.list"){
   treeFast  = AliXRDPROOFtoolkit::MakeChainRandom(inputListPath,"fastPart",0,10000);
   treeTurn  = AliXRDPROOFtoolkit::MakeChainRandom(inputListPath,"turn",0,10000);
   treeUnit0  = AliXRDPROOFtoolkit::MakeChainRandom(inputListPath,"UnitTestDumpCorrectForMaterial",0,10000);
+  treeSeed  = AliXRDPROOFtoolkit::MakeChainRandom(inputListPath,"seedDump",0,10000);
   treeFast->SetMarkerStyle(21);
   treeFast->SetMarkerSize(0.5);
    treeUnit0->SetMarkerStyle(21);
   treeUnit0->SetMarkerSize(0.5);
+  treeSeed->BuildIndex("gid");
+  treeFast->BuildIndex("gid");
+  treeSeed->AddFriend(treeFast,"F");
 
   //AliDrawStyle::SetDefaults();
   //AliDrawStyle::ApplyStyle("figTemplate");

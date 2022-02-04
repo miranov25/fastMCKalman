@@ -30,6 +30,7 @@ public:
   virtual ~AliExternalTrackParam4D();
   Double_t Beta(){ Double_t p2=GetP();p2*=p2; return TMath::Sqrt(p2/(p2+fMass*fMass));}
   Double_t GetOverThr(Float_t sigma=0.01, Float_t width=0.0005, Float_t threshold=0.1);
+  Int_t GetDirectionSign();
   //
   Bool_t PropagateTo(Double_t xk, Double_t b, Int_t timeDir);
   Bool_t GetXYZatR(Double_t xr,Double_t bz, Double_t *xyz=0, Double_t* alpSect=0) const;
@@ -107,6 +108,7 @@ public:
   int reconstructParticle(fastGeometry  &geom, long pdgCode, uint layerStart);
   int reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, uint layerStart);
   static void setAliases(TTree & tree);           //   set aliases for derived variables
+  int                         gid;         // global id
   double fR[3];                            //   initial position
   double fP[3];                            //   initial momentum
   long                         fPdgCodeMC;  //   PDG code used in simulation
