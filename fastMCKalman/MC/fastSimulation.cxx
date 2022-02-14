@@ -1153,10 +1153,10 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint la
   uint layer1 = TMath::Min(layerStart,uint(fParamMC.size()-1));
   fMaxLayerRec=layer1;
   for (;layer1>0; layer1--){
-    if (fLoop[layer1]>0) continue;
-    if (TMath::Abs(fParamMC[layer1].GetSnp())>kMaxSnp) continue;
-    if ((fParamMC[layer1].P()/fParamMC[0].P())>kMaxLoss) break;
+    if (fLoop[layer1]>0) continue;                                   // loop number - only closet part of helix to the production vertex
+    if (TMath::Abs(fParamMC[layer1].GetSnp())>kMaxSnp) continue;     // track inclination anlge has to be smaller than kmaxSnp
     fMaxLayerRec=layer1;
+    if ((fParamMC[layer1].P())>kMaxLoss*fParamMC[0].P()) break;      // if particle momneta is bigger than kMaxLoss production momenta - define starting layer
   }
 
   if (layer1<=3){
@@ -1427,7 +1427,8 @@ Float_t fastParticle::getMean(Int_t valueType,Float_t beginF, Float_t endF, Int_
   Float_t nPoints=0;
   if (beginF<0 || beginF>=1 || beginF>endF) return 0;
   if (endF<0 || endF>1) return 0;
-  for (UInt_t i=beginF*fParamMC.size(); i<endF*fParamMC.size();i++){
+  Int_t sizeRec = fMaxLayerRec;
+  for (UInt_t i=beginF*sizeRec; i<endF*sizeRec;i++){
     Float_t value=0;
     if (valueType==0) value=fParamMC[i].Pt();
     if (valueType==1) value=1/fParamMC[i].Pt();
@@ -1444,17 +1445,25 @@ Float_t fastParticle::getMean(Int_t valueType,Float_t beginF, Float_t endF, Int_
   return  valueMean/nPoints;
 }
 ///
-/// \param valueType      0 - LArmMC
+/// \param valueType      0 - LArmMC  1 - LArmIn
 /// \param averageType    dummy
 /// \return
 Float_t fastParticle::getStat(Int_t valueType){
   Float_t valueMean=0;
   Float_t nPoints=0;
+  Float_t rMin = -1;
+  Float_t rMax = -1;
   if (valueType==0) {
-    Float_t rMin = -1;
-    Float_t rMax = -1;
     for (UInt_t i = 0; i < fParamMC.size(); i++) {
       Float_t x=  fParamMC[i].GetX();
+      if (rMin>x || rMin<0)  rMin=x;
+      if (rMax<x || rMax==0) rMax=x;
+    }
+    return rMax-rMin;
+  }
+  if (valueType==1) {
+    for (UInt_t i = 0; i < fParamIn.size(); i++) {
+      Float_t x=  fParamIn[i].GetX();
       if (rMin>x || rMin<0)  rMin=x;
       if (rMax<x || rMax==0) rMax=x;
     }
