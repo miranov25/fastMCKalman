@@ -1453,6 +1453,7 @@ Float_t fastParticle::getStat(Int_t valueType){
   Float_t nPoints=0;
   Float_t rMin = -1;
   Float_t rMax = -1;
+  Double_t vecMin[3],vecMax[3];
   if (valueType==0) {
     for (UInt_t i = 0; i < fParamMC.size(); i++) {
       Float_t x=  fParamMC[i].GetX();
@@ -1469,6 +1470,19 @@ Float_t fastParticle::getStat(Int_t valueType){
     }
     return rMax-rMin;
   }
+  if (valueType==2) {
+    for (UInt_t i = 0; i < fParamIn.size(); i++) {
+      Float_t x=  fParamIn[i].GetX();
+      if (rMin>x || rMin<0)  {
+        rMin=x; fParamIn[i].GetXYZ(vecMin);
+      }
+      if (rMax<x || rMax==0) {
+        rMax=x; fParamIn[i].GetXYZ(vecMax);
+      }
+    }
+    return TMath::Sqrt((vecMin[0]-vecMax[0])*(vecMin[0]-vecMax[0])+ (vecMin[1]-vecMax[1])*(vecMin[1]-vecMax[1]));
+  }
+
   return 0;
 }
 
