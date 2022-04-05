@@ -35,7 +35,7 @@ public:
   Bool_t PropagateTo(Double_t xk, Double_t b, Int_t timeDir);
   Bool_t GetXYZatR(Double_t xr,Double_t bz, Double_t *xyz=0, Double_t* alpSect=0) const;
   //
-  Bool_t CorrectForMeanMaterial(Double_t xOverX0, Double_t xTimesRho,Double_t mass,Float_t stepFraction=0.01,
+  Bool_t CorrectForMeanMaterial(Double_t xOverX0, Double_t xTimesRho,Double_t mass,Float_t stepFraction=0.01, bool addSmearing=kFALSE,
 	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid );
   Bool_t CorrectForMeanMaterialRK(Double_t xOverX0, Double_t xTimesRho,Double_t mass,Float_t stepFraction=0.01,
 	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid );
@@ -91,7 +91,7 @@ public:
   kTrackChi2   =0x10
 } ;
 
-  fastParticle():TObject(){}
+  fastParticle():TObject(),fAddMSsmearing(false),gid(0){}
   ~fastParticle(){}
   fastParticle(int nLayers){
     fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamInRot.reserve(nLayers);
@@ -108,6 +108,7 @@ public:
   int reconstructParticle(fastGeometry  &geom, long pdgCode, uint layerStart);
   int reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, uint layerStart);
   static void setAliases(TTree & tree);           //   set aliases for derived variables
+  bool                        fAddMSsmearing;     //   flag to add smearing during simulation
   int                         gid;         // global id
   double fR[3];                            //   initial position
   double fP[3];                            //   initial momentum

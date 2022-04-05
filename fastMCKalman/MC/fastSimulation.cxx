@@ -342,7 +342,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRK(Double_t xOverX0, Doubl
 /// \param f              - dEdx formula
 /// \param stepFraction   - step fraction  - above some limits RungeKuta instead of the Euler Method used
 /// \return  CorrectForMeanMaterial status  (kFalse - Failed, kTrue - Success)
-Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_t xTimesRho, Double_t mass, Float_t stepFraction, Double_t (*f)(Double_t)){
+Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_t xTimesRho, Double_t mass, Float_t stepFraction, bool addMSSmearing, Double_t (*f)(Double_t)){
   const Double_t kBGStop=0.02;
   Double_t p=GetP();
   Double_t q=(mass<0)?2.:1.;   // q=2 particle in ALICE convention
@@ -405,6 +405,18 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   }
 
   //Applying the corrections*****************************
+  if (addMSSmearing){
+    const float kMaxP3=0.5;
+    const float kMaxP4=0.3;
+    if (TMath::Sqrt(cC44)>kMaxP4*TMath::Abs(fP4)) return kFALSE;
+    Float_t p2New=fP[2]+gRandom->Gaus(0,TMath::Sqrt(cC22));
+    Float_t dp3New=gRandom->Gaus(0,TMath::Sqrt(cC33));
+    if (TMath::Abs(p2New)>1.) return kFALSE;
+    if (TMath::Abs(dp3New)>kMaxP3) return kFALSE;
+    fP[2]=p2New;
+    fP[3]+=dp3New;
+    fP[4]+=gRandom->Gaus(0,TMath::Sqrt(cC44));
+  }
   fC22 += cC22;
   fC33 += cC33;
   fC43 += cC43;
@@ -979,7 +991,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     tanPhi2/=(1-tanPhi2);
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
     //status = param.CorrectForMeanMaterialT4(crossLength*xx0,-crossLength*xrho,mass);
-    status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005);
+    status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005,fAddMSsmearing);
     if (gRandom->Rndm()<fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,-crossLength*xrho,mass,20);
     if (status) {
         fStatusMaskMC[nPoint]|=kTrackCorrectForMaterial;
@@ -1133,7 +1145,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
 /// \param layerStart    - starting layer to do tracking
 /// \return   -  TODO  status flags to be decides
 int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint layerStart){
-  const Float_t chi2Cut=16;
+  const Float_t chi2Cut=100;
   const float kMaxSnp=0.95;
   const float kMaxLoss=0.3;
   fLengthIn=0;
