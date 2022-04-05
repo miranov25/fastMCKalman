@@ -12,6 +12,7 @@
 #include "TRandom.h"
 #include "fastTracker.h"
 
+
 TTreeSRedirector* fastParticle::fgStreamer = nullptr;
 
 ClassImp(fastGeometry)
@@ -352,7 +353,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   Double_t p2=p*p;
   Double_t dEdxM=f(p/mass),dEdxMRK=0;
   Double_t Ein=TMath::Sqrt(p2+mass2);
-  Double_t dP= dPdxEulerStep(p,mass,xTimesRho,stepFraction);
+  Double_t dP= dPdxEulerStep(p,mass,xTimesRho,stepFraction,f);
   if (dP==0) return kFALSE;
   Double_t pOut=p+dP;
   if ((pOut/mass)<kBGStop) return kFALSE;
@@ -1254,7 +1255,9 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint la
       }
       float xrho  =geom.fLayerRho[layer];
       float xx0  =geom.fLayerX0[layer];
-      double pos[2]={0,xyz[2]};
+      float deltaY = gRandom->Gaus(0,geom.fLayerResolRPhi[layer]);
+      float deltaZ = gRandom->Gaus(0,geom.fLayerResolZ[layer]);
+      double pos[2]={0+deltaY,xyz[2]+deltaZ};
       double cov[3]={geom.fLayerResolRPhi[layer]*geom.fLayerResolRPhi[layer],0, geom.fLayerResolZ[layer]*geom.fLayerResolZ[layer]};
       fParamIn[layer]=param;
       float chi2 =  param.GetPredictedChi2(pos, cov);
@@ -1379,7 +1382,9 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
 
     float xrho  =geom.fLayerRho[layer];
     float xx0  =geom.fLayerX0[layer];
-    double pos[2]={localY,xyz[2]};
+    float deltaY = gRandom->Gaus(0, geom.fLayerResolRPhi[layer]);
+    float deltaZ = gRandom->Gaus(0, geom.fLayerResolZ[layer]);
+    double pos[2]={localY+deltaY,xyz[2]+deltaZ};
     double cov[3]={geom.fLayerResolRPhi[layer]*geom.fLayerResolRPhi[layer],0, geom.fLayerResolZ[layer]*geom.fLayerResolZ[layer]};
     fParamInRot[layer]=param;    ///
     float chi2 =  param.GetPredictedChi2(pos, cov);
