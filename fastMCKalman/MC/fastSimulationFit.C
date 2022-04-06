@@ -14,12 +14,13 @@
      treeFast->SetAlias("sigmaRPhi","geom.fLayerResolRPhi.fData[0]");
    treeFast->SetAlias("sigmaPtRel0","sigmaqPt0*ptMC");
    treeFast->SetAlias("sigmaPtRel0Mean","sigmaqPt0/meanptMCInv");
+   treeFast->SetAlias("Larm","getStat(2)")
    //
 
     // take into account X0 variation
     makeFitResolPtLArmV1(treeFast, "sigmaPtRel0", "meanptMCInv:(meandEdxExpInv/X0Norm):tglMC:Larm:sigmaRPhi", "10/sigmaPtRel0", "", "ptMC>0.01&&Larm>30&&sigmaPtRel0<0.5&&!isSecondary",kFALSE);
     //
-    makeFitResolPtLArmV1(treeFast, "sigmaPtRel0Mean", "meanptMCInv:(meandEdxExpInv/X0Norm):tglMC:Larm:sigmaRPhi", "10/sigmaPtRel0", "", "ptMC>0.01&&Larm>30&& sigmaPtRel0<0.5",kFALSE);
+    makeFitResolPtLArmV1(treeFast, "sigmaPtRel0Mean", "meanptMCInv:(meandEdxExpInv/X0Norm):tglMC:Larm:sigmaRPhi", "10/sigmaPtRel0", "", "ptMC>0.01&&Larm>30&& sigmaPtRel0<0.2",kFALSE);
 */
 TF1 *likePseudoHuber = new TF1("likePseudoHuber", AliTMinuitToolkit::PseudoHuberLogLike,-10,10,1);
 TStopwatch timer;
@@ -28,7 +29,8 @@ AliTMinuitToolkit *fitter=0;
 
 
 
-/// make a fit and set alas value for fit
+/// OBSOLETE
+///      make a fit and set alas value for fit
 ///      fitter is in global scope parameters could be acessed via fitter
 /// \param varFit            - variable to fit  sigmaqPt0
 /// \param varWeight         - 1/errror
@@ -152,7 +154,7 @@ void makeFitResolPtLArmV1(TTree * treeFast, TString varFit, TString variables, T
   likePseudoHuber->SetParameter(0,3);
   const Int_t nPoints=1000000;
   //TF1 *formula = new TF1("dcaResol0", "sqrt(([0]**2)*(x[3]**[4])+[1]*(abs(x[0])**[2])*(x[1]**[3])*(x[3]**[5]))");
-   TF1 *formula = new TF1("dcaResol0", "sqrt( (([0]*x[4])**2)*((x[3]*0.01)**[4]) +  [1]*(abs(x[0])**[2])*(x[1]**[3])*(x[3]**[5]))/abs(x[0])");
+   TF1 *formula = new TF1("dcaResol0", "sqrt( (([0]*x[4])**2)*((x[3]*0.01)**[4]) +  [1]*(abs(x[0])**[2])*(x[1]**[3])*((x[3]*0.01)**[5]))/abs(x[0])");
   TMatrixD *initParam = new TMatrixD(6, 4), &p = *initParam;
   fitter = new AliTMinuitToolkit("fitterdEdxBG.root");
   fitter->SetFitFunction((TF1 *) formula, kTRUE);
@@ -317,8 +319,17 @@ void makeFitExample(){
   // fit with primary only
   ///   - bias at low Larm - will be fixed with the seeding
   ///
-  makeFitResolPtLArmV1(treeFast, "sigmaPtRel0", "meanptMCInv:(meandEdxExpInv/X0Norm):tglMC:Larm:sigmaRPhi", "10/sigmaPtRel0", "", "ptMC>0.01&&Larm>30&&sigmaPtRel0<0.5&&!isSecondary",kFALSE);
+  makeFitResolPtLArmV1(treeFast, "sigmaPtRel0", "meanptMCInv:(meandEdxExpInv/X0Norm):tglMC:Larm:sigmaRPhi", "10/sigmaPtRel0", "", "ptMC>0.01&&Larm>30&&sigmaPtRel0<10&&!isSecondary&&fPdgCodeMC>0",kFALSE);
   treeFast->Draw("log(sigmaPtRel0/sigmaPtRel0FitLV1):part.fLengthIn:ptMC","ptMC>1&&part.fLengthIn>40&&fPdgCodeMC>0&&!isSecondary","colz",100000);
+  //
+  treeFast->Draw("log(sigmaPtRel0):log(sigmaPtRel0FitLV1):meandEdxExpInv","ptMC>0.1&&part.fLengthIn>40&&fPdgCodeMC>0&&!isSecondary","colz",100000);
+  gPad->SaveAs("resolFit_correlation_Primaries.png");
+  treeFast->Draw("log(sigmaPtRel0):log(sigmaPtRel0FitLV1):meandEdxExpInv","ptMC>0.1&&part.fLengthIn>40&&fPdgCodeMC>0&&isSecondary","colz",100000);
+  gPad->SaveAs("resolFit_correlation_Secondaries.png");
+
+//
+  makeFitResolPtLArmV1(treeFast, "sigmaPtRel0", "meanptMCInv:(meandEdxExpInv/X0Norm):tglMC:Larm:sigmaRPhi", "10/sigmaPtRel0", "", "ptMC>0.01&&Larm>30&&sigmaPtRel0<10&&!isSecondary",kFALSE);
+
   //
   makeFitResolPtLArmV1(treeFast, "sigmaPtRel0", "meanptMCInv:(meandEdxExpInv/X0Norm):tglMC:part.fLengthIn:sigmaRPhi", "10/sigmaPtRel0", "", "ptMC>0.01&&part.fLengthIn>40&&sigmaPtRel0<0.5&&!isSecondary",kFALSE);
 

@@ -73,6 +73,7 @@ void testTPC(Int_t nParticles, bool dumpStream=1){
   TTree * tree = 0;
   for (Int_t i=0; i<nParticles; i++){
     fastParticle particle(nLayerTPC+1);
+    particle.fAddMSsmearing=true;
     particle.fgStreamer=pcstream;
     particle.gid=i;
     // generate scan detector properties
