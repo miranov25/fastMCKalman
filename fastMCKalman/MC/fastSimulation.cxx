@@ -1326,7 +1326,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
   fPdgCodeRec   =pdgCode;
      float_t mass=0;
   if (pdgCode==0){
-    fMassMC=gRandom->Rndm();
+    fMassRec=fMassMC;
     mass=fMassMC;
   }else {
       TParticlePDG *particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
@@ -1548,7 +1548,7 @@ void fastParticle::setAliases(TTree & tree){
   tree.SetAlias("sigmaZ0Rot","sqrt(part.fParamInRot[1].fC[2]+0)");
   tree.SetAlias("sigmaqPt0Rot","sqrt(part.fParamInRot[1].fC[14]+0)");
   // eloss aliases
-  tree.SetAlias("eLossLog","log(AliExternalTrackParam::BetheBlochSolid(fParamMC[].P()/fParamMC[].fData.fMass)/AliExternalTrackParam::BetheBlochSolid(4))");
+  tree.SetAlias("eLossLog","log(AliExternalTrackParam::BetheBlochSolid(fParamMC[].P()/fParamMC[].fData.fMassMC)/AliExternalTrackParam::BetheBlochSolid(4))");
   //
   tree.SetAlias("c","(0+2.99792458e-2)");
   tree.SetAlias("Larm","part.getStat(0)");
