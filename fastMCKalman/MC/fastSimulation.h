@@ -26,7 +26,7 @@ Float_t fracUnitTest=0.1;
 class AliExternalTrackParam4D: public AliExternalTrackParam{
 public:
   AliExternalTrackParam4D();
-  AliExternalTrackParam4D(const AliExternalTrackParam &, Double_t mass,Int_t z);
+  AliExternalTrackParam4D(const AliExternalTrackParam &, Double_t mass,Int_t z, float length=0,float time=0);
   virtual ~AliExternalTrackParam4D();
   Double_t Beta(){ Double_t p2=GetP();p2*=p2; return TMath::Sqrt(p2/(p2+fMass*fMass));}
   Double_t GetOverThr(Float_t sigma=0.01, Float_t width=0.0005, Float_t threshold=0.1);

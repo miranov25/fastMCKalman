@@ -28,12 +28,12 @@ AliExternalTrackParam4D::AliExternalTrackParam4D():
   fTime(0){
 
 }
-AliExternalTrackParam4D::AliExternalTrackParam4D(const AliExternalTrackParam &t,Double_t mass,Int_t z):
+AliExternalTrackParam4D::AliExternalTrackParam4D(const AliExternalTrackParam &t,Double_t mass,Int_t z,float length,float time):
   AliExternalTrackParam(t),
   fZ(z),
   fMass(mass),
-  fLength(0),
-  fTime(0){
+  fLength(length),
+  fTime(time){
 }
 
 AliExternalTrackParam4D::~AliExternalTrackParam4D(){};
@@ -876,6 +876,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
    double covar[21]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
    float_t mass=0,sign=1;
   fPdgCodeMC=pdgCode;
+  fParamMC.resize(1);
   if (pdgCode==0){
     fMassMC=gRandom->Rndm();
     mass=fMassMC;
@@ -963,7 +964,8 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
           "paramNew.="<<&paramNew<<
           "\n";
       }
-      param=AliExternalTrackParam4D(paramNew,mass,1);
+
+      param=AliExternalTrackParam4D(paramNew,mass,param.fZ, param.fLength,param.fTime);
       direction*=-1;
       fDirection[nPoint]=direction;
       loopCounter++;
@@ -1471,6 +1473,7 @@ Float_t fastParticle::getStat(Int_t valueType){
   Float_t rMin = -1;
   Float_t rMax = -1;
   Double_t vecMin[3],vecMax[3];
+  if (valueType==2) return fParamMC.size();
   if (valueType==0) {
     for (UInt_t i = 0; i < fParamMC.size(); i++) {
       Float_t x=  fParamMC[i].GetX();
