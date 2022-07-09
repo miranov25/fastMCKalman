@@ -349,14 +349,20 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   mass=TMath::Abs(mass);
   Double_t mass2=mass*mass;
   p*=q;
-  if ((p/mass)<kBGStop) return kFALSE;
+  if ((p/mass)<kBGStop) {
+    return kFALSE;
+  }
   Double_t p2=p*p;
   Double_t dEdxM=f(p/mass),dEdxMRK=0;
   Double_t Ein=TMath::Sqrt(p2+mass2);
   Double_t dP= dPdxEulerStep(p,mass,xTimesRho,stepFraction,f);
-  if (dP==0) return kFALSE;
+  if (dP==0) {
+    return kFALSE;
+  }
   Double_t pOut=p+dP;
-  if ((pOut/mass)<kBGStop) return kFALSE;
+  if ((pOut/mass)<kBGStop) {
+    return kFALSE;
+  }
   Double_t Eout=TMath::Sqrt(pOut*pOut+mass2);
   p=(p+pOut)*0.5;
   // Use mean values for p2, p and beta2
@@ -384,7 +390,9 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
       if (lt>0) theta2 *= lt*lt;
     }
     theta2 *= q*q;    // q=2 particle
-    if(theta2>TMath::Pi()*TMath::Pi()) return kFALSE;
+    if(theta2>TMath::Pi()*TMath::Pi()) {
+      return kFALSE;
+    }
     cC22 = theta2*((1.-fP2)*(1.+fP2))*(1. + fP3*fP3);
     cC33 = theta2*(1. + fP3*fP3)*(1. + fP3*fP3);
     cC43 = theta2*fP3*fP4*(1. + fP3*fP3);
@@ -411,11 +419,15 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
     if (TMath::Sqrt(cC44)>kMaxP4*TMath::Abs(fP4)) return kFALSE;
     Float_t p2New=fP[2]+gRandom->Gaus(0,TMath::Sqrt(cC22));
     Float_t dp3New=gRandom->Gaus(0,TMath::Sqrt(cC33));
-    if (TMath::Abs(p2New)>1.) return kFALSE;
-    if (TMath::Abs(dp3New)>kMaxP3) return kFALSE;
+    if (TMath::Abs(p2New)>1.) {
+      return kFALSE;
+    }
+    if (TMath::Abs(dp3New)>kMaxP3) {
+      return kFALSE;
+    }
     fP[2]=p2New;
     fP[3]+=dp3New;
-    fP[4]+=gRandom->Gaus(0,TMath::Sqrt(cC44));
+    // fP[4]+=gRandom->Gaus(0,TMath::Sqrt(cC44)); - TODO transform scattering in p2 and P3 to modification of qPt - can not be independent
   }
   fC22 += cC22;
   fC33 += cC33;
@@ -994,6 +1006,9 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
     //status = param.CorrectForMeanMaterialT4(crossLength*xx0,-crossLength*xrho,mass);
     status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005,fAddMSsmearing);
+    if (status==false){
+      status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005,fAddMSsmearing);
+    }
     if (gRandom->Rndm()<fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,-crossLength*xrho,mass,20);
     if (status) {
         fStatusMaskMC[nPoint]|=kTrackCorrectForMaterial;
@@ -1464,7 +1479,7 @@ Float_t fastParticle::getMean(Int_t valueType,Float_t beginF, Float_t endF, Int_
   return  valueMean/nPoints;
 }
 ///
-/// \param valueType      0 - LArmMC  1 - LArmIn
+/// \param valueType      0 - LArmMC  1 - LArmIn 2-MC length, 3 - MC legnth for the last point
 /// \param averageType    dummy
 /// \return
 Float_t fastParticle::getStat(Int_t valueType){
@@ -1474,6 +1489,7 @@ Float_t fastParticle::getStat(Int_t valueType){
   Float_t rMax = -1;
   Double_t vecMin[3],vecMax[3];
   if (valueType==2) return fParamMC.size();
+  if (valueType==3) {return fParamMC[fParamMC.size()-1].fLength;}
   if (valueType==0) {
     for (UInt_t i = 0; i < fParamMC.size(); i++) {
       Float_t x=  fParamMC[i].GetX();
