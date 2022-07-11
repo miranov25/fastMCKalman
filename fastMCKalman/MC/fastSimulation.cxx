@@ -235,7 +235,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRK(Double_t xOverX0, Doubl
   //k_{2} is the slope at the midpoint of the interval, using {\displaystyle y}y and {\displaystyle k_{1}}k_{1};
   //k_{3} is again the slope at the midpoint, but now using {\displaystyle y}y and {\displaystyle k_{2}}k_{2};
   //k_{4} is the slope at the end of the interval, using {\displaystyle y}y and {\displaystyle k_{3}}k_{3}.
-  const Double_t kBGStop=0.02;
+  const Double_t kBGStop=0.0040;
   Double_t p=GetP();
   Double_t q=(mass<0)?2.:1.;   // q=2 particle in ALICE convention
   mass=TMath::Abs(mass);
@@ -343,7 +343,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRK(Double_t xOverX0, Doubl
 /// \param stepFraction   - step fraction  - above some limits RungeKuta instead of the Euler Method used
 /// \return  CorrectForMeanMaterial status  (kFalse - Failed, kTrue - Success)
 Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_t xTimesRho, Double_t mass, Float_t stepFraction, bool addMSSmearing, Double_t (*f)(Double_t)){
-  const Double_t kBGStop=0.02;
+  const Double_t kBGStop=0.0040;
   Double_t p=GetP();
   Double_t q=(mass<0)?2.:1.;   // q=2 particle in ALICE convention
   mass=TMath::Abs(mass);
@@ -456,7 +456,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRKv2(Double_t xOverX0, Dou
   //k_{2} is the slope at the midpoint of the interval, using {\displaystyle y}y and {\displaystyle k_{1}}k_{1};
   //k_{3} is again the slope at the midpoint, but now using {\displaystyle y}y and {\displaystyle k_{2}}k_{2};
   //k_{4} is the slope at the end of the interval, using {\displaystyle y}y and {\displaystyle k_{3}}k_{3}.
-  const Double_t kBGStop=0.02;
+  const Double_t kBGStop=0.0040;
   Double_t p=GetP();
   Double_t q=(mass<0)?2.:1.;   // q=2 particle in ALICE convention
   mass=TMath::Abs(mass);
@@ -574,7 +574,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRKv2(Double_t xOverX0, Dou
 /// \param f              - dEdx formula
 /// \return
 Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialT4(Double_t xOverX0, Double_t xTimesRho,Double_t mass,  Double_t (*f)(Double_t)){
-  const Double_t kBGStop=0.02;
+  const Double_t kBGStop=0.0040;
   //const Double_t kMaxdPdxRel=0.55, kMindPdxRel=-0.25; // relative correction fitted in that range
   const Double_t kMaxdPdxRel=0.55, kMindPdxRel=-0.55; // relative correction fitted in that range
   const Double_t kMaxLoss=0.6;
@@ -671,10 +671,16 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialT4(Double_t xOverX0, Doubl
 /// \param fdEdx   - dEdx function pointer
 /// \return        - dP/dx
 Double_t AliExternalTrackParam4D::dPdx(double p, double mass, Double_t (*fundEdx)(Double_t)){
-    const Double_t kBGStop = 0.02;
+   /// dEdx at very low BG not numerically stable - approximation coul be negative - use mip at that region
+    const Double_t kBGStop=0.0040;
     Double_t bg=p/mass;
     if (bg<kBGStop) return 0;
-    Double_t dPdx=TMath::Abs(fundEdx(bg))*TMath::Sqrt(1.+1./(bg*bg));
+    float dEdx=fundEdx(bg);
+    float dEdxMin=fundEdx(3);
+    if (dEdx<dEdxMin*0.5) {
+      dEdx = dEdxMin;
+    }
+    Double_t dPdx=dEdx*TMath::Sqrt(1.+1./(bg*bg));
     return dPdx;
 };
 
@@ -684,10 +690,14 @@ Double_t AliExternalTrackParam4D::dPdx(double p, double mass, Double_t (*fundEdx
 /// \param fdEdx   - dEdx function pointer
 /// \return        - dP/dx
 Double_t AliExternalTrackParam4D::dPdxEuler(double p, double mass, Double_t xTimesRho, Double_t (*fundEdx)(Double_t)) {
-  const Double_t kBGStop = 0.02;
+  const Double_t kBGStop=0.0040;
   Double_t bg = p / mass;
   if (bg < kBGStop) return 0;
-  Double_t dEdx = TMath::Abs(fundEdx(bg));
+  float dEdx=fundEdx(bg);
+  float dEdxMin=fundEdx(3);
+  if (dEdx<dEdxMin*0.5) {
+    dEdx = dEdxMin;
+  }
   Double_t E2 = TMath::Sqrt(p * p + mass * mass) + dEdx * xTimesRho;
   Double_t p2 = E2 * E2 - mass * mass;
   if (p2 < 0) return 0;
