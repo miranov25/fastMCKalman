@@ -21,7 +21,7 @@ const Int_t kMaxLayers=10000;
 //#pragma link C++ class RVec<std::vector<int>>;
 
 class TTreeSRedirector;
-Float_t fracUnitTest=0.1;
+Float_t fracUnitTest=0; //0.1;
 
 class AliExternalTrackParam4D: public AliExternalTrackParam{
 public:
@@ -35,7 +35,7 @@ public:
   Bool_t PropagateTo(Double_t xk, Double_t b, Int_t timeDir);
   Bool_t GetXYZatR(Double_t xr,Double_t bz, Double_t *xyz=0, Double_t* alpSect=0) const;
   //
-  Bool_t CorrectForMeanMaterial(Double_t xOverX0, Double_t xTimesRho,Double_t mass,Float_t stepFraction=0.01, bool addSmearing=kFALSE,
+  Bool_t CorrectForMeanMaterial(Double_t xOverX0, Double_t xTimesRho,Double_t mass,Float_t stepFraction=0.01, int mcSwitch=0,
 	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid );
   Bool_t CorrectForMeanMaterialRK(Double_t xOverX0, Double_t xTimesRho,Double_t mass,Float_t stepFraction=0.01,
 	  Double_t (*f)(Double_t)=AliExternalTrackParam::BetheBlochSolid );

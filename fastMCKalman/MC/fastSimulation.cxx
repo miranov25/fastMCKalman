@@ -339,10 +339,13 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRK(Double_t xOverX0, Doubl
 //                        - It should be passed as negative when propagating tracks
 //                        - from the interaction point to the outside of the central barrel.
 /// \param mass           - the mass of this particle (GeV/c^2). Negative mass means charge=2 particle
+/// \param mcSwitch    - can be used for the simulation - bit 2 = addSmearing, bit 1 = stop on covaraince
 /// \param f              - dEdx formula
 /// \param stepFraction   - step fraction  - above some limits RungeKuta instead of the Euler Method used
 /// \return  CorrectForMeanMaterial status  (kFalse - Failed, kTrue - Success)
-Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_t xTimesRho, Double_t mass, Float_t stepFraction, bool addMSSmearing, Double_t (*f)(Double_t)){
+Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_t xTimesRho, Double_t mass, Float_t stepFraction, int mcSwitch, Double_t (*f)(Double_t)){
+  bool addMSSmearing = (mcSwitch&0x2)>0;
+  bool isMC = (mcSwitch&0x1)>0;
   const Double_t kBGStop=0.0040;
   Double_t p=GetP();
   Double_t q=(mass<0)?2.:1.;   // q=2 particle in ALICE convention
@@ -361,10 +364,11 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   }
   Double_t pOut=p+dP;
   if ((pOut/mass)<kBGStop) {
-    return kFALSE;
+    if (!isMC) {return kFALSE; }
   }
   Double_t Eout=TMath::Sqrt(pOut*pOut+mass2);
-  p=(p+pOut)*0.5;
+  //p=(p+pOut)*0.5; /// TODO -this is turtle - should be used the out value
+  p=pOut;           /// use the momenta at the end of step  - approcimation dor in dPdxEulerStep
   // Use mean values for p2, p and beta2
   p2=p*p;
   Double_t beta2=p2/(p2+mass2);
@@ -403,7 +407,9 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   Double_t cP4=1.;
   if ((xTimesRho != 0.) && (beta2 < 1.)) {
     Double_t dE=Eout-Ein;
-    if ( (1.+ dE/p2*(dE + 2*Ein)) < 0. ) return kFALSE;
+    if ( (1.+ dE/p2*(dE + 2*Ein)) < 0. ) {
+      return kFALSE;
+    }
     cP4 = 1./TMath::Sqrt(1.+ dE/p2*(dE + 2*Ein));  //A precise formula by Ruben !
     //if (TMath::Abs(fP4*cP4)>100.) return kFALSE; //Do not track below 10 MeV/c -dsiable controlled by the BG cut
     // Approximate energy loss fluctuation (M.Ivanov)
@@ -416,14 +422,16 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   if (addMSSmearing){
     const float kMaxP3=0.5;
     const float kMaxP4=0.3;
-    if (TMath::Sqrt(cC44)>kMaxP4*TMath::Abs(fP4)) return kFALSE;
+    if (TMath::Sqrt(cC44)>kMaxP4*TMath::Abs(fP4)) {
+      if (!isMC) return kFALSE;
+    }
     Float_t p2New=fP[2]+gRandom->Gaus(0,TMath::Sqrt(cC22));
     Float_t dp3New=gRandom->Gaus(0,TMath::Sqrt(cC33));
     if (TMath::Abs(p2New)>1.) {
-      return kFALSE;
+      if (!isMC) return kFALSE;
     }
     if (TMath::Abs(dp3New)>kMaxP3) {
-      return kFALSE;
+      if (!isMC) return kFALSE;
     }
     fP[2]=p2New;
     fP[3]+=dp3New;
@@ -710,26 +718,25 @@ Double_t AliExternalTrackParam4D::dPdxEuler(double p, double mass, Double_t xTim
 /// \param fdEdx   - dEdx function pointer
 /// \return        - dP/dx
 Double_t AliExternalTrackParam4D::dPdxEulerStep(double p, double mass,  Double_t xTimesRho, double step, Double_t (*fundEdx)(Double_t)){
-    const Double_t kBGStop = 0.02;
+    const Double_t kBGStop=0.0040;
     Double_t bg=p/mass;
-    if (bg<kBGStop) return 0;
+    double dEdxMin=fundEdx(3);
+    if (bg<kBGStop) return p;    /// if particle too low BG - we will let to loose full momenta
     Double_t dPdx=TMath::Abs(fundEdx(bg))*TMath::Sqrt(1.+1./(bg*bg));
     bg=p/mass;
-    if (bg<kBGStop) return 0;
-    Double_t dPdx2=TMath::Abs(fundEdx(bg))*TMath::Sqrt(1.+1./(bg*bg));
+    Double_t dPdx2=TMath::Max(fundEdx(bg),dEdxMin)*TMath::Sqrt(1.+1./(bg*bg));
     //
     Int_t nSteps=1+(TMath::Abs(dPdx*xTimesRho)+TMath::Abs(dPdx2*xTimesRho))/step;
-    if (nSteps==1) return 0.5*(dPdx+dPdx2)*xTimesRho;
+    if (nSteps==1) return TMath::Min(0.5*(dPdx+dPdx2)*xTimesRho,p); // can not loos more than full momenta -use linear approximation
     Float_t xTimesRhoS=xTimesRho/nSteps;
     Float_t sumP=0;
     for (Int_t i=0; i<nSteps;i++){
       p+=dPdx*xTimesRhoS;
       sumP+=dPdx*xTimesRhoS;
       bg=p/mass;
-      if (bg<kBGStop) return 0;
-      dPdx=TMath::Abs(fundEdx(bg))*TMath::Sqrt(1.+1./(bg*bg));
+      dPdx=TMath::Max(fundEdx(bg),dEdxMin)*TMath::Sqrt(1.+1./(bg*bg));
     }
-    return sumP;
+    return TMath::Min(double(sumP),p);
 };
 
 /// dPdx - based on the first derivative of the dPdx corrected for "saturation" - see fit in the test_AliExternalTrackParam4D.C:fitdPdxScaling - for testing and visualization purposes
