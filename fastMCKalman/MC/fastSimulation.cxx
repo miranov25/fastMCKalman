@@ -718,12 +718,16 @@ Double_t AliExternalTrackParam4D::dPdxEuler(double p, double mass, Double_t xTim
 /// \param fdEdx   - dEdx function pointer
 /// \return        - dP/dx
 Double_t AliExternalTrackParam4D::dPdxEulerStep(double p, double mass,  Double_t xTimesRho, double step, Double_t (*fundEdx)(Double_t)){
-    const Double_t kBGStop=0.0040;
+    // const Double_t kBGStop=0.0040; // the position of non relybal BB  depends on the function ... not well defined BetheBlocAleph
+    const Double_t kBGStop=0.0140;    // not well defined BetheBlocSolid
     Double_t bg=p/mass;
     double dEdxMin=fundEdx(3);
-    if (bg<kBGStop) return p;    /// if particle too low BG - we will let to loose full momenta
+    float signCorr=(xTimesRho<0)? -1:1;
+    if (bg<kBGStop) {
+      return p*signCorr;    /// if particle too low BG - we will let to loose full momenta
+    }
     Double_t dPdx=TMath::Abs(fundEdx(bg))*TMath::Sqrt(1.+1./(bg*bg));
-    bg=p/mass;
+
     Double_t dPdx2=TMath::Max(fundEdx(bg),dEdxMin)*TMath::Sqrt(1.+1./(bg*bg));
     //
     Int_t nSteps=1+(TMath::Abs(dPdx*xTimesRho)+TMath::Abs(dPdx2*xTimesRho))/step;
@@ -734,6 +738,7 @@ Double_t AliExternalTrackParam4D::dPdxEulerStep(double p, double mass,  Double_t
       p+=dPdx*xTimesRhoS;
       sumP+=dPdx*xTimesRhoS;
       bg=p/mass;
+      if (bg<kBGStop) return p*signCorr;
       dPdx=TMath::Max(fundEdx(bg),dEdxMin)*TMath::Sqrt(1.+1./(bg*bg));
     }
     return TMath::Min(double(sumP),p);
