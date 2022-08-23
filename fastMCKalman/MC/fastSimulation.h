@@ -91,7 +91,7 @@ public:
   kTrackChi2   =0x10
 } ;
 
-  fastParticle():TObject(),fAddMSsmearing(false),gid(0){}
+  fastParticle():TObject(),fAddMSsmearing(0),gid(0){}
   ~fastParticle(){}
   fastParticle(int nLayers){
     fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamInRot.reserve(nLayers);
@@ -108,7 +108,7 @@ public:
   int reconstructParticle(fastGeometry  &geom, long pdgCode, uint layerStart);
   int reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, uint layerStart);
   static void setAliases(TTree & tree);           //   set aliases for derived variables
-  bool                        fAddMSsmearing;     //   flag to add smearing during simulation
+  int                        fAddMSsmearing;     //   flag to add smearing during simulation
   int                         gid;         // global id
   double fR[3];                            //   initial position
   double fP[3];                            //   initial momentum

@@ -339,7 +339,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterialRK(Double_t xOverX0, Doubl
 //                        - It should be passed as negative when propagating tracks
 //                        - from the interaction point to the outside of the central barrel.
 /// \param mass           - the mass of this particle (GeV/c^2). Negative mass means charge=2 particle
-/// \param mcSwitch    - can be used for the simulation - bit 2 = addSmearing, bit 1 = stop on covaraince
+/// \param mcSwitch    - can be used for the simulation - bit 2 = addSmearing, bit 1 = stop on covariance
 /// \param f              - dEdx formula
 /// \param stepFraction   - step fraction  - above some limits RungeKuta instead of the Euler Method used
 /// \return  CorrectForMeanMaterial status  (kFalse - Failed, kTrue - Success)
@@ -347,6 +347,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   bool addMSSmearing = (mcSwitch&0x2)>0;
   bool isMC = (mcSwitch&0x1)>0;
   const Double_t kBGStop=0.0040;
+  float pOld=GetP();
   Double_t p=GetP();
   Double_t q=(mass<0)?2.:1.;   // q=2 particle in ALICE convention
   mass=TMath::Abs(mass);
@@ -362,6 +363,11 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   if (dP==0) {
     return kFALSE;
   }
+  if (dP>0 &&isMC){
+    ::Error("aliExternalTrackParam4D", "Incorrect energy loss %f -> %f ", p,dP);
+    //dPdxEulerStep(p,mass,xTimesRho,stepFraction,f); THIS was debug symbol - TODO remove it later
+  }
+
   Double_t pOut=p+dP;
   if ((pOut/mass)<kBGStop) {
     if (!isMC) {return kFALSE; }
@@ -442,6 +448,9 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   fC43 += cC43;
   fC44 += cC44;
   fP4  *= cP4;
+  if (isMC && (GetP()>pOld) ){
+    ::Error("AliExternalTrackParam4D", "Incorrect energy loss %f -> %f ", pOld,GetP());
+  }
   //CheckCovariance();
   return kTRUE;
 }
@@ -723,25 +732,30 @@ Double_t AliExternalTrackParam4D::dPdxEulerStep(double p, double mass,  Double_t
     Double_t bg=p/mass;
     double dEdxMin=fundEdx(3);
     float signCorr=(xTimesRho<0)? -1:1;
+    double pOrig=p;
     if (bg<kBGStop) {
-      return p*signCorr;    /// if particle too low BG - we will let to loose full momenta
+      return pOrig*signCorr;    /// if particle too low BG - we will let to loose full momenta
     }
     Double_t dPdx=TMath::Abs(fundEdx(bg))*TMath::Sqrt(1.+1./(bg*bg));
 
     Double_t dPdx2=TMath::Max(fundEdx(bg),dEdxMin)*TMath::Sqrt(1.+1./(bg*bg));
     //
     Int_t nSteps=1+(TMath::Abs(dPdx*xTimesRho)+TMath::Abs(dPdx2*xTimesRho))/step;
-    if (nSteps==1) return TMath::Min(0.5*(dPdx+dPdx2)*xTimesRho,p); // can not loos more than full momenta -use linear approximation
+    if (nSteps==1) {
+      float dP=0.5*(dPdx+dPdx2)*xTimesRho;
+      if (abs(dP)>pOrig) return pOrig*signCorr;
+      return dP; // can not loos more than full momenta -use linear approximation
+    }
     Float_t xTimesRhoS=xTimesRho/nSteps;
     Float_t sumP=0;
     for (Int_t i=0; i<nSteps;i++){
       p+=dPdx*xTimesRhoS;
       sumP+=dPdx*xTimesRhoS;
       bg=p/mass;
-      if (bg<kBGStop) return p*signCorr;
+      if (bg<kBGStop) return pOrig*signCorr;
       dPdx=TMath::Max(fundEdx(bg),dEdxMin)*TMath::Sqrt(1.+1./(bg*bg));
     }
-    return TMath::Min(double(sumP),p);
+    return TMath::Min(TMath::Abs(double(sumP)),pOrig)*signCorr;
 };
 
 /// dPdx - based on the first derivative of the dPdx corrected for "saturation" - see fit in the test_AliExternalTrackParam4D.C:fitdPdxScaling - for testing and visualization purposes
@@ -911,8 +925,8 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
    float_t mass=0,sign=1;
   fPdgCodeMC=pdgCode;
   fParamMC.resize(1);
-  if (pdgCode==0){
-    fMassMC=gRandom->Rndm();
+  if (pdgCode==0 ){  // do not set mass in case PDG code undefined - use user settings
+    if (fMassMC==0) fMassMC=gRandom->Rndm();
     mass=fMassMC;
     sign=-1+2*gRandom->Rndm();
   }else {
@@ -1027,7 +1041,12 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     tanPhi2/=(1-tanPhi2);
     float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
     //status = param.CorrectForMeanMaterialT4(crossLength*xx0,-crossLength*xrho,mass);
+    double pOld=param.GetP();
     status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005,fAddMSsmearing);
+    if ((status == true) &&param.GetP()>pOld){
+      ::Error("simulateParticle", "Invalid momentum loss %f ->%f - check again",pOld,param.GetP());
+      status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005,fAddMSsmearing);
+    }
     if (status==false){
       status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005,fAddMSsmearing);
     }
