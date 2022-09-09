@@ -347,7 +347,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   bool addMSSmearing = (mcSwitch&0x2)>0;
   bool isMC = (mcSwitch&0x1)>0;
   const Double_t kBGStop=0.0040;
-  float pOld=GetP();
+  double pOld=GetP();
   Double_t p=GetP();
   Double_t q=(mass<0)?2.:1.;   // q=2 particle in ALICE convention
   mass=TMath::Abs(mass);
@@ -365,7 +365,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   }
   if (dP>0 &&isMC){
     ::Error("aliExternalTrackParam4D", "Incorrect energy loss %f -> %f ", p,dP);
-    //dPdxEulerStep(p,mass,xTimesRho,stepFraction,f); THIS was debug symbol - TODO remove it later
+    //dPdxEulerStep(p,mass,xTimesRho,stepFraction,f); // THIS was debug symbol - TODO remove it later
   }
 
   Double_t pOut=p+dP;
@@ -961,7 +961,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     fStatusMaskMC.resize(nPoint+1);
     //printf("%d\n",nPoint);
     //param.Print();
-    if (indexR>geom.fLayerRadius.size()) {
+    if (indexR>=geom.fLayerRadius.size()) {
       break;
     }
     if (fStatusMaskMC.size()<=nPoint) fStatusMaskMC.resize(nPoint+1);
