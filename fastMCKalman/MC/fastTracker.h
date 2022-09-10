@@ -118,6 +118,7 @@ AliExternalTrackParam * fastTracker::makeSeed(double xyz0[3], double xyz1[3], do
 
   if (TMath::Abs(bz)>kAlmost0Field) {
     c[14]/=(bz*kB2C)*(bz*kB2C);
+    c[13]/=(bz*kB2C);
     c[12]/=(bz*kB2C);
     c[10]/=(bz*kB2C);
     param[4]/=(bz*kB2C); // transform to 1/pt

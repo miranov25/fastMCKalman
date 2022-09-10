@@ -1260,6 +1260,14 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint la
     ((double*)param.GetParameter())[4]*=-1;
     ((double*)param.GetParameter())[3]*=-1;
     ((double*)param.GetParameter())[2]*=-1;
+    
+    ////Rotate Covariance accordingly RCR^T
+    ((double*)param.GetCovariance())[3]*=-1;
+    ((double*)param.GetCovariance())[4]*=-1;
+    ((double*)param.GetCovariance())[6]*=-1;
+    ((double*)param.GetCovariance())[7]*=-1;
+    ((double*)param.GetCovariance())[10]*=-1;
+    ((double*)param.GetCovariance())[11]*=-1;
   }
   //param.fMass=.fMass;
 
