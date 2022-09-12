@@ -23,5 +23,6 @@
 #pragma link C++ class AliVParticle+;
 #pragma link C++ class AliVTrack+;
 #pragma link C++ class AliVVertex+;
+#pragma link C++ class AliHelix+;
 
 #endif
