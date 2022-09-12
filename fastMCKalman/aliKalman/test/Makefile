@@ -4,11 +4,11 @@ PROGRAM = AliExternalTrackParam
 
 HDRS =   AliVMisc.h  AliVParticle.h  AliVTrack.h  AliVVertex.h\
         TStatToolkit.h AliTMinuitToolkit.h AliPDG.h AliPID.h AliDrawStyle.h AliSysInfo.h AliXRDPROOFtoolkit.h TTreeStream.h AliLog.h \
-        AliExternalTrackParam.h
+        AliExternalTrackParam.h AliHelix.h 
 
 OBJS = AliVMisc.o  AliVParticle.o  AliVTrack.o  AliVVertex.o \
         TStatToolkit.o AliTMinuitToolkit.o AliPDG.o AliPID.o AliDrawStyle.o AliSysInfo.o AliXRDPROOFtoolkit.o TTreeStream.o AliLog.o \
-        AliExternalTrackParam.o \
+        AliExternalTrackParam.o  AliHelix.o \
         dict_$(PROGRAM).o
 
 #-----------------------------------------------------------------------------
