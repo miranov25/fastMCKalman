@@ -416,7 +416,8 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
     if ( (1.+ dE/p2*(dE + 2*Ein)) < 0. ) {
       return kFALSE;
     }
-    cP4 = 1./TMath::Sqrt(1.+ dE/p2*(dE + 2*Ein));  //A precise formula by Ruben !
+    cP4 = 1./TMath::Sqrt(1.+ dE/p2*(dE + 2*Ein));  //A precise formula by Ruben !  - //TODO -this formula is only first taylor approximation
+    cP4 = pOld/pOut;                               /// TODO we use momentum loss not need to use "Ruben E loss approximation"
     //if (TMath::Abs(fP4*cP4)>100.) return kFALSE; //Do not track below 10 MeV/c -dsiable controlled by the BG cut
     // Approximate energy loss fluctuation (M.Ivanov)
     const Double_t knst=0.07; // To be tuned.
@@ -1043,6 +1044,21 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     //status = param.CorrectForMeanMaterialT4(crossLength*xx0,-crossLength*xrho,mass);
     double pOld=param.GetP();
     status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005,fAddMSsmearing);
+    if (1){
+       if (fgStreamer) {
+         float dPdx=param.dPdxEulerStep(pOld,mass,  -crossLength*xrho,0.005);
+         //float dEdx=param.dPdxEulerStep(pOld,mass,  crossLength*xx0,-crossLength*xrho);
+         (*fgStreamer) << "dEdxCorr" <<
+                       "crossLength=" << crossLength <<
+                       "mass="   << mass<<
+                       "xx0=" << xx0 <<
+                       "pOld=" << pOld <<
+                       "status=" << status <<
+                       "param.=" << &param <<
+                       "dPdx="<<dPdx<<
+                       "\n";
+       }
+    }
     if ((status == true) &&param.GetP()>pOld){
       ::Error("simulateParticle", "Invalid momentum loss %f ->%f - check again",pOld,param.GetP());
       status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005,fAddMSsmearing);
