@@ -69,6 +69,85 @@ Bool_t AliExternalTrackParam4D::PropagateTo(Double_t xk, Double_t b, Int_t timeD
   Double_t time = length * mBeta / kcc;
   fTime += timeDir*time;
 }
+
+Double_t AliExternalTrackParam4D::PropagateToMirrorX(Double_t b, Double_t  sy, Double_t sz)
+{
+   //----------------------------------------------------------------
+  // Impose a "flip" on the parameter vector by a rotation defined 
+  // by a diagonal matrix with diagonal elements: R = {1,1,-1,-1,-1}
+  //----------------------------------------------------------------
+
+  Double_t &fP0=fP[0], &fP1=fP[1], &fP2=fP[2], &fP3=fP[3], &fP4=fP[4];
+
+  Double_t &X = fX;
+
+  Double_t 
+  &fC00=fC[0],   &fC11=fC[2], 
+  &fC20=fC[3],   &fC21=fC[4],  
+  &fC30=fC[6],   &fC31=fC[7],    
+  &fC40=fC[10],  &fC41=fC[11];
+
+  Double_t xyz_Old[3];
+  GetXYZ(xyz_Old);
+  
+  Double_t &fA=fAlpha;
+
+  
+  Double_t xc, yc, rc, x0, y0;
+  Double_t cs= cosf(fAlpha); Double_t sn=sinf(fAlpha); // RS use float versions: factor 2 in CPU speed
+  Double_t crv= GetC(b);    // Curvature 
+
+  rc = 1/crv;  xc = fX-fP[2]*rc;
+
+  //update alpha
+
+  Double_t dummy = 1-(fX-xc)*(fX-xc)*crv*crv;
+  if (dummy<0) dummy = 0;
+  yc  =  fP[0]+TMath::Sqrt(dummy)/crv;
+
+  x0 = xc*cs - yc*sn; y0 = xc*sn + yc*cs;
+  
+  float alphaC    = TMath::ATan2(y0,x0);
+  float dAlpha    = fAlpha-alphaC;
+  if (dAlpha>TMath::Pi()) dAlpha-=TMath::TwoPi();
+  if (dAlpha<-TMath::Pi()) dAlpha+=TMath::TwoPi();
+  fA = alphaC-dAlpha;
+
+
+    ///Propagate z
+     
+  Double_t xyz_New[3];
+  GetXYZ(xyz_New);
+  double cross = sqrt((xyz_New[0]-xyz_Old[0])*(xyz_New[0]-xyz_Old[0])+(xyz_New[1]-xyz_Old[1])*(xyz_New[1]-xyz_Old[1]));
+  Double_t sinphic = 0.5*cross / abs(rc);
+  Double_t dPhic = (fP[2]>0?1:-1)*2*asin(sinphic);
+  Double_t darchxy = dPhic*rc;
+  //darchxy = (TMath::ASin(fP[2])?-1:1) * cross;
+  fP1 += darchxy*fP[3];
+  fC00+=(sy*darchxy)*(sy*darchxy);
+  fC11+=(sz*darchxy)*(sz*darchxy);
+
+  
+  //Flip other parameters
+  //fP=R(fP)
+  fP2 *= -1;
+  fP3 *= -1;
+  fP4 *= -1;
+
+  //C=RCR^T
+  fC20*=-1; fC21*=-1;
+  fC30*=-1; fC31*=-1;
+  fC40*=-1; fC41*=-1;
+
+  
+ 
+  CheckCovariance();
+
+  Double_t dArch = abs(darchxy*sqrt(1+fP[3]*fP[3]));
+
+  return dArch; 
+
+}
 ///  Clone of the original method removing one protection - here we disable  TMath::Abs(cosT)>kAlmost1 check (lAlmost1 was very restrictive)
 ///  // This method has 3 modes of behaviour
 ///  // 1) xyz[3] array is provided but alpSect pointer is 0: calculate the position of track intersection
@@ -960,6 +1039,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     fLoop.resize(nPoint+1);
     fDirection.resize(nPoint+1);
     fStatusMaskMC.resize(nPoint+1);
+    float crossLength = 0;
     //printf("%d\n",nPoint);
     //param.Print();
     if (indexR>=geom.fLayerRadius.size()) {
@@ -974,7 +1054,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     //Float_t x = param.GetXatLabR(r,localX,fBz,1);
     int status =  param.GetXYZatR(radius,geom.fBz,xyz);
     if (status==0){   // if not possible to propagate to next radius - assume looper - change direction
-      //break;    //this is temporary
+
       param.GetPxPyPz(pxyz);
       float C         = param.GetC(geom.fBz);
       float R         = TMath::Abs(1/C);
@@ -985,21 +1065,9 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
       float dcaMI     = r0-R;
       float dlaMI     = r0+R;
       float dla       = dca+2*R;                          // distance of longest approach
-      int  isUp       = abs(radius-dcaMI)>abs(radius-dlaMI)? 1:0;
-      int        aSign= (param.GetSnp()>0)? 1:-1.;
-      float alpha     = param.GetAlpha();
-      float alphaC    = TMath::ATan2(y0,x0);
-      float dAlpha    = alpha-alphaC;
-      if (dAlpha>TMath::Pi()) dAlpha-=TMath::TwoPi();
-      if (dAlpha<-TMath::Pi()) dAlpha+=TMath::TwoPi();
-      float alpha2 = alphaC-dAlpha;
-      double param2[5];
-      param2[0]=0;
-      param2[1]=param.GetParameter()[1];
-      param2[2]=-param.GetParameter()[2];
-      param2[3]=-param.GetParameter()[3];
-      param2[4]=-param.GetParameter()[4];
-      AliExternalTrackParam paramNew(param.GetX(),alpha2,param2,param.GetCovariance());
+      AliExternalTrackParam4D paramOld = param;
+      crossLength = param.PropagateToMirrorX(geom.fBz,geom.fLayerResolRPhi[indexR],geom.fLayerResolZ[indexR]);
+
       if (fgStreamer){
         (*fgStreamer)<<"turn"<<
           "radius="<<radius<<     // radius to propagate
@@ -1009,12 +1077,12 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
           "dca="<<dca<<
           "dcaMI="<<dcaMI<<
           "dlaMI="<<dlaMI<<
-          "param.="<<&param<<
-          "paramNew.="<<&paramNew<<
+          "param.="<<&paramOld<<
+          "paramNew.="<<&param<<
           "\n";
       }
 
-      param=AliExternalTrackParam4D(paramNew,mass,param.fZ, param.fLength,param.fTime);
+
       direction*=-1;
       fDirection[nPoint]=direction;
       loopCounter++;
@@ -1040,7 +1108,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     float xx0     = geom.fLayerX0[indexR];
     float tanPhi2 = par[2]*par[2];
     tanPhi2/=(1-tanPhi2);
-    float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
+    if (crossLength==0) crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
     //status = param.CorrectForMeanMaterialT4(crossLength*xx0,-crossLength*xrho,mass);
     double pOld=param.GetP();
     status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005,fAddMSsmearing);
