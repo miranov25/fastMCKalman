@@ -70,7 +70,7 @@ Bool_t AliExternalTrackParam4D::PropagateTo(Double_t xk, Double_t b, Int_t timeD
   fTime += timeDir*time;
 }
 
-Double_t AliExternalTrackParam4D::PropagateToMirrorX(Double_t b, Double_t  sy, Double_t sz)
+Double_t AliExternalTrackParam4D::PropagateToMirrorX(Double_t b, Float_t dir, Double_t  sy, Double_t sz)
 {
    //----------------------------------------------------------------
   // Impose a "flip" on the parameter vector by a rotation defined 
@@ -113,22 +113,20 @@ Double_t AliExternalTrackParam4D::PropagateToMirrorX(Double_t b, Double_t  sy, D
   if (dAlpha<-TMath::Pi()) dAlpha+=TMath::TwoPi();
   fA = alphaC-dAlpha;
 
-
-    ///Propagate z
+  ///Propagate z
      
   Double_t xyz_New[3];
   GetXYZ(xyz_New);
   double cross = sqrt((xyz_New[0]-xyz_Old[0])*(xyz_New[0]-xyz_Old[0])+(xyz_New[1]-xyz_Old[1])*(xyz_New[1]-xyz_Old[1]));
-  Double_t sinphic = 0.5*cross / abs(rc);
-  Double_t dPhic = (fP[2]>0?1:-1)*2*asin(sinphic);
-  Double_t darchxy = dPhic*rc;
-  //darchxy = (TMath::ASin(fP[2])?-1:1) * cross;
+  Double_t sinphic = 0.5*cross / rc;
+  Double_t dPhic = 2*asin(sinphic);
+  Double_t darchxy = dir*abs(dPhic*rc);
   fP1 += darchxy*fP[3];
   fC00+=(sy*darchxy)*(sy*darchxy);
   fC11+=(sz*darchxy)*(sz*darchxy);
 
-  
-  //Flip other parameters
+
+  //Flip parameters 2/4
   //fP=R(fP)
   fP2 *= -1;
   fP3 *= -1;
@@ -138,6 +136,8 @@ Double_t AliExternalTrackParam4D::PropagateToMirrorX(Double_t b, Double_t  sy, D
   fC20*=-1; fC21*=-1;
   fC30*=-1; fC31*=-1;
   fC40*=-1; fC41*=-1;
+
+
 
   
  
@@ -294,7 +294,7 @@ Bool_t AliExternalTrackParam4D::GetXYZatR(Double_t xr,Double_t bz, Double_t *xyz
 }
 /// get radiial direction sign
 Int_t AliExternalTrackParam4D::GetDirectionSign(){
-  Float_t dir = GetX()*Px()+GetY()*Py();
+  Float_t dir = GetX()*Px()+GetY()*Py()+GetZ()*Pz();
   return (dir>0)? 1:-1;
 }
 
@@ -1039,6 +1039,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     fLoop.resize(nPoint+1);
     fDirection.resize(nPoint+1);
     fStatusMaskMC.resize(nPoint+1);
+    fLayerIndex.resize(nPoint+1);
     float crossLength = 0;
     //printf("%d\n",nPoint);
     //param.Print();
@@ -1066,7 +1067,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
       float dlaMI     = r0+R;
       float dla       = dca+2*R;                          // distance of longest approach
       AliExternalTrackParam4D paramOld = param;
-      crossLength = param.PropagateToMirrorX(geom.fBz,geom.fLayerResolRPhi[indexR],geom.fLayerResolZ[indexR]);
+      crossLength = param.PropagateToMirrorX(geom.fBz, direction, geom.fLayerResolRPhi[indexR],geom.fLayerResolZ[indexR]);
 
       if (fgStreamer){
         (*fgStreamer)<<"turn"<<
@@ -1335,9 +1336,10 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint la
         fParamMC[layer].Local2GlobalPosition(xyzS[dLayer],fParamMC[layer].GetAlpha()-alpha0);
   }
   /// seeds in alpha0 coordinate frame
-  AliExternalTrackParam * paramSeedI = fastTracker::makeSeed(xyzS[0],xyzS[1],xyzS[2],0.1,0.1,geom.fBz);
-  AliExternalTrackParam * paramSeed = fastTracker::makeSeedMB(xyzS[0],xyzS[1],xyzS[2],0.1,0.1,
-                                                              geom.fBz,geom.fLayerX0[layer1-1],geom.fLayerRho[layer1-1],fMassMC);
+  Int_t indexst = fLayerIndex[layer1-1];
+  AliExternalTrackParam * paramSeedI = fastTracker::makeSeed(xyzS[0],xyzS[1],xyzS[2],geom.fLayerResolRPhi[indexst],geom.fLayerResolZ[indexst],geom.fBz);
+  AliExternalTrackParam * paramSeed = fastTracker::makeSeedMB(xyzS[0],xyzS[1],xyzS[2],geom.fLayerResolRPhi[indexst],geom.fLayerResolZ[indexst],
+                                                              geom.fBz,geom.fLayerX0[indexst],geom.fLayerRho[indexst],fMassMC);
   AliExternalTrackParam   paramRot(paramSeed->GetX(),alpha0, paramSeed->GetParameter(),paramSeed->GetCovariance());
   AliExternalTrackParam4D param(paramRot,mass,1);
   if (sign0<0) {
@@ -1394,6 +1396,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint la
   const double *par = param.GetParameter();
   for (int layer=layer1-1; layer>=0; layer--){   // dont propagate to vertex , will be done later ...
       double resol=0;
+      Int_t index = fLayerIndex[layer];
       AliExternalTrackParam & p = fParamMC[layer];
       p.GetXYZ(xyz);
       double alpha=TMath::ATan2(xyz[1],xyz[0]);
@@ -1415,12 +1418,12 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint la
         ::Error("reconstructParticle", "Proapagation failed");
         break;
       }
-      float xrho  =geom.fLayerRho[layer];
-      float xx0  =geom.fLayerX0[layer];
-      float deltaY = gRandom->Gaus(0,geom.fLayerResolRPhi[layer]);
-      float deltaZ = gRandom->Gaus(0,geom.fLayerResolZ[layer]);
+      float xrho  =geom.fLayerRho[index];
+      float xx0  =geom.fLayerX0[index];
+      float deltaY = gRandom->Gaus(0,geom.fLayerResolRPhi[index]);
+      float deltaZ = gRandom->Gaus(0,geom.fLayerResolZ[index]);
       double pos[2]={0+deltaY,xyz[2]+deltaZ};
-      double cov[3]={geom.fLayerResolRPhi[layer]*geom.fLayerResolRPhi[layer],0, geom.fLayerResolZ[layer]*geom.fLayerResolZ[layer]};
+      double cov[3]={geom.fLayerResolRPhi[index]*geom.fLayerResolRPhi[index],0, geom.fLayerResolZ[index]*geom.fLayerResolZ[index]};
       fParamIn[layer]=param;
       float chi2 =  param.GetPredictedChi2(pos, cov);
       fChi2[layer]=chi2;
@@ -1525,6 +1528,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
   const double *par = param.GetParameter();
   for (int layer=layer1-1; layer>=1; layer--){   // dont propagate to vertex , will be done later ...
     double resol=0;
+    Int_t index = fLayerIndex[layer];
     AliExternalTrackParam & p = fParamMC[layer];
     p.GetXYZ(xyz);
     double alpha=TMath::ATan2(xyz[1],xyz[0]);
@@ -1542,12 +1546,12 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
     }
     //
 
-    float xrho  =geom.fLayerRho[layer];
-    float xx0  =geom.fLayerX0[layer];
-    float deltaY = gRandom->Gaus(0, geom.fLayerResolRPhi[layer]);
-    float deltaZ = gRandom->Gaus(0, geom.fLayerResolZ[layer]);
+    float xrho  =geom.fLayerRho[index];
+    float xx0  =geom.fLayerX0[index];
+    float deltaY = gRandom->Gaus(0, geom.fLayerResolRPhi[index]);
+    float deltaZ = gRandom->Gaus(0, geom.fLayerResolZ[index]);
     double pos[2]={localY+deltaY,xyz[2]+deltaZ};
-    double cov[3]={geom.fLayerResolRPhi[layer]*geom.fLayerResolRPhi[layer],0, geom.fLayerResolZ[layer]*geom.fLayerResolZ[layer]};
+    double cov[3]={geom.fLayerResolRPhi[index]*geom.fLayerResolRPhi[index],0, geom.fLayerResolZ[index]*geom.fLayerResolZ[index]};
     fParamInRot[layer]=param;    ///
     float chi2 =  param.GetPredictedChi2(pos, cov);
     fChi2[layer]=chi2;

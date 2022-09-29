@@ -33,7 +33,7 @@ public:
   Int_t GetDirectionSign();
   //
   Bool_t PropagateTo(Double_t xk, Double_t b, Int_t timeDir);
-  Double_t PropagateToMirrorX(Double_t b, Double_t  sy, Double_t sz);
+  Double_t PropagateToMirrorX(Double_t b, Float_t dir, Double_t  sy, Double_t sz);
   Bool_t GetXYZatR(Double_t xr,Double_t bz, Double_t *xyz=0, Double_t* alpSect=0) const;
   //
   Bool_t CorrectForMeanMaterial(Double_t xOverX0, Double_t xTimesRho,Double_t mass,Float_t stepFraction=0.01, int mcSwitch=0,
