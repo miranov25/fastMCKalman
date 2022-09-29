@@ -29,3 +29,4 @@ G__*.h
 
 # 
 *.html
+fastMCKalman/MC/__pycache__/*.pyc
