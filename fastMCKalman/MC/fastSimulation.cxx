@@ -1090,9 +1090,8 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
 
 
       direction*=-1;
-      fDirection[nPoint]=direction;
+      indexR+=direction; ///// needed to unset the previous radius update
       loopCounter++;
-      fLoop[nPoint]=loopCounter;
     }else{
       double alpha  = TMath::ATan2(xyz[1],xyz[0]);
       fStatusMaskMC[nPoint]=0;
