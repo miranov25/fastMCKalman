@@ -44,6 +44,7 @@ void testDummy(){
 void testTPC(Int_t nParticles, bool dumpStream=1){
 
   const Int_t   nLayerTPC=250;
+  const Int_t   nPoints=nLayerTPC*4;     ///maximum number of points a track can have, different from nLayerTPC for Loopers/Secondaries
   const Float_t kMinPt=0.02;
   const Float_t kMax1Pt=1./100.;
   const Float_t kFlatPtMax=50;
@@ -98,16 +99,16 @@ void testTPC(Int_t nParticles, bool dumpStream=1){
     double phi     = gRandom->Rndm()*TMath::TwoPi();
     double theta = (gRandom->Rndm()-0.5)*3;
     double p[]={pt*sin(phi),pt*cos(phi),pt*theta};
-    int    pidCode=int(gRandom->Rndm()*8);
+    int    pidCode=int(gRandom->Rndm()*5);          //avoid unrecognized pdg codes
     long  charge  = (gRandom->Rndm()<0.5) ? -1:1;
     long   pdgCode = AliPID::ParticleCode(pidCode)*charge;
     if (gRandom->Rndm()<kRandomPDGFraction) pdgCode=0;
     Bool_t  hasDecay=(gRandom->Rndm()<kDecayFraction);
     Float_t decayLength= hasDecay ?gRandom->Rndm()*geom.fLayerRadius[geom.fLayerRadius.size()-1]:0;
     particle.fDecayLength=decayLength;
-    particle.simulateParticle(geom, r,p,pdgCode, 250,nLayerTPC);
-    particle.reconstructParticle(geom,pdgCode,nLayerTPC);
-    particle.reconstructParticleRotate0(geom,pdgCode,nLayerTPC);
+    particle.simulateParticle(geom, r,p,pdgCode,nPoints,nPoints);
+    particle.reconstructParticleFull(geom,pdgCode,nPoints);
+    particle.reconstructParticleRotate0(geom,pdgCode,nPoints);
     //particle.simulateParticle(geom, r,p,211, 250,161);
     //particle.reconstructParticle(geom,211,160);
     if (dumpStream==kFALSE) continue;
