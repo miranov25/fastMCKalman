@@ -107,6 +107,7 @@ public:
   Float_t getStat(Int_t valueType);
   int simulateParticle(fastGeometry     &geom, double r[3], double p[3], long pdgCode, float maxLength, int maxPoints);
   int reconstructParticle(fastGeometry  &geom, long pdgCode, uint layerStart);
+  int reconstructParticleFull(fastGeometry  &geom, long pdgCode, uint layerStart);
   int reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, uint layerStart);
   static void setAliases(TTree & tree);           //   set aliases for derived variables
   int                        fAddMSsmearing;     //   flag to add smearing during simulation

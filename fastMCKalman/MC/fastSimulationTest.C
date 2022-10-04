@@ -107,7 +107,7 @@ void testTPC(Int_t nParticles, bool dumpStream=1){
     Float_t decayLength= hasDecay ?gRandom->Rndm()*geom.fLayerRadius[geom.fLayerRadius.size()-1]:0;
     particle.fDecayLength=decayLength;
     particle.simulateParticle(geom, r,p,pdgCode,nPoints,nPoints);
-    particle.reconstructParticle(geom,pdgCode,nPoints);
+    particle.reconstructParticleFull(geom,pdgCode,nPoints);
     particle.reconstructParticleRotate0(geom,pdgCode,nPoints);
     //particle.simulateParticle(geom, r,p,211, 250,161);
     //particle.reconstructParticle(geom,211,160);

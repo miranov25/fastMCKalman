@@ -119,6 +119,10 @@ Double_t AliExternalTrackParam4D::PropagateToMirrorX(Double_t b, Float_t dir, Do
   GetXYZ(xyz_New);
   double cross = sqrt((xyz_New[0]-xyz_Old[0])*(xyz_New[0]-xyz_Old[0])+(xyz_New[1]-xyz_Old[1])*(xyz_New[1]-xyz_Old[1]));
   Double_t sinphic = 0.5*cross / rc;
+  if (abs(sinphic)>1) 
+  {
+    return 0;
+  }
   Double_t dPhic = 2*asin(sinphic);
   Double_t darchxy = dir*abs(dPhic*rc);
   fP1 += darchxy*fP[3];
@@ -1068,6 +1072,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
       float dla       = dca+2*R;                          // distance of longest approach
       AliExternalTrackParam4D paramOld = param;
       crossLength = param.PropagateToMirrorX(geom.fBz, direction, geom.fLayerResolRPhi[indexR],geom.fLayerResolZ[indexR]);
+      if (crossLength==0) break;
 
       if (fgStreamer){
         (*fgStreamer)<<"turn"<<
@@ -1390,6 +1395,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
   fParamIn.resize(index1+1);
   fStatusMaskIn.resize(index1+1);
+  fChi2.resize(index1+1);
   fParamIn[index1]=param;
   double xyz[3];
   int status=0;
@@ -1464,6 +1470,209 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
 }
 
 
+///
+/// \param geom          - pointer to geometry to use
+/// \param pdgCode       - pdgCode used in the reconstruction
+/// \param layerStart    - starting layer to do tracking
+/// \return   -  TODO  status flags to be decides
+int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uint indexStart){
+  const Float_t chi2Cut=100/(geom.fLayerResolZ[0]);
+  const float kMaxSnp=0.95;
+  const float kMaxLoss=0.3;
+  fLengthIn=0;
+  float_t mass=0;
+  fPdgCodeRec   =pdgCode;
+  if (pdgCode==0){
+    fMassRec=fMassMC;
+    mass=fMassMC;
+  }else {
+    TParticlePDG *particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
+    if (particle == nullptr) {
+      ::Error("fastParticle::reconstructParticle", "Invalid pdgCode %ld", pdgCode);
+      return -1;
+    }
+    mass = particle->Mass();
+    fMassRec=particle->Mass();
+  }
+  uint index1 = TMath::Min(indexStart,uint(fParamMC.size()-1));
+  fMaxLayerRec=index1;
+  /*
+  for (;index1>0; index1--){
+    if (fLoop[index1]>0) continue;                                   // loop number - only closet part of helix to the production vertex
+    if (TMath::Abs(fParamMC[index1].GetSnp())>kMaxSnp) continue;     // track inclination anlge has to be smaller than kmaxSnp
+    fMaxLayerRec=index1;
+    if ((fParamMC[index1].P())>kMaxLoss*fParamMC[0].P()) break;      // if particle momneta is bigger than kMaxLoss production momenta - define starting index
+  }
+  */
+
+  if (index1<=3){
+    //::Error("fastParticle::reconstructParticle","short track");
+    return -1;
+  }
+  Double_t LArm=getStat(0);
+  //AliExternalTrackParam4D param(fParamMC[index1],mass,1);
+  Double_t xyzS[3][3];
+  Int_t step=index1/3;
+  if (step>50) step=50;
+  float sign0=(fParamMC[index1-1].GetX()>fParamMC[index1-2].GetX())? 1.:-1.;
+  Float_t alpha0=fParamMC[index1-1].GetAlpha();
+  for (int dLayer=0; dLayer<3  && index1-step*dLayer>0; dLayer++) {
+        Int_t index=index1-step*dLayer-1;
+        Int_t index0=index1-1;
+        //fParamMC[index1-step*dLayer-1].GetXYZ(xyzS[dLayer]);
+        xyzS[dLayer][0]=fParamMC[index].GetX();
+        xyzS[dLayer][1]=fParamMC[index].GetY();
+        xyzS[dLayer][2]=fParamMC[index].GetZ();
+        fParamMC[index].Local2GlobalPosition(xyzS[dLayer],fParamMC[index].GetAlpha()-alpha0);
+  }
+  /// seeds in alpha0 coordinate frame
+  Int_t indexst = fLayerIndex[index1-1];
+  AliExternalTrackParam * paramSeedI = fastTracker::makeSeed(xyzS[0],xyzS[1],xyzS[2],geom.fLayerResolRPhi[indexst],geom.fLayerResolZ[indexst],geom.fBz);
+  AliExternalTrackParam * paramSeed = fastTracker::makeSeedMB(xyzS[0],xyzS[1],xyzS[2],geom.fLayerResolRPhi[indexst],geom.fLayerResolZ[indexst],
+                                                              geom.fBz,geom.fLayerX0[indexst],geom.fLayerRho[indexst],fMassMC);
+  AliExternalTrackParam   paramRot(paramSeed->GetX(),alpha0, paramSeed->GetParameter(),paramSeed->GetCovariance());
+  AliExternalTrackParam4D param(paramRot,mass,1);
+  if (sign0<0) {
+    ((double*)param.GetParameter())[4]*=-1;
+    ((double*)param.GetParameter())[3]*=-1;
+    ((double*)param.GetParameter())[2]*=-1;
+    
+    ////Rotate Covariance accordingly RCR^T
+    ((double*)param.GetCovariance())[3]*=-1;
+    ((double*)param.GetCovariance())[4]*=-1;
+    ((double*)param.GetCovariance())[6]*=-1;
+    ((double*)param.GetCovariance())[7]*=-1;
+    ((double*)param.GetCovariance())[10]*=-1;
+    ((double*)param.GetCovariance())[11]*=-1;
+  }
+  //param.fMass=.fMass;
+
+  Double_t dEdx=AliExternalTrackParam::BetheBlochAleph(param.P()/mass);
+  //Double_t dPdx=AliExternalTrackParam4D::dPdx(fParamMC[index1-1]);
+  (*fgStreamer)<<"seedDump"<<   // seeding not ideal in case significant energy loss
+    "gid="<<gid<<
+    "sign0="<<sign0<<
+    "fMassMC="<<fMassMC<<
+    "dEdx="<<dEdx<<
+    "step="<<step<<
+    "seed.="<<&param<<
+    "input.="<<&fParamMC[index1-1]<<
+    "input1.="<<&fParamMC[index1-step-1]<<
+    "input2.="<<&fParamMC[index1-2*step-1]<<
+    "paramSeed.="<<paramSeed<<
+    "paramSeedI.="<<paramSeedI<<
+    "paramRot.="<<&paramRot<<
+    "\n";
+  delete paramSeed;
+  delete paramSeedI;
+  //double *covar = (double*)param.GetCovariance();
+  //for (int i=0; i<15; i++)covar[i]*=2;
+
+//  Double_t resFactor=(geom.fLayerResolRPhi[0]*geom.fLayerResolRPhi[0]/0.01)+0.2; // this is hack - we will need to
+//  double covar0[5]={0.1,0.1,(1.+2.*dEdx/param.P())/(1.+LArm),(1.+2.*dEdx/param.P())/(1.+LArm),resFactor*400*(1.+2.*dEdx/param.P())/(1.+LArm*LArm)};
+//  covar[0]+=covar0[0]*covar0[0];
+//  covar[2]+=covar0[1]*covar0[1];
+//  covar[5]+=covar0[2]*covar0[2];
+//  covar[9]+=covar0[3]*covar0[3];
+//  covar[14]+=covar0[4]*covar0[4];
+  //
+  float length=0, time=0;
+  float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
+  fParamIn.resize(index1+1);
+  fStatusMaskIn.resize(index1+1);
+  fChi2.resize(index1+1);
+  fParamIn[index1]=param;
+  double xyz[3];
+  int status=0;
+  const double *par = param.GetParameter();
+  for (int index=index1-1; index>0; index--){   // dont propagate to vertex , will be done later ...
+      double resol=0;
+      float crossLength = 0;
+      Int_t layer = fLayerIndex[index];
+      AliExternalTrackParam & p = fParamMC[index];
+      p.GetXYZ(xyz);
+      double alpha=TMath::ATan2(xyz[1],xyz[0]);
+      double radius = TMath::Sqrt(xyz[0]*xyz[0]+xyz[1]*xyz[1]);
+      fStatusMaskIn[index]=0;
+      status = param.GetXYZatR(radius,geom.fBz,xyz);     
+      if (status==0){   // if not possible to propagate to next radius - assume looper - change direction
+          crossLength = param.PropagateToMirrorX(geom.fBz, -param.GetDirectionSign(), geom.fLayerResolRPhi[layer],geom.fLayerResolZ[layer]);
+          if (crossLength>0)
+          {
+            fStatusMaskIn[index]|=kTrackRotate;
+            fStatusMaskIn[index]|=kTrackPropagate;
+          }
+          else
+          {
+            ::Error("reconstructParticle", "Mirror Propagation failed Rotation");
+            break;
+          }
+      }
+      else{
+          if (radius>0) {
+            status = param.Rotate(alpha);
+          }
+          if (status) {
+            fStatusMaskIn[index]|=kTrackRotate;
+          }else{
+              ::Error("reconstructParticle", "Rotation failed");
+              break;
+          }
+          status = param.PropagateTo(radius,geom.fBz,1);
+          if (status) {
+            fStatusMaskIn[index]|=kTrackPropagate;
+          }else{
+            ::Error("reconstructParticle", "Propagation failed");
+            break;
+          }
+      }
+      float xrho  =geom.fLayerRho[layer];
+      float xx0  =geom.fLayerX0[layer];
+      float deltaY = gRandom->Gaus(0,geom.fLayerResolRPhi[layer]);
+      float deltaZ = gRandom->Gaus(0,geom.fLayerResolZ[layer]);
+      double pos[2]={0+deltaY,xyz[2]+deltaZ};
+      double cov[3]={geom.fLayerResolRPhi[layer]*geom.fLayerResolRPhi[layer],0, geom.fLayerResolZ[layer]*geom.fLayerResolZ[layer]};
+      fParamIn[index]=param;
+      float chi2 =  param.GetPredictedChi2(pos, cov);
+      fChi2[index]=chi2;
+      if (chi2<chi2Cut) {
+        fStatusMaskIn[index]|=kTrackChi2;
+      }else{
+            ::Error("reconstructParticle", "Too big chi2 %f", chi2);
+            break;
+      }
+
+
+      if (TMath::Abs(param.GetSnp())<kMaxSnp && cov[0]>0) {
+        status = param.Update(pos, cov);
+        if (status) {
+          fStatusMaskIn[index]|=kTrackUpdate;
+        }else{
+            ::Error("reconstructParticle", "Update failed");
+            break;
+        }
+      }
+
+      float tanPhi2 = par[2]*par[2];
+      tanPhi2/=(1-tanPhi2);
+      if(crossLength==0) crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder
+      //status = param.AliExternalTrackParam::CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
+      for (Int_t ic=0;ic<5; ic++) {
+        status*= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho/5., mass, 0.01);
+      }
+      //status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
+      if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,crossLength*xrho,mass,20);
+      if (status) {
+        fStatusMaskIn[index]|=kTrackCorrectForMaterial;
+      }else{
+        ::Error("reconstructParticle", "Correct for material failed");
+        break;
+      }
+      fLengthIn++;
+  }
+  return 1;
+  
+}
 
 ///
 /// \param geom          - pointer to geometry to use
