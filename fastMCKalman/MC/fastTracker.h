@@ -15,6 +15,7 @@ public:
   static AliExternalTrackParam* makeSeedMB(double xyz0[3], double xyz1[3], double xyz2[3], double sy, double sz, float bz, float xx0, float xrho, float mass,int nSteps=5);
   static Double_t makeC(Double_t x1,Double_t y1, Double_t x2,Double_t y2, Double_t x3,Double_t y3);     // F1
   static Double_t makeSnp(Double_t x1,Double_t y1,Double_t x2,Double_t y2,Double_t x3,Double_t y3);     // F2
+  static Double_t makeYC(Double_t x1,Double_t y1,Double_t x2,Double_t y2,Double_t x3,Double_t y3);     // YC
   static Double_t makeTgln(Double_t x1,Double_t y1, Double_t x2,Double_t y2, Double_t z1,Double_t z2,Double_t c);   // F3n
 };
 
@@ -64,6 +65,25 @@ Double_t fastTracker::makeSnp(Double_t x1,Double_t y1, Double_t x2,Double_t y2, 
   if (det>0) c2*=-1;
   x0*=c2;  
   return x0;
+}
+
+Double_t fastTracker::makeYC(Double_t x1,Double_t y1, Double_t x2,Double_t y2, Double_t x3,Double_t y3){
+  //-----------------------------------------------------------------
+  // Initial approximation of the track snp at position x1
+  //-----------------------------------------------------------------
+  x3 -=x1;
+  x2 -=x1;
+  y3 -=y1;
+  y2 -=y1;
+  //  
+  Double_t det = x3*y2-x2*y3;
+  if (TMath::Abs(det)<1e-10) {
+    return 100;
+  }
+  //
+  Double_t u = 0.5* (x2*(x2-x3)+y2*(y2-y3))/det;
+  Double_t y0 = y3*0.5+x3*u;
+  return y0;
 }
 
 //_____________________________________________________________________________

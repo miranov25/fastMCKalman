@@ -1511,19 +1511,39 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   Double_t LArm=getStat(0);
   //AliExternalTrackParam4D param(fParamMC[index1],mass,1);
   Double_t xyzS[3][3];
+  Float_t alpha0;
+  float sign0;
+  float semiplane = -1;
   Int_t step=index1/3;
   if (step>50) step=50;
-  float sign0=(fParamMC[index1-1].GetX()>fParamMC[index1-2].GetX())? 1.:-1.;
-  Float_t alpha0=fParamMC[index1-1].GetAlpha();
-  for (int dLayer=0; dLayer<3  && index1-step*dLayer>0; dLayer++) {
-        Int_t index=index1-step*dLayer-1;
-        Int_t index0=index1-1;
-        //fParamMC[index1-step*dLayer-1].GetXYZ(xyzS[dLayer]);
-        xyzS[dLayer][0]=fParamMC[index].GetX();
-        xyzS[dLayer][1]=fParamMC[index].GetY();
-        xyzS[dLayer][2]=fParamMC[index].GetZ();
-        fParamMC[index].Local2GlobalPosition(xyzS[dLayer],fParamMC[index].GetAlpha()-alpha0);
+
+  while(semiplane<0)
+  {
+    sign0=(fParamMC[index1-1].GetX()>fParamMC[index1-2].GetX())? 1.:-1.;
+    alpha0=fParamMC[index1-1].GetAlpha();
+    for (int dLayer=0; dLayer<3  && index1-step*dLayer>0; dLayer++) {
+          Int_t index=index1-step*dLayer-1;
+          Int_t index0=index1-1;
+          //fParamMC[index1-step*dLayer-1].GetXYZ(xyzS[dLayer]);
+          xyzS[dLayer][0]=fParamMC[index].GetX();
+          xyzS[dLayer][1]=fParamMC[index].GetY();
+          xyzS[dLayer][2]=fParamMC[index].GetZ();
+          fParamMC[index].Local2GlobalPosition(xyzS[dLayer],fParamMC[index].GetAlpha()-alpha0);
+    }
+    float sp0 = fastTracker::makeYC(xyzS[0][0],xyzS[0][0],xyzS[1][0],xyzS[1][1],xyzS[2][0],xyzS[2][1]);
+    float sp2 = fastTracker::makeYC(xyzS[2][0],xyzS[2][0],xyzS[1][0],xyzS[1][1],xyzS[0][0],xyzS[0][1]);
+    semiplane = sp0*sp2; ///if <0 the two points are in different semiplanes
+    if(semiplane<0) step-=1;
+    if(step==0) break;
   }
+
+  if (step==0)
+  {
+    ::Error("fastParticle::reconstructParticle", "Too few points in same semiplane");
+    return -1;
+  }
+
+
   /// seeds in alpha0 coordinate frame
   Int_t indexst = fLayerIndex[index1-1];
   AliExternalTrackParam * paramSeedI = fastTracker::makeSeed(xyzS[0],xyzS[1],xyzS[2],geom.fLayerResolRPhi[indexst],geom.fLayerResolZ[indexst],geom.fBz);
