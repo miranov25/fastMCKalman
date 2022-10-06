@@ -44,7 +44,7 @@ AliExternalTrackParam4D::~AliExternalTrackParam4D(){};
 /// \param threshold       -  threhsold in units of MIP
 /// \return                - mean number of pixels above threshold
 Double_t AliExternalTrackParam4D::GetOverThr(Float_t sigma, Float_t width, Float_t threshold){
-
+  return 0; /// TODO add implemetation
 }
 
 
@@ -1006,7 +1006,7 @@ void fastGeometry::setLayer(int iLayer, float radius,  float X0,float rho, float
 /// \param maxLength     - max length to simulate
 /// \param maxPoints     - maximal number of points to simulate
 /// \return              - modify status of particles = create points along   - TODO status flags to be decides
-int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3], long pdgCode, float maxLength, int maxPoints){
+int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3], long pdgCode, float maxLength, uint maxPoints){
   fMaxLayer=0;
   const float kMaxSnp=0.90;
   const float kMaxLoss=0.5;
@@ -1037,7 +1037,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
   if (radius==0) direction=1;
   int loopCounter=0;
   uint indexR= uint(std::upper_bound (geom.fLayerRadius.begin(),geom.fLayerRadius.end(), radius)-geom.fLayerRadius.begin());
-  int nPoint=0;
+  uint nPoint=0;
   fParamMC.resize(1);
   fParamMC[0]=param;
   fLayerIndex[0]=indexR;
@@ -1440,6 +1440,10 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
       double pos[2]={0+deltaY,xyz[2]+deltaZ};
       double cov[3]={geom.fLayerResolRPhi[layer]*geom.fLayerResolRPhi[layer],0, geom.fLayerResolZ[layer]*geom.fLayerResolZ[layer]};
       fParamIn[index]=param;
+      if (TMath::Abs(param.GetX()-fParamMC[index].GetX())>0.0001){ /// TODO  add float almost0
+        ///problem
+        ::Error("reconstructParticle","ICONSISTENT X, should never happen %f\t%f",param.GetX(),fParamMC[index].GetX());
+      }
       float chi2 =  param.GetPredictedChi2(pos, cov);
       fChi2[index]=chi2;
       if (chi2<chi2Cut) {

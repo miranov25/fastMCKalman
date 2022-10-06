@@ -70,7 +70,7 @@ public:
   }
   void setLayerRadiusPower(int layer0, int layerN, float r0, float rN, float power, float X0,float rho, float resol[2]);
   void setLayer(int layer, float r0,  float X0,float rho, float resol[2]);
-  void Print();
+  //void Print(Option_t*);
   RVec<float> fLayerRadius;        //   barrel radius array
   RVec<int>   fLayerIndex;         //   barrel indices for fast navigation
   RVec<float> fLayerX0;            //   barrel X0 array
@@ -105,7 +105,7 @@ public:
   Float_t GetZ(Int_t pidCode);
   Float_t getMean(Int_t valueType,  Float_t beginF=0, Float_t endF=1, Int_t powerType=0);
   Float_t getStat(Int_t valueType);
-  int simulateParticle(fastGeometry     &geom, double r[3], double p[3], long pdgCode, float maxLength, int maxPoints);
+  int simulateParticle(fastGeometry     &geom, double r[3], double p[3], long pdgCode, float maxLength, uint maxPoints);
   int reconstructParticle(fastGeometry  &geom, long pdgCode, uint layerStart);
   int reconstructParticleFull(fastGeometry  &geom, long pdgCode, uint layerStart);
   int reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, uint layerStart);
@@ -121,7 +121,7 @@ public:
   float                       fZMC;         //   Z of particle used in the simulation
   float                       fZRec;        //   Z of particle used in the reconstruction
 
-  int                         fMaxLayer;   //   maximal layer position
+  uint                         fMaxLayer;   //   maximal layer position
   int                         fMaxLayerRec;   //   maximal layer position in reconstruction
   int                         fLengthIn;   //   track length for in propagation
    int                         fLengthInRot;   //   track length for in propagation
