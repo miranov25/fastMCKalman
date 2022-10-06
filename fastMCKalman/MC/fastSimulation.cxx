@@ -1042,7 +1042,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
   double xyz0[3];
   param.GetXYZ(xyz0);
 
-  if(TMath::Abs(xyz0[0])>0)
+  if(xyz0[0]!=0)    //////Rotating first point: only Secondary Particles
   {
     double alpha0  = TMath::ATan2(xyz0[1],xyz0[0]);
     fStatusMaskMC[nPoint]=0;
