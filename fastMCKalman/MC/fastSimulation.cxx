@@ -57,7 +57,11 @@ Bool_t AliExternalTrackParam4D::PropagateTo(Double_t xk, Double_t b, Int_t timeD
   static const Double_t kcc = 2.99792458e-2;
   Double_t xyzIn[3],xyzOut[3];
   GetXYZ(xyzIn);
-  AliExternalTrackParam::PropagateTo(xk,b);
+  bool status = AliExternalTrackParam::PropagateTo(xk,b);
+  if (status && (fX!=xk)){
+    ::Error("AliExternalTrackParam4D::PropagateTo","Incosistent propagate %f\t%f",fX,xk);
+    return false;
+  }
   GetXYZ(xyzOut);
   Double_t length=0;
   for (Int_t i=0;i<3;i++) length+=(xyzIn[i]-xyzOut[i])*(xyzIn[i]-xyzOut[i]);
@@ -68,6 +72,7 @@ Bool_t AliExternalTrackParam4D::PropagateTo(Double_t xk, Double_t b, Int_t timeD
   Double_t mBeta = TMath::Sqrt( 1. + fMass*fMass*p2inv ); // 1/beta
   Double_t time = length * mBeta / kcc;
   fTime += timeDir*time;
+  return status;
 }
 
 Double_t AliExternalTrackParam4D::PropagateToMirrorX(Double_t b, Float_t dir, Double_t  sy, Double_t sz)
@@ -1060,7 +1065,9 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     int status =  param.GetXYZatR(radius,geom.fBz,xyz);
     if (status==0){   // if not possible to propagate to next radius - assume looper - change direction
 
-      if(nPoint==1) break; // Can't turn immediately otherwise produce infinite looper
+      if(nPoint==1) {
+        break; // Can't turn immediately otherwise produce infinite looper
+      }
       param.GetPxPyPz(pxyz);
       float C         = param.GetC(geom.fBz);
       float R         = TMath::Abs(1/C);
@@ -1073,7 +1080,9 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
       float dla       = dca+2*R;                          // distance of longest approach
       AliExternalTrackParam4D paramOld = param;
       crossLength = param.PropagateToMirrorX(geom.fBz, direction, geom.fLayerResolRPhi[indexR],geom.fLayerResolZ[indexR]);
-      if (crossLength==0) break;
+      if (crossLength==0) {
+        break;
+      }
 
       if (fgStreamer){
         (*fgStreamer)<<"turn"<<
