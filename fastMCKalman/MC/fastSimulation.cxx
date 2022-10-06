@@ -1038,6 +1038,23 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
   int loopCounter=0;
   uint indexR= uint(std::upper_bound (geom.fLayerRadius.begin(),geom.fLayerRadius.end(), radius)-geom.fLayerRadius.begin());
   uint nPoint=0;
+
+  double xyz0[3];
+  param.GetXYZ(xyz0);
+
+  if(TMath::Abs(xyz0[0])>0)
+  {
+    double alpha0  = TMath::ATan2(xyz0[1],xyz0[0]);
+    fStatusMaskMC[nPoint]=0;
+    int  status0 = param.Rotate(alpha0);
+    if (status0) {
+      fStatusMaskMC[nPoint]|= kTrackRotate;
+    }else{
+      ::Error("fastParticle::simulateParticle","Incorrect rotation of first point");
+      return 0;
+    }
+  }
+
   fParamMC.resize(1);
   fParamMC[0]=param;
   fLayerIndex[0]=indexR;
@@ -1630,7 +1647,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   double xyz[3];
   int status=0;
   const double *par = param.GetParameter();
-  for (int index=index1-1; index>0; index--){   // dont propagate to vertex , will be done later ...
+  for (int index=index1-1; index>=0; index--){   // dont propagate to vertex , will be done later ...
       double resol=0;
       float crossLength = 0;
       Int_t layer = fLayerIndex[index];
