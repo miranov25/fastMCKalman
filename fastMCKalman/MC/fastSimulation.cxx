@@ -1060,6 +1060,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     int status =  param.GetXYZatR(radius,geom.fBz,xyz);
     if (status==0){   // if not possible to propagate to next radius - assume looper - change direction
 
+      if(nPoint==1) break; // Can't turn immediately otherwise produce infinite looper
       param.GetPxPyPz(pxyz);
       float C         = param.GetC(geom.fBz);
       float R         = TMath::Abs(1/C);
@@ -1090,9 +1091,8 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
 
 
       direction*=-1;
-      fDirection[nPoint]=direction;
+      indexR+=direction; ///// needed to unset the previous radius update
       loopCounter++;
-      fLoop[nPoint]=loopCounter;
     }else{
       double alpha  = TMath::ATan2(xyz[1],xyz[0]);
       fStatusMaskMC[nPoint]=0;
@@ -1477,7 +1477,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
 /// \return   -  TODO  status flags to be decides
 int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uint indexStart){
   const Float_t chi2Cut=100/(geom.fLayerResolZ[0]);
-  const float kMaxSnp=0.95;
+  const float kMaxSnp=0.98;
   const float kMaxLoss=0.3;
   fLengthIn=0;
   float_t mass=0;
@@ -1496,14 +1496,6 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   }
   uint index1 = TMath::Min(indexStart,uint(fParamMC.size()-1));
   fMaxLayerRec=index1;
-  /*
-  for (;index1>0; index1--){
-    if (fLoop[index1]>0) continue;                                   // loop number - only closet part of helix to the production vertex
-    if (TMath::Abs(fParamMC[index1].GetSnp())>kMaxSnp) continue;     // track inclination anlge has to be smaller than kmaxSnp
-    fMaxLayerRec=index1;
-    if ((fParamMC[index1].P())>kMaxLoss*fParamMC[0].P()) break;      // if particle momneta is bigger than kMaxLoss production momenta - define starting index
-  }
-  */
 
   if (index1<=3){
     //::Error("fastParticle::reconstructParticle","short track");
@@ -1512,19 +1504,59 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   Double_t LArm=getStat(0);
   //AliExternalTrackParam4D param(fParamMC[index1],mass,1);
   Double_t xyzS[3][3];
+  Float_t alpha0;
+  float sign0;
+  float semiplane = -1;
+  float sphi1 = 0.1;
   Int_t step=index1/3;
-  if (step>50) step=50;
-  float sign0=(fParamMC[index1-1].GetX()>fParamMC[index1-2].GetX())? 1.:-1.;
-  Float_t alpha0=fParamMC[index1-1].GetAlpha();
-  for (int dLayer=0; dLayer<3  && index1-step*dLayer>0; dLayer++) {
-        Int_t index=index1-step*dLayer-1;
-        Int_t index0=index1-1;
-        //fParamMC[index1-step*dLayer-1].GetXYZ(xyzS[dLayer]);
-        xyzS[dLayer][0]=fParamMC[index].GetX();
-        xyzS[dLayer][1]=fParamMC[index].GetY();
-        xyzS[dLayer][2]=fParamMC[index].GetZ();
-        fParamMC[index].Local2GlobalPosition(xyzS[dLayer],fParamMC[index].GetAlpha()-alpha0);
+  if (step>10) step=10;
+
+  while(semiplane<0 || sphi1>kMaxSnp)
+  {
+    sign0=(fParamMC[index1-1].GetX()>fParamMC[index1-2].GetX())? 1.:-1.;
+    alpha0=fParamMC[index1-1].GetAlpha();
+
+    for (int dLayer=0; dLayer<3  && index1-step*dLayer>0; dLayer++) {
+          Int_t index=index1-step*dLayer-1;
+          Int_t index0=index1-1;
+          //fParamMC[index1-step*dLayer-1].GetXYZ(xyzS[dLayer]);
+          xyzS[dLayer][0]=fParamMC[index].GetX();
+          xyzS[dLayer][1]=fParamMC[index].GetY();
+          xyzS[dLayer][2]=fParamMC[index].GetZ();
+          fParamMC[index].Local2GlobalPosition(xyzS[dLayer],fParamMC[index].GetAlpha()-alpha0);
+    }
+
+    sphi1 = TMath::Abs(fastTracker::makeSnp(xyzS[0][0],xyzS[0][1],xyzS[1][0],xyzS[1][1],xyzS[2][0],xyzS[2][1]));
+    if(sphi1>kMaxSnp) {
+      index1-=1;
+      if((index1)<=3) break;
+      step=index1/3;
+      if (step>10) step=10;
+      continue;
+    }
+    
+    float sp0 = fastTracker::makeYC(xyzS[0][0],xyzS[0][1],xyzS[1][0],xyzS[1][1],xyzS[2][0],xyzS[2][1]);
+    float sp2 = fastTracker::makeYC(xyzS[2][0],xyzS[2][1],xyzS[1][0],xyzS[1][1],xyzS[0][0],xyzS[0][1]);  
+    semiplane = sp0*sp2; ///if <0 the two points are in different semiplanes
+
+    if(semiplane<0) step-=1;
+    if(step==0) 
+    {
+      index1-=1;
+      if((index1)<=3) break;
+      step=index1/3;
+      if (step>10) step=10;
+      continue;
+    }
   }
+
+  if (step==0 || (index1)<=3)
+  {
+    ::Error("fastParticle::reconstructParticle", "Too few consecutive points in same semiplane");
+    return -1;
+  }
+
+
   /// seeds in alpha0 coordinate frame
   Int_t indexst = fLayerIndex[index1-1];
   AliExternalTrackParam * paramSeedI = fastTracker::makeSeed(xyzS[0],xyzS[1],xyzS[2],geom.fLayerResolRPhi[indexst],geom.fLayerResolZ[indexst],geom.fBz);
