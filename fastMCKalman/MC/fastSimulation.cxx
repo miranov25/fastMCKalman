@@ -1644,7 +1644,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   fStatusMaskIn.resize(index1+1);
   fChi2.resize(index1+1);
   fParamIn[index1]=param;
-  double xyz[3];
+  double xyz[3],xyzprev[3];
   int status=0;
   const double *par = param.GetParameter();
   for (int index=index1-1; index>=0; index--){   // dont propagate to vertex , will be done later ...
@@ -1656,7 +1656,11 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
       double alpha=TMath::ATan2(xyz[1],xyz[0]);
       double radius = TMath::Sqrt(xyz[0]*xyz[0]+xyz[1]*xyz[1]);
       fStatusMaskIn[index]=0;
-      status = param.GetXYZatR(radius,geom.fBz,xyz);     
+
+      fParamMC[index+1].GetXYZ(xyzprev);
+      double radiusprev = TMath::Sqrt(xyzprev[0]*xyzprev[0]+xyzprev[1]*xyzprev[1]);
+      status = (TMath::Abs(radius-radiusprev)>0.0001)? 1:0;  
+      int check = fLoop[index]-fLoop[index+1];   
       if (status==0){   // if not possible to propagate to next radius - assume looper - change direction
           crossLength = param.PropagateToMirrorX(geom.fBz, -param.GetDirectionSign(), geom.fLayerResolRPhi[layer],geom.fLayerResolZ[layer]);
           if (crossLength>0)
