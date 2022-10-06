@@ -69,7 +69,10 @@ Double_t fastTracker::makeSnp(Double_t x1,Double_t y1, Double_t x2,Double_t y2, 
 
 Double_t fastTracker::makeYC(Double_t x1,Double_t y1, Double_t x2,Double_t y2, Double_t x3,Double_t y3){
   //-----------------------------------------------------------------
-  // Initial approximation of the track snp at position x1
+  // Initial approximation of the y coordinate of the center of the track circumference 
+  // in the xy plane, with respects to the first point (x1,y1). Used to check consistency 
+  // between points (i.e. if they are in the the same semiplane), not in the seeding itself. 
+  // If the sign of yC is the same, the points are in the same semiplane.
   //-----------------------------------------------------------------
   x3 -=x1;
   x2 -=x1;
