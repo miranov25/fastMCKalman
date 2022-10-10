@@ -1507,7 +1507,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
 /// \return   -  TODO  status flags to be decides
 int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uint indexStart){
   const Float_t chi2Cut=100/(geom.fLayerResolZ[0]);
-  const float kMaxSnp=0.98;
+  const float kMaxSnp=0.95;
   const float kMaxLoss=0.3;
   fLengthIn=0;
   float_t mass=0;
@@ -1656,9 +1656,13 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
       double alpha=TMath::ATan2(xyz[1],xyz[0]);
       double radius = TMath::Sqrt(xyz[0]*xyz[0]+xyz[1]*xyz[1]);
       fStatusMaskIn[index]=0;
-      status = param.GetXYZatR(radius,geom.fBz,xyz);     
+
+      int checkloop = fLoop[index]-fLoop[index+1];  /////// PropagateToMirror triggered for now using flag from MC information: not realistic reconstruction
+      if(checkloop==0) status = 1;  
+      else status = 0;
+
       if (status==0){   // if not possible to propagate to next radius - assume looper - change direction
-          crossLength = param.PropagateToMirrorX(geom.fBz, -param.GetDirectionSign(), geom.fLayerResolRPhi[layer],geom.fLayerResolZ[layer]);
+          crossLength = param.PropagateToMirrorX(geom.fBz, fDirection[index], geom.fLayerResolRPhi[layer],geom.fLayerResolZ[layer]);  ////Using direction from MC, not realistic reconstruction
           if (crossLength>0)
           {
             fStatusMaskIn[index]|=kTrackRotate;
@@ -1713,6 +1717,10 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
             ::Error("reconstructParticle", "Update failed");
             break;
         }
+      }
+      else{
+            ::Error("reconstructParticle", "Update failed");
+            break;
       }
 
       float tanPhi2 = par[2]*par[2];
