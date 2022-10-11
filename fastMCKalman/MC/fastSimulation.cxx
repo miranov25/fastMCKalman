@@ -528,9 +528,11 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
     if (TMath::Abs(dp3New)>kMaxP3) {
       if (!isMC) return kFALSE;
     }
+    Double_t cP4MS = sqrt((1+(fP[3]+dp3New)*(fP[3]+dp3New))/(1+(fP[3])*(fP[3]))); ////keep total momentum constant and modify q/pt accordingly (this factor is cos(lambda)/cos(lambda_new))
     fP[2]=p2New;
     fP[3]+=dp3New;
-    // fP[4]+=gRandom->Gaus(0,TMath::Sqrt(cC44)); - TODO transform scattering in p2 and P3 to modification of qPt - can not be independent
+    fP[4]*=cP4MS;
+    //fP[4]+=gRandom->Gaus(0,TMath::Sqrt(cC44)); //- TODO transform scattering in p2 and P3 to modification of qPt - can not be independent
   }
   fC22 += cC22;
   fC33 += cC33;
@@ -1143,7 +1145,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     if (crossLength==0) crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
     //status = param.CorrectForMeanMaterialT4(crossLength*xx0,-crossLength*xrho,mass);
     double pOld=param.GetP();
-    status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005,fAddMSsmearing);
+    status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005,1+0x2*fAddMSsmearing);
     if (1){
        if (fgStreamer) {
          float dPdx=param.dPdxEulerStep(pOld,mass,  -crossLength*xrho,0.005);
