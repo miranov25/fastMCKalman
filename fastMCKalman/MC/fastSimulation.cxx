@@ -514,7 +514,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   }
 
   //Applying the corrections*****************************
-  if (addMSSmearing){
+  if (addMSSmearing && isMC){
     const float kMaxP3=0.5;
     const float kMaxP4=0.3;
     if (TMath::Sqrt(cC44)>kMaxP4*TMath::Abs(fP4)) {
