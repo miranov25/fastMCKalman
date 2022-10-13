@@ -480,9 +480,10 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   Double_t cC33 = 0.;
   Double_t cC43 = 0.;
   Double_t cC44 = 0.;
+  Double_t theta2=0;
   if (xOverX0 != 0) {
     //Double_t theta2=1.0259e-6*14*14/28/(beta2*p2)*TMath::Abs(d)*9.36*2.33;
-    Double_t theta2=0.0136*0.0136/(beta2*p2)*TMath::Abs(xOverX0);
+    theta2=0.0136*0.0136/(beta2*p2)*TMath::Abs(xOverX0);
     if (GetUseLogTermMS()) {
       double lt = 1+0.038*TMath::Log(TMath::Abs(xOverX0));
       if (lt>0) theta2 *= lt*lt;
@@ -520,17 +521,21 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
     if (TMath::Sqrt(cC44)>kMaxP4*TMath::Abs(fP4)) {
       if (!isMC) return kFALSE;
     }
-    Float_t p2New=fP[2]+gRandom->Gaus(0,TMath::Sqrt(cC22));
-    Float_t dp3New=gRandom->Gaus(0,TMath::Sqrt(cC33));
+    double phi = TMath::ASin(fP[2]);
+    double lambda=TMath::ATan(fP[3]);
+    float p2New=TMath::Sin(gRandom->Gaus(phi,sqrt(theta2)));
+    float p3New=TMath::Tan(gRandom->Gaus(lambda,sqrt(theta2)));
+    //Float_t p2New=fP[2]+gRandom->Gaus(0,TMath::Sqrt(cC22));
+    //Float_t dp3New=gRandom->Gaus(0,TMath::Sqrt(cC33));
     if (TMath::Abs(p2New)>1.) {
       if (!isMC) return kFALSE;
     }
-    if (TMath::Abs(dp3New)>kMaxP3) {
+    if (TMath::Abs(p3New)>kMaxP3) {
       if (!isMC) return kFALSE;
     }
-    Double_t cP4MS = sqrt((1+(fP[3]+dp3New)*(fP[3]+dp3New))/(1+(fP[3])*(fP[3]))); ////keep total momentum constant and modify q/pt accordingly (this factor is cos(lambda)/cos(lambda_new))
+    Double_t cP4MS = sqrt((1+(p3New*p3New))/(1+(fP[3])*(fP[3]))); ////keep total momentum constant and modify q/pt accordingly (this factor is cos(lambda)/cos(lambda_new))
     fP[2]=p2New;
-    fP[3]+=dp3New;
+    fP[3]=p3New;
     fP[4]*=cP4MS;
     //fP[4]+=gRandom->Gaus(0,TMath::Sqrt(cC44)); //- TODO transform scattering in p2 and P3 to modification of qPt - can not be independent
   }
