@@ -1454,7 +1454,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
       if (status) {
         fStatusMaskIn[index]|=kTrackPropagate;
       }else{
-        ::Error("fastParticle::reconstructParticle:", "Proapagation failed");
+        ::Error("fastParticle::reconstructParticle:", "Propagation failed");
         break;
       }
       float xrho  =geom.fLayerRho[layer];
@@ -1476,7 +1476,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
         ::Error("fastParticle::reconstructParticle:", "Too big chi2 %f", chi2);
         break;
       }
-      if (TMath::Abs(param.GetSnp())<kMaxSnp && cov[0]>0) {
+      if (cov[0]>0) {
         status = param.Update(pos, cov);
         if (status) {
           fStatusMaskIn[index]|=kTrackUpdate;
@@ -1484,6 +1484,10 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
           ::Error("fastParticle::reconstructParticle:", "Update failed");
           break;
         }
+      }
+      else{
+          ::Error("fastParticle::reconstructParticle:", "Update failed");
+          break;
       }
 
       float tanPhi2 = par[2]*par[2];

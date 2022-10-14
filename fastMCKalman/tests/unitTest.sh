@@ -47,11 +47,12 @@ EOF
 }
 
 analyzeLogs(){
-   errors=( "short track" "Too few consecutive points" "Incorrect rotation of first point" "Propagation failed" "Update failed" "Too big chi2"
+   errors=( "short track" "Too few consecutive points" "Rotation failed" "Propagation failed" "Update failed" "Too big chi2"
    "Correct for material failed" )
    errorSources=( "fastParticle::reconstructParticleFull:" "fastParticle::reconstructParticle:" )
    for errorSource in  "${errorSources[@]}"; do
-      echo  ${errorSource}
+      nErrorstot=$(cat makeData.log | grep -c ${errorSource})
+      echo  ${errorSource} ${nErrorstot}
       for error in "${errors[@]}"; do
         nErrors=$(cat makeData.log | grep ${errorSource} | grep -c "${error}")
         echo ${errorSource} ${error} ${nErrors}
