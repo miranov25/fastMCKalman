@@ -35,7 +35,8 @@ makePullTest(){
     root.exe -n -b -l <<\EOF 2>&1 | tee makePullTest.log
     gSystem->AddIncludePath("-I\"$fastMCKalman/fastMCKalman/fastMCKalman/aliKalman/test/\"")
     gSystem->Load("$fastMCKalman/fastMCKalman/aliKalman/test/AliExternalTrackParam.so");
-       .L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+g
+    .L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+g
+    .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C+g
      .L $fastMCKalman/fastMCKalman/MC/test_fastSimulation.C+g
      initTreeFast()
      testPulls()
@@ -46,11 +47,16 @@ EOF
 }
 
 analyzeLogs(){
-   errors=( "Too few consecutive points" "Incorrect rotation of first point" "Propagation failed" "Update failed" "Too big chi2" "short track")
-   for error in "${errors[@]}"; do
-     nErrors=$(cat makeData.log | grep -c "${error}")
-     echo ${error} ${nErrors}
-   done;
+   errors=( "short track" "Too few consecutive points" "Incorrect rotation of first point" "Propagation failed" "Update failed" "Too big chi2"
+   "Correct for material failed" )
+   errorSources=( "fastParticle::reconstructParticleFull:" "fastParticle::reconstructParticle:" )
+   for errorSource in  "${errorSources[@]}"; do
+      echo  ${errorSource}
+      for error in "${errors[@]}"; do
+        nErrors=$(cat makeData.log | grep ${errorSource} | grep -c "${error}")
+        echo ${errorSource} ${error} ${nErrors}
+      done;
+   done
 }
 
 

@@ -3,11 +3,14 @@
   Dedicated debug streamaers to be used
       gSystem->Load("$fastMCKalman/fastMCKalman/aliKalman/test/AliExternalTrackParam.so");
 .L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+g
+     .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C+g
     .L $fastMCKalman/fastMCKalman/MC/test_fastSimulation.C+g
+    initTreeFast();
  */
 
 #include "TFile.h"
 #include "TTree.h"
+#include "TChain.h"
 #include "TTree.h"
 #include "TRandom.h"
 #include "TH1.h"
@@ -17,16 +20,10 @@
 
 
 
-TTree * treeSeed=0;
-TTree * treeFast=0;
-/// here we would lik to test internal consistency of the seeding
-void testInit(){
-   TFile *f = TFile::Open("fastParticle.root");
-   treeSeed=(TTree*)f->Get("seedDump");
-     //AliDrawStyle::SetDefaults();
-  //AliDrawStyle::ApplyStyle("figTemplate");
-  //gStyle->SetOptTitle(1);
-}
+
+extern TChain * treeSeed;
+extern TChain * treeFast;
+
 /// to check momentum bias in the seeds
 
 /// Test pull of seeds
@@ -46,8 +43,8 @@ void testLooperSmooth(){
 void testPulls(){
   /// define aliases  - to put later to the main code
   /// fit pulls  1D and as function of qPt
-  TFile *f = TFile::Open("fastParticle.root");
-  treeFast=(TTree*)f->Get("fastPart");
+  //TFile *f = TFile::Open("fastParticle.root");
+  //treeFast=(TTree*)f->Get("fastPart");
   Bool_t isOK=0;
 
   //Full Reco
@@ -120,6 +117,12 @@ void testPulls(){
   }else{::Error("testFastTracker pull test P0","pullAnalytical- FAILED");
   
 }
+
+}
+
+void testDebugFailure(){
+  treeFast->Draw("partFull.fStatusMaskIn.fData","(partFull.fStatusMaskIn.fData)>0&&partFull.fStatusMaskIn.fData!=31");
+  treeFast->Draw("partFull.fParamIn[Iteration$].fP[2]","(partFull.fStatusMaskIn.fData)==19&&partFull.fStatusMaskIn.fData!=31");
 
 }
 
