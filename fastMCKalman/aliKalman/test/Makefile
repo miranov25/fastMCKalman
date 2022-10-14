@@ -29,9 +29,9 @@ HEADRDIR = .
 # no exceptions: -fno-exceptions
 
 CXX = g++
-CXXFLAGS = -O3 -Wall -fPIC -g -std=c++11
+CXXFLAGS =  -Wall -fPIC -g -std=c++11
 LD = g++
-LDFLAGS = -O3 -Wall -g 
+LDFLAGS =  -Wall -g
 SOFLAGS = -shared
 ARCHFLAGS =
 
