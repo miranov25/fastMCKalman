@@ -1354,7 +1354,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
   }
 
   if (index1<=3){
-    //::Error("fastParticle::reconstructParticle","short track");
+    ::Info("fastParticle::reconstructParticle","short track");
     return -1;
   }
   Double_t LArm=getStat(0);
@@ -1447,14 +1447,14 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
       if (status) {
         fStatusMaskIn[index]|=kTrackRotate;
       }else{
-        ::Error("reconstructParticle", "Rotation failed");
+        ::Error("fastParticle::reconstructParticle:", "Rotation failed");
         break;
       }
       status = param.PropagateTo(radius,geom.fBz,1);
       if (status) {
         fStatusMaskIn[index]|=kTrackPropagate;
       }else{
-        ::Error("reconstructParticle", "Proapagation failed");
+        ::Error("fastParticle::reconstructParticle:", "Proapagation failed");
         break;
       }
       float xrho  =geom.fLayerRho[layer];
@@ -1466,14 +1466,14 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
       fParamIn[index]=param;
       if (TMath::Abs(param.GetX()-fParamMC[index].GetX())>0.0001){ /// TODO  add float almost0
         ///problem
-        ::Error("reconstructParticle","ICONSISTENT X, should never happen %f\t%f",param.GetX(),fParamMC[index].GetX());
+        ::Error("fastParticle::reconstructParticle:","ICONSISTENT X, should never happen %f\t%f",param.GetX(),fParamMC[index].GetX());
       }
       float chi2 =  param.GetPredictedChi2(pos, cov);
       fChi2[index]=chi2;
       if (chi2<chi2Cut) {
         fStatusMaskIn[index]|=kTrackChi2;
       }else{
-        ::Error("reconstructParticle", "Too big chi2 %f", chi2);
+        ::Error("fastParticle::reconstructParticle:", "Too big chi2 %f", chi2);
         break;
       }
       if (TMath::Abs(param.GetSnp())<kMaxSnp && cov[0]>0) {
@@ -1481,7 +1481,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
         if (status) {
           fStatusMaskIn[index]|=kTrackUpdate;
         }else{
-          ::Error("reconstructParticle", "Update failed");
+          ::Error("fastParticle::reconstructParticle:", "Update failed");
           break;
         }
       }
@@ -1498,7 +1498,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
       if (status) {
         fStatusMaskIn[index]|=kTrackCorrectForMaterial;
       }else{
-        ::Error("reconstructParticle", "Correct for material failed");
+        ::Error("fastParticle::reconstructParticle:", "Correct for material failed");
         break;
       }
       fLengthIn++;
@@ -1525,17 +1525,26 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   }else {
     TParticlePDG *particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
     if (particle == nullptr) {
-      ::Error("fastParticle::reconstructParticle", "Invalid pdgCode %ld", pdgCode);
+      ::Error("fastParticle::reconstructParticleFull", "Invalid pdgCode %ld", pdgCode);
       return -1;
     }
     mass = particle->Mass();
     fMassRec=particle->Mass();
   }
   uint index1 = TMath::Min(indexStart,uint(fParamMC.size()-1));
+  /// skip layers with too big erregy loss - to smalle BG
+  for (int i=index1; i>0; i--){  /// TODO - make query on fraction of the energy loss
+    if (fParamMC[i].Beta()<0.3) {
+      continue; /// TODO this is hack
+    }
+    index1=i;
+    break;
+  }
+
   fMaxLayerRec=index1;
 
   if (index1<=3){
-    //::Error("fastParticle::reconstructParticle","short track");
+    ::Info("fastParticle::reconstructParticleFull","short track");
     return -1;
   }
   Double_t LArm=getStat(0);
@@ -1589,7 +1598,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
 
   if (step==0 || (index1)<=3)
   {
-    ::Error("fastParticle::reconstructParticle", "Too few consecutive points in same semiplane");
+    ::Error("fastParticle::reconstructParticleFull", "Too few consecutive points in same semiplane");
     return -1;
   }
 
@@ -1677,7 +1686,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
           }
           else
           {
-            ::Error("reconstructParticle", "Mirror Propagation failed Rotation");
+            ::Error("fastParticle::reconstructParticleFull:", "Mirror Propagation failed Rotation");
             break;
           }
       }
@@ -1688,14 +1697,14 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
           if (status) {
             fStatusMaskIn[index]|=kTrackRotate;
           }else{
-              ::Error("reconstructParticle", "Rotation failed");
+              ::Error("fastParticle::reconstructParticleFull:", "Rotation failed");
               break;
           }
           status = param.PropagateTo(radius,geom.fBz,1);
           if (status) {
             fStatusMaskIn[index]|=kTrackPropagate;
           }else{
-            ::Error("reconstructParticle", "Propagation failed");
+            ::Error("fastParticle::reconstructParticleFull:", "Propagation failed");
             break;
           }
       }
@@ -1711,22 +1720,23 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
       if (chi2<chi2Cut) {
         fStatusMaskIn[index]|=kTrackChi2;
       }else{
-            ::Error("reconstructParticle", "Too big chi2 %f", chi2);
+            ::Error("fastParticle::reconstructParticleFull:", "Too big chi2 %f", chi2);
             break;
       }
 
 
-      if (TMath::Abs(param.GetSnp())<kMaxSnp && cov[0]>0) {
+      if (cov[0]>0) {
         status = param.Update(pos, cov);
         if (status) {
           fStatusMaskIn[index]|=kTrackUpdate;
         }else{
-            ::Error("reconstructParticle", "Update failed");
+            ::Error("fastParticle::reconstructParticleFull:", "Update failed");
+            param.Update(pos, cov);
             break;
         }
       }
       else{
-            ::Error("reconstructParticle", "Update failed");
+            ::Error("fastParticle::reconstructParticleFull:", "Update failed");
             break;
       }
 
@@ -1742,7 +1752,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
       if (status) {
         fStatusMaskIn[index]|=kTrackCorrectForMaterial;
       }else{
-        ::Error("reconstructParticle", "Correct for material failed");
+        ::Error("fastParticle::reconstructParticleFull:", "Correct for material failed");
         break;
       }
       fLengthIn++;
@@ -1785,7 +1795,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
     fMaxLayerRec=layer1;
   }
   if (layer1<=3){
-    //::Error("fastParticle::reconstructParticle","short track");
+    ::Info("fastParticle::reconstructParticleRotate0","short track");
     return -1;
   }
   AliExternalTrackParam4D param(fParamMC[layer1],mass,1);
@@ -1827,7 +1837,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
     if (status) {
       fStatusMaskInRot[layer]|=kTrackPropagate;
     }else{
-      ::Error("reconstructParticle", "Propagation failed");
+      ::Error("fastParticle::reconstructParticle:", "Propagation failed");
       break;
     }
     //
@@ -1844,7 +1854,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
     if (chi2<chi2Cut) {
       fStatusMaskInRot[layer] |= kTrackChi2;
     }else {
-      ::Error("reconstructParticle", "Chi2 -  failed");
+      ::Error("fastParticle::reconstructParticle:", "Chi2 -  failed");
       break;
     }
     //
@@ -1853,7 +1863,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
       if (status) {
         fStatusMaskInRot[layer] |= kTrackUpdate;
       } else {
-        ::Error("reconstructParticle", "Update failed");
+        ::Error("fastParticle::reconstructParticle:", "Update failed");
         break;
       }
     }
@@ -1868,7 +1878,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
     if (status) {
       fStatusMaskInRot[layer] |= kTrackCorrectForMaterial;
     } else {
-      ::Error("reconstructParticle", "Correct for material failed");
+      ::Error("fastParticle::reconstructParticle:", "Correct for material failed");
       break;
     }
       fLengthInRot=0;
