@@ -121,8 +121,12 @@ void testPulls(){
 }
 
 void testDebugFailure(){
+  // draw failure
   treeFast->Draw("partFull.fStatusMaskIn.fData","(partFull.fStatusMaskIn.fData)>0&&partFull.fStatusMaskIn.fData!=31");
   treeFast->Draw("partFull.fParamIn[Iteration$].fP[2]","(partFull.fStatusMaskIn.fData)==19&&partFull.fStatusMaskIn.fData!=31");
+  // failing to propagate  - happening in teh up down |snp|~1 and at "Primary vertex"
+  treeFast->Draw("gyIn:gxIn:partFull.fStatusMaskIn.fData==1","Sum$(partFull.fStatusMaskIn.fData==1)>0","colz",1000);
+  //
 
 }
 

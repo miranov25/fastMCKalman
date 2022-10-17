@@ -49,7 +49,7 @@ EOF
 
 analyzeLogs(){
    errors=( "short track" "Too few consecutive points" "Rotation failed" "Propagation failed" "Update failed" "Too big chi2"
-   "Correct for material failed" )
+   "Correct for material failed" "PropagateToMirrorX failed" )
    errorSources=( "fastParticle::reconstructParticleFull:" "fastParticle::reconstructParticle:" )
    for errorSource in  "${errorSources[@]}"; do
       nErrorstot=$(cat makeData.log | grep -c ${errorSource})
