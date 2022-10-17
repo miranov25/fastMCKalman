@@ -1495,7 +1495,10 @@ Bool_t AliExternalTrackParam::Update(const Double_t p[2], const Double_t cov[3])
 
   Double_t dy=p[0] - fP0, dz=p[1] - fP1;
   Double_t sf=fP2 + k20*dy + k21*dz;
-  if (TMath::Abs(sf) > kAlmost1) return kFALSE;  
+  if (TMath::Abs(sf) > kAlmost1) 
+  {
+    sf = (sf>0?1:-1) * (1-sqrt(fC[5]));
+  }  
   
   fP0 += k00*dy + k01*dz;
   fP1 += k10*dy + k11*dz;
