@@ -32,7 +32,9 @@ public:
   Double_t GetOverThr(Float_t sigma=0.01, Float_t width=0.0005, Float_t threshold=0.1);
   Int_t GetDirectionSign();
   //
+  Bool_t PropagateTo(Double_t xk, Double_t b);
   Bool_t PropagateTo(Double_t xk, Double_t b, Int_t timeDir);
+  Bool_t Update(const Double_t p[2], const Double_t cov[3]);
   Double_t PropagateToMirrorX(Double_t b, Float_t dir, Double_t  sy, Double_t sz);
   Bool_t GetXYZatR(Double_t xr,Double_t bz, Double_t *xyz=0, Double_t* alpSect=0) const;
   //
