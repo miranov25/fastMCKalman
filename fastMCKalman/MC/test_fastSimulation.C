@@ -130,3 +130,44 @@ void testDebugFailure(){
 
 }
 
+/*
+/// this is pseudocode to be used in propagate to mirror to account or the material along the arc
+/// hee we have the same logical problem as in correct for mean material - factor sqrt(2) in angular spread
+/// Here we assume the parameters defining MS are not changing along trajectory
+/// \param crossLength
+/// \param xx0
+/// \param beta2
+/// \param p2
+/// \param nSteps
+/// \return
+ std::vector<float>  makeIntegralCovar(float crossLength, float xx0, float beta2, float p2, float nSteps){
+  float xOverX0=crossLength*xx0/nSteps;
+  std::vector<float> covarLinear(10);   0-sy2, 2-sz2, 5-sphi2, 9-stheta2 as in AliExternalTrackParam
+  Double_t theta2=0.0136*0.0136/(beta2*p2)*TMath::Abs(xOverX0); // smearing angle per unit step
+  float dL=crossLength/nSteps;
+  //
+  for (int i=0; i<nSteps;i++ ){
+     covarLinear[0]+=(theta2*dL*dL);    //
+     covarLinear[2]+=(theta2*dL*dL);
+     covarLinear[5]+=(theta2);          //
+     covarLinear[9]+=(theta2);          //
+     //
+     covarLinear[3]+=theta2*dL;
+     covarLinear[7]+=theta2*dL;
+  }
+  return covarLinear;
+}
+
+void addCovariance(AliExternalTrackParam4D track){
+  ///
+  float sigmaPhi2= 0 ;  /// ???
+  float sigmaTheta2=0 ; /// ???
+  float sigmaCurv2=0;    /// ???
+  fC[0]+=sigmaPhi2*crossLength;
+  fC[2]+=sigmaTheta2*crossLength;
+  fC[3]+=???
+  fC[7]+=???
+  dSigmaPhi=sigmaCurv2*crossLength;  /// to check
+  //
+}
+*/
