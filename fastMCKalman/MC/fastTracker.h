@@ -183,13 +183,13 @@ AliExternalTrackParam* fastTracker::makeSeedMB(double xyz0[3], double xyz1[3], d
   Bool_t propStatus=kTRUE;
   Double_t p0[3]={paramFull.Pt()};
   for (int i=1; i<3; i++) {
-    propStatus &= paramFull.PropagateTo(xyz[i][0], bz);
     for (int iCovar = 0; iCovar < 15; iCovar++) deltaCovar[iCovar] = paramFull.GetCovariance()[iCovar];
     double crossLength = (xyz[i][0] - xyz[i - 1][0]) * (xyz[i][0] - xyz[i - 1][0]) +
                          (xyz[i][1] - xyz[i - 1][1]) * (xyz[i][1] - xyz[i - 1][1]) +
                          (xyz[i][2] - xyz[i - 1][2]) * (xyz[i][2] - xyz[i - 1][2]);
     crossLength = TMath::Sqrt(crossLength);
-    for (int i = 0; i < nSteps; i++) {
+    for (int j = 0; j < nSteps; j++) {
+      propStatus &= paramFull.PropagateTo((xyz[i-1][0]+((j+1)*(xyz[i][0]-xyz[i-1][0])/nSteps)), bz);
       propStatus &= paramFull.CorrectForMeanMaterial(crossLength * xx0tocm / nSteps, crossLength * xrhotocm / nSteps, mass, kFALSE);
     }
     p0[i]=paramFull.Pt();
