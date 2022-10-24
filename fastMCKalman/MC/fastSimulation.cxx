@@ -1373,6 +1373,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
         xyzS[dLayer][1]=fParamMC[index].GetY()+gRandom->Gaus(0,geom.fLayerResolRPhi[layer]);;
         xyzS[dLayer][2]=fParamMC[index].GetZ()+gRandom->Gaus(0,geom.fLayerResolZ[layer]);;
         fParamMC[index].Local2GlobalPosition(xyzS[dLayer],fParamMC[index].GetAlpha()-alpha0);
+
   }
   /// seeds in alpha0 coordinate frame
   Int_t indexst = fLayerIndex[index1-1];
@@ -1398,7 +1399,9 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
 
   Double_t dEdx=AliExternalTrackParam::BetheBlochAleph(param.P()/mass);
   //Double_t dPdx=AliExternalTrackParam4D::dPdx(fParamMC[index1-1]);
+   int version=0;
   (*fgStreamer)<<"seedDump"<<   // seeding not ideal in case significant energy loss
+    "version="<<version<<
     "gid="<<gid<<
     "sign0="<<sign0<<
     "fMassMC="<<fMassMC<<
@@ -1633,7 +1636,9 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
 
   Double_t dEdx=AliExternalTrackParam::BetheBlochAleph(param.P()/mass);
   //Double_t dPdx=AliExternalTrackParam4D::dPdx(fParamMC[index1-1]);
+  int version=1;
   (*fgStreamer)<<"seedDump"<<   // seeding not ideal in case significant energy loss
+    "version="<<version<<       // version 1 leg
     "gid="<<gid<<
     "sign0="<<sign0<<
     "fMassMC="<<fMassMC<<
