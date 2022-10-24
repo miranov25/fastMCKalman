@@ -41,9 +41,9 @@ void testPullsSeed() {
       treeSeed->GetHistogram()->Fit("mygauss", "q");
       bool isOK = abs(1 - mygauss->GetParameter(2)) < 5 * mygauss->GetParError(2);
       if (isOK) {
-        ::Info(Form("testFastTracker full reco pull test P%d",iPar), "pullAnalytical - OK - %f", mygauss->GetParameter(2));
+        ::Info(Form("testFastTracker seed pull test P%d - version %d",iPar,version), "pullAnalytical - OK - %f", mygauss->GetParameter(2));
       } else {
-        ::Error(Form("testFastTracker full reco pull test P%d",iPar), "pullAnalytical- FAILED- %f", mygauss->GetParameter(2));
+        ::Error(Form("testFastTracker seed pull test P%d - version %d",iPar,version), "pullAnalytical- FAILED- %f", mygauss->GetParameter(2));
       }
     }
   }
