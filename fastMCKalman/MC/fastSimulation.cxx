@@ -1367,10 +1367,11 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
   for (int dLayer=0; dLayer<3  && index1-step*dLayer>0; dLayer++) {
         Int_t index=index1-step*dLayer-1;
         Int_t index0=index1-1;
+        int layer = fLayerIndex[index];
         //fParamMC[index1-step*dLayer-1].GetXYZ(xyzS[dLayer]);
         xyzS[dLayer][0]=fParamMC[index].GetX();
-        xyzS[dLayer][1]=fParamMC[index].GetY();
-        xyzS[dLayer][2]=fParamMC[index].GetZ();
+        xyzS[dLayer][1]=fParamMC[index].GetY()+gRandom->Gaus(0,geom.fLayerResolRPhi[layer]);;
+        xyzS[dLayer][2]=fParamMC[index].GetZ()+gRandom->Gaus(0,geom.fLayerResolZ[layer]);;
         fParamMC[index].Local2GlobalPosition(xyzS[dLayer],fParamMC[index].GetAlpha()-alpha0);
   }
   /// seeds in alpha0 coordinate frame
@@ -1569,10 +1570,11 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
     for (int dLayer=0; dLayer<3  && index1-step*dLayer>0; dLayer++) {
           Int_t index=index1-step*dLayer-1;
           Int_t index0=index1-1;
+          int layer = fLayerIndex[index];
           //fParamMC[index1-step*dLayer-1].GetXYZ(xyzS[dLayer]);
           xyzS[dLayer][0]=fParamMC[index].GetX();
-          xyzS[dLayer][1]=fParamMC[index].GetY();
-          xyzS[dLayer][2]=fParamMC[index].GetZ();
+          xyzS[dLayer][1]=fParamMC[index].GetY()+gRandom->Gaus(0,geom.fLayerResolRPhi[layer]);
+          xyzS[dLayer][2]=fParamMC[index].GetZ()+gRandom->Gaus(0,geom.fLayerResolZ[layer]);
           fParamMC[index].Local2GlobalPosition(xyzS[dLayer],fParamMC[index].GetAlpha()-alpha0);
     }
 
@@ -1690,7 +1692,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
           }
           else
           {
-            ::Error("fastParticle::reconstructParticleFull:", "Mirror Propagation failed Rotation");
+            ::Error("fastParticle::reconstructParticleFull:", "PropagateToMirrorX failed");
             break;
           }
       }
