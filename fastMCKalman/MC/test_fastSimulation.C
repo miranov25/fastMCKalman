@@ -28,11 +28,25 @@ extern TChain * treeFast;
 
 /// Test pull of seeds
 /// TODO add automatic alarm - and fix eventual problems
-void testMB(){
+void testMB() {
   // Here we should make unit tests - it will work only up to some relative energy loss
   // treeSeed->Draw("log(paramSeed.P()/input.P()):log(input2.P()/input.P())","sign0>0");
-  treeSeed->Draw("(seed.fP[4]-input.fP[4])/sqrt(seed.fC[14])","","");
-  treeSeed->Draw("(seed.fP[4]-input.fP[4])/sqrt(seed.fC[14]):(input2.fP[4]-input.fP[4])/sqrt(seed.fC[14]):fMassMC","input.fP[4]<0&&sign0>0","colz");
+
+  //
+  TF1 *mygauss = new TF1("mygauss", "gaus");
+  for (int version=0; version<=1; version++) {
+    for (int iPar = 0; iPar <= 4; iPar++) {
+      treeSeed->Draw(Form("(seed.fP[%d]-input.fP[%d])/sqrt(seed.fC[%d])>>his(100,-6,6)", iPar, iPar, AliExternalTrackParam::GetIndex(iPar, iPar)),
+                     Form("version==%d",version), "");
+      treeSeed->GetHistogram()->Fit("mygauss", "q");
+      bool isOK = abs(1 - mygauss->GetParameter(2)) < 4 * mygauss->GetParError(2);
+      if (isOK) {
+        ::Info("testFastTracker full reco pull test P4", "pullAnalytical - OK - %f", mygauss->GetParameter(2));
+      } else {
+        ::Error("testFastTracker full reco pull test P4", "pullAnalytical- FAILED- %f", mygauss->GetParameter(2));
+      }
+    }
+  }
 }
 
 void testLooperSmooth(){
