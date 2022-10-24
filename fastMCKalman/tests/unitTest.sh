@@ -7,7 +7,7 @@ alias helpCat=cat
 init(){
   cat <<HELP_USAGE | helpCat
   makeData
-  makeTest
+  makePullTest
   analyzeLogs
 HELP_USAGE
 }
