@@ -177,25 +177,28 @@ AliExternalTrackParam* fastTracker::makeSeedMB(double xyz0[3], double xyz1[3], d
   // in case different gaps - TODO later
   AliExternalTrackParam *extParam = makeSeed(xyz0,xyz1,xyz2,sy,sz,bz);   // first estimation
   AliExternalTrackParam paramFull=*extParam;
+  AliExternalTrackParam paramFullnoMC=paramFull;
   Double_t *xyz[3]={xyz0,xyz1,xyz2};
   Double_t deltaCovar[15];
 
   Bool_t propStatus=kTRUE;
   Double_t p0[3]={paramFull.Pt()};
   for (int i=1; i<3; i++) {
-    propStatus &= paramFull.PropagateTo(xyz[i][0], bz);
-    for (int iCovar = 0; iCovar < 15; iCovar++) deltaCovar[iCovar] = paramFull.GetCovariance()[iCovar];
+
     double crossLength = (xyz[i][0] - xyz[i - 1][0]) * (xyz[i][0] - xyz[i - 1][0]) +
                          (xyz[i][1] - xyz[i - 1][1]) * (xyz[i][1] - xyz[i - 1][1]) +
                          (xyz[i][2] - xyz[i - 1][2]) * (xyz[i][2] - xyz[i - 1][2]);
     crossLength = TMath::Sqrt(crossLength);
-    for (int i = 0; i < nSteps; i++) {
+    for (int j = 0; j < nSteps; j++) {
+      propStatus &= paramFull.PropagateTo((xyz[i-1][0]+((j+1)*(xyz[i][0]-xyz[i-1][0])/nSteps)), bz);    
       propStatus &= paramFull.CorrectForMeanMaterial(crossLength * xx0tocm / nSteps, crossLength * xrhotocm / nSteps, mass, kFALSE);
+      propStatus &= paramFullnoMC.PropagateTo((xyz[i-1][0]+((j+1)*(xyz[i][0]-xyz[i-1][0])/nSteps)), bz);
     }
+
     p0[i]=paramFull.Pt();
     if (i == 1) {
       for (int iCovar = 0; iCovar < 15; iCovar++) {
-        deltaCovar[iCovar] = paramFull.GetCovariance()[iCovar] - deltaCovar[iCovar];
+        deltaCovar[iCovar] = paramFull.GetCovariance()[iCovar] - paramFullnoMC.GetCovariance()[iCovar];
       }
     }
   }

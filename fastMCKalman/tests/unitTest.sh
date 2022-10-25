@@ -8,6 +8,7 @@ init(){
   cat <<HELP_USAGE | helpCat
   makeData
   makePullTest
+  makePullTestSeed
   analyzeLogs
 HELP_USAGE
 }
@@ -45,6 +46,24 @@ makePullTest(){
 EOF
    chmod a+x makePullTest.sh
    ./makePullTest.sh
+}
+
+makePullTestSeed(){
+       cat <<EOF >  makePullTestSeed.sh
+#!/bin/bash
+    echo fastParticle.root >fastParticle.list
+    root.exe -n -b -l <<\EOF 2>&1 | tee makePullTestSeed.log
+    gSystem->AddIncludePath("-I\"$fastMCKalman/fastMCKalman/fastMCKalman/aliKalman/test/\"")
+    gSystem->Load("$fastMCKalman/fastMCKalman/aliKalman/test/AliExternalTrackParam.so");
+    .L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+g
+    .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C+g
+     .L $fastMCKalman/fastMCKalman/MC/test_fastSimulation.C+g
+     initTreeFast()
+     testPullsSeed()
+    .q
+EOF
+   chmod a+x makePullTestSeed.sh
+   ./makePullTestSeed.sh
 }
 
 analyzeLogs(){
