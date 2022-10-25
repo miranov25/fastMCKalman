@@ -481,6 +481,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   Double_t cC43 = 0.;
   Double_t cC44 = 0.;
   Double_t theta2=0;
+  Double_t sigmadPRel=0;
   if (xOverX0 != 0) {
     //Double_t theta2=1.0259e-6*14*14/28/(beta2*p2)*TMath::Abs(d)*9.36*2.33;
     theta2=0.0136*0.0136/(beta2*p2)*TMath::Abs(xOverX0);
@@ -512,6 +513,8 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
     const Double_t knst=0.07; // To be tuned.
     Double_t sigmadE=knst*TMath::Sqrt(TMath::Abs(dE));
     cC44 += ((sigmadE*Ein/p2*fP4)*(sigmadE*Ein/p2*fP4));
+    //
+    sigmadPRel=TMath::Abs(pOut-pOld)*knst/pOld;
   }
 
   //Applying the corrections*****************************
@@ -534,9 +537,11 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
       if (!isMC) return kFALSE;
     }
     Double_t cP4MS = sqrt((1+(p3New*p3New))/(1+(fP[3])*(fP[3]))); ////keep total momentum constant and modify q/pt accordingly (this factor is cos(lambda)/cos(lambda_new))
+    double p4RelSmear=gRandom->Gaus(0,sigmadPRel);
     fP[2]=p2New;
     fP[3]=p3New;
     fP[4]*=cP4MS;
+    fP[4]*=(1.+p4RelSmear);
     //fP[4]+=gRandom->Gaus(0,TMath::Sqrt(cC44)); //- TODO transform scattering in p2 and P3 to modification of qPt - can not be independent
   }
   fC22 += cC22;
