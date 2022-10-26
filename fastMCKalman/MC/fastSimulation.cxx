@@ -511,7 +511,7 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
     //if (TMath::Abs(fP4*cP4)>100.) return kFALSE; //Do not track below 10 MeV/c -dsiable controlled by the BG cut
     // Approximate energy loss fluctuation (M.Ivanov)
     const Double_t knst=0.07; // To be tuned.
-    Double_t sigmadE=knst*TMath::Sqrt(TMath::Abs(dE));
+    Double_t sigmadE=knst*TMath::Abs(dE);
     cC44 += ((sigmadE*Ein/p2*fP4)*(sigmadE*Ein/p2*fP4));
     //
     sigmadPRel=TMath::Abs(pOut-pOld)*knst/pOld;
