@@ -1023,6 +1023,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
   fMaxLayer=0;
   const float kMaxSnp=0.90;
   const float kMaxLoss=0.5;
+  const float kMaxZ=300;
    double covar[21]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
    float_t mass=0,sign=1;
   fPdgCodeMC=pdgCode;
@@ -1082,7 +1083,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     float crossLength = 0;
     //printf("%d\n",nPoint);
     //param.Print();
-    if (indexR>=geom.fLayerRadius.size()) {
+    if (indexR>=geom.fLayerRadius.size() || TMath::Abs(param.GetZ())>kMaxZ) {
       break;
     }
     if (fStatusMaskMC.size()<=nPoint) fStatusMaskMC.resize(nPoint+1);
