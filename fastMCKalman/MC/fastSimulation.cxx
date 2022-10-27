@@ -510,9 +510,9 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
     cP4 = pOld/pOut;                               /// TODO we use momentum loss not need to use "Ruben E loss approximation"
     //if (TMath::Abs(fP4*cP4)>100.) return kFALSE; //Do not track below 10 MeV/c -disable controlled by the BG cut
     // Approximate energy loss fluctuation (M.Ivanov)
-    const Double_t knst=0.07; // To be tuned.
-    Double_t sigmadE=knst*TMath::Abs(dE);
-    cC44 += ((sigmadE*Ein/p2*fP4)*(sigmadE*Ein/p2*fP4));
+    const Double_t knst=0.07; // TODO To be tuned.
+    //Double_t sigmadE=knst*TMath::Abs(dE);                 /// TODO remove that part if momentm smearing working well
+    //cC44 += ((sigmadE*Ein/p2*fP4)*(sigmadE*Ein/p2*fP4));
     //
     sigmadPRel=TMath::Abs(pOut-pOld)*knst/pOld;
     cC44+=sigmadPRel*sigmadPRel*fP[4]*fP[4];        // sigma due momentum loss fluctuation
@@ -1335,6 +1335,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
   const Float_t chi2Cut=100;
   const float kMaxSnp=0.95;
   const float kMaxLoss=0.3;
+  const float kCovarFactor=2;
   fLengthIn=0;
   float_t mass=0;
   fPdgCodeRec   =pdgCode;
@@ -1401,6 +1402,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
     ((double*)param.GetCovariance())[10]*=-1;
     ((double*)param.GetCovariance())[11]*=-1;
   }
+
   //param.fMass=.fMass;
 
   Double_t dEdx=AliExternalTrackParam::BetheBlochAleph(param.P()/mass);
@@ -1423,6 +1425,8 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
     "\n";
   delete paramSeed;
   delete paramSeedI;
+  ///scale covaraince to remove double counting
+  for (int i=0; i<15; i++) ((double*)param.GetCovariance())[i]*=kCovarFactor;
   //double *covar = (double*)param.GetCovariance();
   //for (int i=0; i<15; i++)covar[i]*=2;
 
@@ -1530,6 +1534,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   const Float_t chi2Cut=100/(geom.fLayerResolZ[0]);
   const float kMaxSnp=0.95;
   const float kMaxLoss=0.3;
+  const float kCovarFactor=2.;
   fLengthIn=0;
   float_t mass=0;
   fPdgCodeRec   =pdgCode;
@@ -1639,7 +1644,6 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
     ((double*)param.GetCovariance())[11]*=-1;
   }
   //param.fMass=.fMass;
-
   Double_t dEdx=AliExternalTrackParam::BetheBlochAleph(param.P()/mass);
   //Double_t dPdx=AliExternalTrackParam4D::dPdx(fParamMC[index1-1]);
   int version=1;
@@ -1660,6 +1664,8 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
     "\n";
   delete paramSeed;
   delete paramSeedI;
+  ///scale covaraine to avoid double counting
+  for (int i=0; i<15; i++) ((double*)param.GetCovariance())[i]*=kCovarFactor;
   //double *covar = (double*)param.GetCovariance();
   //for (int i=0; i<15; i++)covar[i]*=2;
 
