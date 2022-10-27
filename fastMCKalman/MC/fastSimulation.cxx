@@ -508,13 +508,14 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
     }
     cP4 = 1./TMath::Sqrt(1.+ dE/p2*(dE + 2*Ein));  //A precise formula by Ruben !  - //TODO -this formula is only first taylor approximation
     cP4 = pOld/pOut;                               /// TODO we use momentum loss not need to use "Ruben E loss approximation"
-    //if (TMath::Abs(fP4*cP4)>100.) return kFALSE; //Do not track below 10 MeV/c -dsiable controlled by the BG cut
+    //if (TMath::Abs(fP4*cP4)>100.) return kFALSE; //Do not track below 10 MeV/c -disable controlled by the BG cut
     // Approximate energy loss fluctuation (M.Ivanov)
-    const Double_t knst=0.07; // To be tuned.
-    Double_t sigmadE=knst*TMath::Sqrt(TMath::Abs(dE));
-    cC44 += ((sigmadE*Ein/p2*fP4)*(sigmadE*Ein/p2*fP4));
+    const Double_t knst=0.07; // TODO - To be tuned.
+    // Double_t sigmadE=knst*TMath::Sqrt(TMath::Abs(dE));      ///TODO - delete if momentum smearing working well
+    // cC44 += ((sigmadE*Ein/p2*fP4)*(sigmadE*Ein/p2*fP4));   //use better sigma P consistently
     //
     sigmadPRel=TMath::Abs(pOut-pOld)*knst/pOld;
+    cC44+=sigmadPRel*sigmadPRel*fP[4]*fP[4];        // sigma due momentum loss fluctuation
   }
 
   //Applying the corrections*****************************
