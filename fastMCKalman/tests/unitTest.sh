@@ -23,7 +23,7 @@ makeData(){
     .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C+g
     AliPDG::AddParticlesToPdgDataBase();
     AliLog::SetPrintRepetitions(0);
-    testTPC(10000,kTRUE);            //setup for the looper development
+    testTPC(40000,kTRUE);            //setup for the looper development
     .q
 EOF
    chmod a+x makeData.sh
