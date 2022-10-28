@@ -1023,6 +1023,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
   fMaxLayer=0;
   const float kMaxSnp=0.90;
   const float kMaxLoss=0.5;
+  const float kMaxZ=300;
    double covar[21]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
    float_t mass=0,sign=1;
   fPdgCodeMC=pdgCode;
@@ -1082,7 +1083,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     float crossLength = 0;
     //printf("%d\n",nPoint);
     //param.Print();
-    if (indexR>=geom.fLayerRadius.size()) {
+    if (indexR>=geom.fLayerRadius.size() || TMath::Abs(param.GetZ())>kMaxZ) {
       break;
     }
     if (fStatusMaskMC.size()<=nPoint) fStatusMaskMC.resize(nPoint+1);
@@ -1747,15 +1748,18 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
             break;
       }
 
-
+      Bool_t SkipUpdate = kFALSE;
       if (cov[0]>0) {
         status = param.Update(pos, cov);
         if (status) {
           fStatusMaskIn[index]|=kTrackUpdate;
         }else{
-            ::Error("fastParticle::reconstructParticleFull:", "Update failed");
-            param.Update(pos, cov);
-            break;
+            //::Error("fastParticle::reconstructParticleFull:", "Update failed");
+            //param.Update(pos, cov);
+            //break;
+            ///skip the Update
+            fStatusMaskIn[index]|=kTrackUpdate;
+            SkipUpdate = kTRUE;
         }
       }
       else{
@@ -1767,16 +1771,22 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
       tanPhi2/=(1-tanPhi2);
       if(crossLength==0) crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);                /// geometrical path assuming crossing cylinder
       //status = param.AliExternalTrackParam::CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
-      for (Int_t ic=0;ic<5; ic++) {
-        status*= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho/5., mass, 0.01);
+      if(!SkipUpdate)
+      {
+        for (Int_t ic=0;ic<5; ic++) {
+          status*= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho/5., mass, 0.01);
+        }
+        //status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
+        if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,crossLength*xrho,mass,20);
+        if (status) {
+          fStatusMaskIn[index]|=kTrackCorrectForMaterial;
+        }else{
+          ::Error("fastParticle::reconstructParticleFull:", "Correct for material failed");
+          break;
+        }
       }
-      //status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
-      if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,crossLength*xrho,mass,20);
-      if (status) {
-        fStatusMaskIn[index]|=kTrackCorrectForMaterial;
-      }else{
-        ::Error("fastParticle::reconstructParticleFull:", "Correct for material failed");
-        break;
+      else{
+        fStatusMaskIn[index]|=kTrackCorrectForMaterial; //skip CorrectForMeanMaterial     
       }
       fLengthIn++;
   }
