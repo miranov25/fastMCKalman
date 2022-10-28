@@ -77,6 +77,9 @@ void testPulls() {
   }
 }
 
+void test_compare(){
+
+}
 
 /*
 /// this is pseudocode to be used in propagate to mirror to account or the material along the arc

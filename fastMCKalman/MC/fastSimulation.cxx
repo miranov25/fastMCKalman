@@ -1554,12 +1554,13 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   uint index1 = TMath::Min(indexStart,uint(fParamMC.size()-1));
   /// skip layers with too big erregy loss - to smalle BG
   for (int i=index1; i>0; i--){  /// TODO - make query on fraction of the energy loss
-    if (fParamMC[i].Beta()<0.3) {
+    if (fParamMC[i].Beta()<0.05) {
       continue; /// TODO this is hack
     }
     index1=i;
     break;
   }
+
 
   fMaxLayerRec=index1;
 
