@@ -1536,6 +1536,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   const float kMaxSnp=0.95;
   const float kMaxLoss=0.3;
   const float kCovarFactor=2.;
+  const int   kMaxSkipped=20;
   fLengthIn=0;
   float_t mass=0;
   fPdgCodeRec   =pdgCode;
@@ -1683,11 +1684,13 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
   fParamIn.resize(index1+1);
   fStatusMaskIn.resize(index1+1);
+  for(uint i=0;i<index1;i++) fStatusMaskIn[i]=0;
   fChi2.resize(index1+1);
   fParamIn[index1]=param;
   double xyz[3];
   int status=0;
   const double *par = param.GetParameter();
+  int checkloop=0;
   for (int index=index1-1; index>=0; index--){   // dont propagate to vertex , will be done later ...
       double resol=0;
       float crossLength = 0;
@@ -1698,22 +1701,56 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
       double radius = TMath::Sqrt(xyz[0]*xyz[0]+xyz[1]*xyz[1]);
       fStatusMaskIn[index]=0;
 
-      int checkloop = fLoop[index]-fLoop[index+1];  /////// PropagateToMirror triggered for now using flag from MC information: not realistic reconstruction
-      if(checkloop==0) status = 1;  
-      else status = 0;
+      if(checkloop==0) checkloop = fLoop[index]-fLoop[index+1];  /////// PropagateToMirror triggered for now using flag from MC information: not realistic reconstruction
 
+      /*
+      /////For future implementation of flag-less mirroring
+      if((TMath::Abs(param.GetParameter()[2])>kMaxSnp && (param.GetParameter()[2]/fParamIn[TMath::Min(index1,uint(index+2))].GetParameter()[2])>1)
+        ||  (TMath::Abs(fParamMC[index+1].GetX()-fParamMC[index].GetX())<kAlmost0) )
+      {
+              status = 0; 
+      } 
+      else  status=1;
+      */
+
+      if(checkloop==0) status=1;
+      else status=0; 
+      
       if (status==0){   // if not possible to propagate to next radius - assume looper - change direction
-          crossLength = param.PropagateToMirrorX(geom.fBz, fDirection[index], geom.fLayerResolRPhi[layer],geom.fLayerResolZ[layer]);  ////Using direction from MC, not realistic reconstruction
+          float dir = 0;
+          dir = - fDirection[index+1];
+          crossLength = param.PropagateToMirrorX(geom.fBz, dir, geom.fLayerResolRPhi[layer],geom.fLayerResolZ[layer]);  ////Using direction from MC, not realistic reconstruction
           if (crossLength>0)
           {
-            fStatusMaskIn[index]|=kTrackRotate;
-            fStatusMaskIn[index]|=kTrackPropagate;
+            fStatusMaskIn[index]=31;
           }
           else
           {
             ::Error("fastParticle::reconstructParticleFull:", "PropagateToMirrorX failed");
             break;
+          }      
+          ///Find closest point in X after PropagateToMirrorX    
+          int Skip = TMath::Min(kMaxSkipped,index);
+          float dx_min = 9999;
+          int  new_index = 0;
+          double pos_min[2]={0,0};
+          double cov_min[3]={0,0,0};
+          for(int n=0; n<Skip; n++)
+          {
+            Int_t layer_m = fLayerIndex[index-n];
+            float dx_m = TMath::Abs(fParamMC[index-n].GetX()-param.GetX());
+            if(dx_m<dx_min)
+            {
+              dx_min=dx_m;
+              new_index=index-n;
+            }
           }
+          fLengthIn+=1+TMath::Abs(new_index-index);
+          index=new_index;
+          fParamIn[index]=param;
+          fStatusMaskIn[index]=31;
+          checkloop=0;
+          continue;
       }
       else{
           if (radius>0) {
@@ -1729,8 +1766,11 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
           if (status) {
             fStatusMaskIn[index]|=kTrackPropagate;
           }else{
-            ::Error("fastParticle::reconstructParticleFull:", "Propagation failed");
-            break;
+              ///If propagation fails go back a step -> PropagateToMirrorX()            
+              param=fParamIn[index+1];
+              index++;
+              checkloop=2;
+              continue;
           }
       }
       float xrho  =geom.fLayerRho[layer];
@@ -1755,9 +1795,6 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
         if (status) {
           fStatusMaskIn[index]|=kTrackUpdate;
         }else{
-            //::Error("fastParticle::reconstructParticleFull:", "Update failed");
-            //param.Update(pos, cov);
-            //break;
             ///skip the Update
             fStatusMaskIn[index]|=kTrackUpdate;
             SkipUpdate = kTRUE;
