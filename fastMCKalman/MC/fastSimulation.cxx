@@ -1693,6 +1693,8 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   const double *par = param.GetParameter();
   int checkloop=0;
   for (int index=index1-1; index>=0; index--){   // dont propagate to vertex , will be done later ...
+      Bool_t Propagate_First = kFALSE;
+      Bool_t SkipUpdate = kFALSE;
       double resol=0;
       float crossLength = 0;
       Int_t layer = fLayerIndex[index];
@@ -1760,18 +1762,32 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
           if (status) {
             fStatusMaskIn[index]|=kTrackRotate;
           }else{
-              ::Error("fastParticle::reconstructParticleFull:", "Rotation failed");
-              break;
+              /// If Rotation fails try Propagating first
+              status = param.PropagateTo(radius,geom.fBz,1);
+              status = param.Rotate(alpha);
+              if(status)
+              {
+                fStatusMaskIn[index]|=kTrackRotate;
+                fStatusMaskIn[index]|=kTrackPropagate;
+              }
+              else
+              {
+                ::Error("fastParticle::reconstructParticleFull:", "Rotation failed");
+                break;
+              }
           }
-          status = param.PropagateTo(radius,geom.fBz,1);
-          if (status) {
-            fStatusMaskIn[index]|=kTrackPropagate;
-          }else{
-              ///If propagation fails go back a step -> PropagateToMirrorX()            
-              param=fParamIn[index+1];
-              index++;
-              checkloop=2;
-              continue;
+          if(!Propagate_First)
+          {
+            status = param.PropagateTo(radius,geom.fBz,1);
+            if (status) {
+              fStatusMaskIn[index]|=kTrackPropagate;
+            }else{
+                ///If propagation fails go back a step -> PropagateToMirrorX()            
+                param=fParamIn[index+1];
+                index++;
+                checkloop=2;
+                continue;
+            }
           }
       }
       float xrho  =geom.fLayerRho[layer];
@@ -1783,14 +1799,13 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
       fParamIn[index]=param;
       float chi2 =  param.GetPredictedChi2(pos, cov);
       fChi2[index]=chi2;
-      if (chi2<chi2Cut) {
+      if (chi2<chi2Cut || Propagate_First) {
         fStatusMaskIn[index]|=kTrackChi2;
       }else{
             ::Error("fastParticle::reconstructParticleFull:", "Too big chi2 %f", chi2);
             break;
       }
 
-      Bool_t SkipUpdate = kFALSE;
       if (cov[0]>0) {
         status = param.Update(pos, cov);
         if (status) {
