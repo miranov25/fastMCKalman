@@ -85,11 +85,14 @@ public:
 class fastParticle : public TObject{
 public:
   enum TrackingBits {
-  kTrackRotate   = 0x1,
-  kTrackPropagate  = 0x2,
-  kTrackCorrectForMaterial =0x4,
-  kTrackUpdate =0x8,
-  kTrackChi2   =0x10
+  kTrackEnter   = 0x1,
+  kTrackRotate   = 0x2,
+  kTrackPropagate  = 0x4,
+  kTrackChi2   = 0x8,
+  kTrackUpdate = 0x10,
+  kTrackCorrectForMaterial =0x20,
+  kTrackPropagatetoMirrorX =0x40,
+  kTrackSkip =0x80
 } ;
 
   fastParticle():TObject(),fAddMSsmearing(0),gid(0){}
