@@ -64,7 +64,7 @@ void testPulls() {
       std::string sv = "";
       if (version==1) sv = "Full";
       treeFast->Draw(Form("(part%s.fParamIn[0].fP[%d]-part%s.fParamMC[0].fP[%d])/sqrt(part%s.fParamIn[0].fC[%d])>>his(100,-6,6)",sv.c_str(), iPar, sv.c_str(), iPar, sv.c_str(), AliExternalTrackParam::GetIndex(iPar, iPar)),
-                    Form("part%s.fStatusMaskIn[0].fData==31&&abs(part%s.fParamIn[0].fP[2])<0.7",sv.c_str(),sv.c_str()), "");
+                    Form("part%s.fStatusMaskIn[0].fData>=63&&abs(part%s.fParamIn[0].fP[2])<0.7",sv.c_str(),sv.c_str()), "");
       treeFast->GetHistogram()->Fit("mygauss", "q");
       bool isOK = abs(1 - mygauss->GetParameter(2)) < 5 * mygauss->GetParError(2);
       float rms=treeFast->GetHistogram()->GetRMS();
