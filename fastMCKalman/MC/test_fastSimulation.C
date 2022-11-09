@@ -123,3 +123,23 @@ void addCovariance(AliExternalTrackParam4D track){
   //
 }
 */
+
+/// add canvas with views for MC and data
+/// + proint particle properties
+/// first
+//void drawNextProblem(int counter){
+//  treeFast->Draw("gyMC:gxMC:(partFull.fStatusMaskIn.fData==0x1)|Iteration$==0","","colz",1,counter++);
+//}
+
+void testDrawProblems(){
+  // checking the X position
+  // treeFast->Draw("gyMC:gxMC:(part.fParamMC[].fX==part.fParamMC[Iteration$-2].fX)","Iteration$>2","colz",10);
+  //treeFast->Draw("gyMC:gxMC:partFull.fStatusMaskIn.fData==0x1","Iteration$>2","colz",100);
+  //
+  treeFast->Draw(">>problemList0x1","Sum$(partFull.fStatusMaskIn.fData==0x1)","entryList");
+  TEntryList* problemList0x1 =(TEntryList*)gROOT->FindObject("probleList0x1");
+  treeFast->SetEntryList(problemList0x1);
+  int counter=0;
+  treeFast->Draw("gyMC:gxMC:(partFull.fStatusMaskIn.fData==0x1)|((Iteration$==0)*2)","","colz",1,counter++);
+
+}
