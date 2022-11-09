@@ -14,6 +14,8 @@ HELP_USAGE
 }
 
 makeData(){
+     export nPoints=${1:-40000}
+
     cat <<EOF >  makeData.sh
 #!/bin/bash
     root.exe -n -b -l <<\EOF 2>&1 | tee makeData.log
@@ -23,10 +25,11 @@ makeData(){
     .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C+g
     AliPDG::AddParticlesToPdgDataBase();
     AliLog::SetPrintRepetitions(0);
-    testTPC(40000,kTRUE);            //setup for the looper development
+    testTPC(${nPoints},kTRUE);            //setup for the looper development
     .q
 EOF
    chmod a+x makeData.sh
+
    ./makeData.sh
 }
 
