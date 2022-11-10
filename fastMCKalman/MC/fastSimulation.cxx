@@ -1685,6 +1685,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   //
   float length=0, time=0;
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
+  fFirstIndex = index1-1;
   fParamIn.resize(index1+1);
   fStatusMaskIn.resize(index1+1);
   fChi2.resize(index1+1);

@@ -127,6 +127,7 @@ public:
   uint                         fMaxLayer;   //   maximal layer position
   int                         fMaxLayerRec;   //   maximal layer position in reconstruction
   int                         fLengthIn;   //   track length for in propagation
+  int                         fFirstIndex;   //   track length for in propagation
    int                         fLengthInRot;   //   track length for in propagation
    Float_t                     fDecayLength;  // decay length  -if length bigger than decay length - stop partilce
   RVec<int>                   fLayerIndex; //   layer index    - important for looper
