@@ -92,7 +92,8 @@ public:
   kTrackUpdate = 0x10,
   kTrackCorrectForMaterial =0x20,
   kTrackPropagatetoMirrorX =0x40,
-  kTrackSkip =0x80
+  kTrackSkip =0x80,
+  kTrackSkipRotate =0x100
 } ;
 
   fastParticle():TObject(),fAddMSsmearing(0),gid(0){}
