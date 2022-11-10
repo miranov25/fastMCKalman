@@ -10,6 +10,7 @@
 
 #include "TFile.h"
 #include "TTree.h"
+#include "TROOT.h"
 #include "TChain.h"
 #include "TTree.h"
 #include "TRandom.h"
@@ -136,10 +137,10 @@ void testDrawProblems(){
   // treeFast->Draw("gyMC:gxMC:(part.fParamMC[].fX==part.fParamMC[Iteration$-2].fX)","Iteration$>2","colz",10);
   //treeFast->Draw("gyMC:gxMC:partFull.fStatusMaskIn.fData==0x1","Iteration$>2","colz",100);
   //
-  treeFast->Draw(">>problemList0x1","Sum$(partFull.fStatusMaskIn.fData==0x1)","entryList");
-  TEntryList* problemList0x1 =(TEntryList*)gROOT->FindObject("probleList0x1");
+  treeFast->Draw(">>ProblemRot","Sum$(partFull.fStatusMaskIn.fData==0x1)","entrylist");
+  TEntryList* problemList0x1 =(TEntryList*)gDirectory->Get("ProblemRot");
   treeFast->SetEntryList(problemList0x1);
   int counter=0;
-  treeFast->Draw("gyMC:gxMC:(partFull.fStatusMaskIn.fData==0x1)|((Iteration$==0)*2)","","colz",1,counter++);
+  treeFast->Draw("gyMC:gxMC:(partFull.fStatusMaskIn.fData==0x1)|((Iteration$==0)*2)|((Iteration$==partFull.fFirstIndex)*3)","","colz",1,counter++);
 
 }
