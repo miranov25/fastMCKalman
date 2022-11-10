@@ -19,6 +19,7 @@
 #include "TTreeStream.h"
 #include "fastTracker.h"
 #include "fastSimulation.h"
+#include "TStyle.h"
 
 
 
@@ -128,9 +129,29 @@ void addCovariance(AliExternalTrackParam4D track){
 /// add canvas with views for MC and data
 /// + proint particle properties
 /// first
-//void drawNextProblem(int counter){
-//  treeFast->Draw("gyMC:gxMC:(partFull.fStatusMaskIn.fData==0x1)|Iteration$==0","","colz",1,counter++);
-//}
+void drawTrackStatus(int counter){
+  //
+  treeFast->SetMarkerColor(1);   /// all MC
+  treeFast->Draw("gyMC:gxMC","","",1,counter);
+  treeFast->SetMarkerColor(4);   /// all reco points
+  treeFast->Draw("gyInF:gxInF","partFull.fStatusMaskIn.fData>0","same",1,counter);
+  treeFast->SetMarkerColor(2);   /// first MC point
+  treeFast->Draw("gyMC:gxMC","Iteration$==0","same",1,counter);
+  treeFast->SetMarkerColor(3);   /// trigger problem
+  treeFast->Draw("gyMC:gxMC","partFull.fStatusMaskIn.fData==0x1","same",1,counter);
+}
+
+void drawTrackStatus3D(int counter){
+  //
+  treeFast->SetMarkerColor(1);   /// all MC
+  treeFast->Draw("gyMC:gxMC:gzMC","","",1,counter);
+  treeFast->SetMarkerColor(4);   /// all reco points
+  treeFast->Draw("gyInF:gxInF:gzInF","partFull.fStatusMaskIn.fData>0","same",1,counter);
+  treeFast->SetMarkerColor(2);   /// first MC point
+  treeFast->Draw("gyMC:gxMC:gzMC","Iteration$==0","same",1,counter);
+  treeFast->SetMarkerColor(3);   /// trigger problem
+  treeFast->Draw("gyMC:gxMC:gzMC","partFull.fStatusMaskIn.fData==0x1","same",1,counter);
+}
 
 void testDrawProblems(){
   // checking the X position
@@ -138,9 +159,15 @@ void testDrawProblems(){
   //treeFast->Draw("gyMC:gxMC:partFull.fStatusMaskIn.fData==0x1","Iteration$>2","colz",100);
   //
   treeFast->Draw(">>ProblemRot","Sum$(partFull.fStatusMaskIn.fData==0x1)","entrylist");
+  treeFast->SetAlias("gyInF","sin(partFull.fParamIn[].fAlpha)*partFull.fParamIn[].fX");
+  treeFast->SetAlias("gxInF","cos(partFull.fParamIn[].fAlpha)*partFull.fParamIn[].fX");
+  treeFast->SetAlias("gzInF","partFull.fParamIn[].fP[1]");
+  //
   TEntryList* problemList0x1 =(TEntryList*)gDirectory->Get("ProblemRot");
   treeFast->SetEntryList(problemList0x1);
   int counter=0;
-  treeFast->Draw("gyMC:gxMC:(partFull.fStatusMaskIn.fData==0x1)|((Iteration$==0)*2)|((Iteration$==partFull.fFirstIndex)*3)","","colz",1,counter++);
+  treeFast->SetMarkerSize(1.5);
+  gStyle->SetPalette(55);
+
 
 }
