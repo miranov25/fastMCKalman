@@ -125,40 +125,12 @@ void addCovariance(AliExternalTrackParam4D track){
   //
 }
 */
-
-/// add canvas with views for MC and data
-/// + proint particle properties
-/// first
-void drawTrackStatus(int counter){
-  //
-  treeFast->SetMarkerColor(1);   /// all MC
-  treeFast->Draw("gyMC:gxMC","","",1,counter);
-  treeFast->SetMarkerColor(4);   /// all reco points
-  treeFast->Draw("gyInF:gxInF","partFull.fStatusMaskIn.fData>0","same",1,counter);
-  treeFast->SetMarkerColor(2);   /// first MC point
-  treeFast->Draw("gyMC:gxMC","Iteration$==0","same",1,counter);
-  treeFast->SetMarkerColor(3);   /// trigger problem
-  treeFast->Draw("gyMC:gxMC","partFull.fStatusMaskIn.fData==0x1","same",1,counter);
-}
-
-void drawTrackStatus3D(int counter){
-  //
-  treeFast->SetMarkerColor(1);   /// all MC
-  treeFast->Draw("gyMC:gxMC:gzMC","","",1,counter);
-  treeFast->SetMarkerColor(4);   /// all reco points
-  treeFast->Draw("gyInF:gxInF:gzInF","partFull.fStatusMaskIn.fData>0","same",1,counter);
-  treeFast->SetMarkerColor(2);   /// first MC point
-  treeFast->Draw("gyMC:gxMC:gzMC","Iteration$==0","same",1,counter);
-  treeFast->SetMarkerColor(3);   /// trigger problem
-  treeFast->Draw("gyMC:gxMC:gzMC","partFull.fStatusMaskIn.fData==0x1","same",1,counter);
-}
-
-void testDrawProblems(){
+void SetList(std::string bit = "0x1"){
   // checking the X position
   // treeFast->Draw("gyMC:gxMC:(part.fParamMC[].fX==part.fParamMC[Iteration$-2].fX)","Iteration$>2","colz",10);
-  //treeFast->Draw("gyMC:gxMC:partFull.fStatusMaskIn.fData==0x1","Iteration$>2","colz",100);
+  //treeFast->Draw("gyMC:gxMC:partFull.fStatusMaskIn==0x1","Iteration$>2","colz",100);
   //
-  treeFast->Draw(">>ProblemRot","Sum$(partFull.fStatusMaskIn.fData==0x1)","entrylist");
+  treeFast->Draw(">>ProblemRot",Form("Sum$(partFull.fStatusMaskIn==(%s))",bit.c_str()),"entrylist");
   treeFast->SetAlias("gyInF","sin(partFull.fParamIn[].fAlpha)*partFull.fParamIn[].fX");
   treeFast->SetAlias("gxInF","cos(partFull.fParamIn[].fAlpha)*partFull.fParamIn[].fX");
   treeFast->SetAlias("gzInF","partFull.fParamIn[].fP[1]");
@@ -168,6 +140,30 @@ void testDrawProblems(){
   int counter=0;
   treeFast->SetMarkerSize(1.5);
   gStyle->SetPalette(55);
+}
 
+/// add canvas with views for MC and data
+/// + proint particle properties
+/// first
 
+void drawTrackStatus(int counter, std::string bit = "0x1"){
+  treeFast->SetMarkerColor(1);   /// all MC
+  treeFast->Draw("gyMC:gxMC","","",1,counter);
+  treeFast->SetMarkerColor(4);   /// all reco points
+  treeFast->Draw("gyInF:gxInF","partFull.fStatusMaskIn.fData>0","same",1,counter);
+  treeFast->SetMarkerColor(2);   /// first MC point
+  treeFast->Draw("gyMC:gxMC","Iteration$==0","same",1,counter);
+  treeFast->SetMarkerColor(3);   /// trigger problem
+  treeFast->Draw("gyMC:gxMC", Form("partFull.fStatusMaskIn.fData==(%s)",bit.c_str()),"same",1,counter);
+}
+
+void drawTrackStatus3D(int counter, std::string bit = "0x1"){
+  treeFast->SetMarkerColor(1);   /// all MC
+  treeFast->Draw("gyMC:gxMC:gzMC","","",1,counter);
+  treeFast->SetMarkerColor(4);   /// all reco points
+  treeFast->Draw("gyInF:gxInF:gzInF","partFull.fStatusMaskIn.fData>0","same",1,counter);
+  treeFast->SetMarkerColor(2);   /// first MC point
+  treeFast->Draw("gyMC:gxMC:gzMC","Iteration$==0","same",1,counter);
+  treeFast->SetMarkerColor(3);   /// trigger problem
+  treeFast->Draw("gyMC:gxMC:gzMC",Form("partFull.fStatusMaskIn.fData==(%s)",bit.c_str()),"same",1,counter);
 }
