@@ -2026,7 +2026,7 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
   const double *par = param.GetParameter();
   int checkloop=0;
   Bool_t Propagate_Failed = kFALSE;  ///Used to avoid to PropagateToMirrorX after Propagate failed twice consecutively
-  for (int index=index1+1; index<=indexlast; index++){   // dont propagate to vertex , will be done later ...
+  for (int index=index1+1; index<=int(indexlast); index++){   // dont propagate to vertex , will be done later ...
       Bool_t Propagate_First = kFALSE;
       Bool_t SkipUpdate = kFALSE;
       double resol=0;
