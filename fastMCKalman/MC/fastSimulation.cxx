@@ -1609,7 +1609,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
     
     float sp0 = fastTracker::makeYC(xyzS[0][0],xyzS[0][1],xyzS[1][0],xyzS[1][1],xyzS[2][0],xyzS[2][1]);
     float sp2 = fastTracker::makeYC(xyzS[2][0],xyzS[2][1],xyzS[1][0],xyzS[1][1],xyzS[0][0],xyzS[0][1]);  
-    semiplane = sp0*sp2; ///if <0 the two points are in different semiplanes
+    semiplane = sp0/sp2; ///if <0 the two points are in different semiplanes
 
     if(semiplane<0) step-=1;
     if(step==0) 
@@ -1725,8 +1725,6 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
           int Skip = TMath::Min(kMaxSkipped,index);
           float dx_min = 9999;
           int  new_index = 0;
-          double pos_min[2]={0,0};
-          double cov_min[3]={0,0,0};
           for(int n=0; n<Skip; n++)
           {
             Int_t layer_m = fLayerIndex[index-n];
@@ -1751,22 +1749,47 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
           }
           if (status) {
             fStatusMaskIn[index]|=kTrackRotate;
-          }else{
+          }else if(index>0){
               /// If Rotation fails try Propagating first
-              status = param.PropagateTo(radius,geom.fBz,1);
-              status = param.Rotate(alpha);
-              Propagate_First=kTRUE;
-              if(status)
+              int Skip = TMath::Min(kMaxSkipped,index);
+              int  new_index = 0;
+              for(int n=0; n<Skip; n++)
               {
-                fStatusMaskIn[index]|=kTrackRotate;
-                fStatusMaskIn[index]|=kTrackPropagate;
+                  AliExternalTrackParam & p_sk = fParamMC[index-n];
+                  double xyz_sk[3];
+                  p_sk.GetXYZ(xyz_sk);
+                  double alpha_sk=TMath::ATan2(xyz_sk[1],xyz_sk[0]);
+                  double radius_sk = TMath::Sqrt(xyz_sk[0]*xyz_sk[0]+xyz_sk[1]*xyz_sk[1]);
+                  status = param.PropagateTo(radius_sk,geom.fBz,1);
+                  status = param.Rotate(alpha_sk);
+                  if(status)
+                  {
+                    new_index=index-n;
+                    break;
+                  }
               }
-              else
+
+              if(!status )
               {
                 ::Error("fastParticle::reconstructParticleFull:", "Rotation failed");
                 break;
               }
+
+              fLengthIn+=1+TMath::Abs(new_index-index);
+              for(Int_t k=index;k>new_index;k--) fStatusMaskIn[k]|=kTrackSkip;
+              index=new_index;
+              fParamIn[index]=param;
+              fStatusMaskIn[index]|=kTrackSkipRotate;
+              checkloop=0;
+              continue;
           }
+          else
+          {
+            fParamIn[index]=param;
+            fStatusMaskIn[index]|=kTrackSkipRotate;
+            continue;
+          }
+
           if(!Propagate_First)
           {
             status = param.PropagateTo(radius,geom.fBz,1);
@@ -2034,8 +2057,6 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
           int Skip = TMath::Min(kMaxSkipped,int(indexlast-index));
           float dx_min = 9999;
           int  new_index = index;
-          double pos_min[2]={0,0};
-          double cov_min[3]={0,0,0};
           for(int n=0; n<Skip; n++)
           {
             Int_t layer_m = fLayerIndex[index+n];
@@ -2047,7 +2068,7 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
             }
           }
           fLengthOut+=1+TMath::Abs(new_index-index);
-          for(Int_t k=index;k>new_index;k--) fStatusMaskOut[k]|=kTrackSkip;
+          for(Int_t k=index;k<new_index;k++) fStatusMaskOut[k]|=kTrackSkip;
           index=new_index;
           fParamOut[index]=param;
           fStatusMaskOut[index]|=kTrackPropagatetoMirrorX;
@@ -2060,22 +2081,47 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
           }
           if (status) {
             fStatusMaskOut[index]|=kTrackRotate;
-          }else{
+          }else if(index>0){
               /// If Rotation fails try Propagating first
-              status = param.PropagateTo(radius,geom.fBz,1);
-              status = param.Rotate(alpha);
-              Propagate_First=kTRUE;
-              if(status)
+              int Skip = TMath::Min(kMaxSkipped,int(indexlast-index));
+              int  new_index = index;
+              for(int n=0; n<Skip; n++)
               {
-                fStatusMaskOut[index]|=kTrackRotate;
-                fStatusMaskOut[index]|=kTrackPropagate;
+                  AliExternalTrackParam & p_sk = fParamMC[index+n];
+                  double xyz_sk[3];
+                  p_sk.GetXYZ(xyz_sk);
+                  double alpha_sk=TMath::ATan2(xyz_sk[1],xyz_sk[0]);
+                  double radius_sk = TMath::Sqrt(xyz_sk[0]*xyz_sk[0]+xyz_sk[1]*xyz_sk[1]);
+                  status = param.PropagateTo(radius_sk,geom.fBz,1);
+                  status = param.Rotate(alpha_sk);
+                  if(status)
+                  {
+                    new_index=index+n;
+                    break;
+                  }
               }
-              else
+
+              if(!status )
               {
-                ::Error("fastParticle::reconstructParticleFullOut:", "Rotation failed");
+                ::Error("fastParticle::reconstructParticleFull:", "Rotation failed");
                 break;
               }
+
+              fLengthOut+=1+TMath::Abs(new_index-index);
+              for(Int_t k=index;k<new_index;k++) fStatusMaskIn[k]|=kTrackSkip;
+              index=new_index;
+              fParamOut[index]=param;
+              fStatusMaskOut[index]|=kTrackSkipRotate;
+              checkloop=0;
+              continue;
           }
+          else
+          {
+            fParamOut[index]=param;
+            fStatusMaskOut[index]|=kTrackSkipRotate;
+            continue;
+          }
+          
           if(!Propagate_First)
           {
             status = param.PropagateTo(radius,geom.fBz,1);

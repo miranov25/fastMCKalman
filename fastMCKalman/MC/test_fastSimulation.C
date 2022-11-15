@@ -129,7 +129,7 @@ void addCovariance(AliExternalTrackParam4D track){
 /// add canvas with views for MC and data
 /// + proint particle properties
 /// first
-void drawTrackStatus(int counter, std::string Id = "In"){
+void drawTrackStatus(int counter, std::string Id = "In", std::string Error = "0x1"){
   //
   treeFast->SetMarkerColor(1);   /// all MC
   treeFast->Draw("gyMC:gxMC","","",1,counter);
@@ -138,10 +138,10 @@ void drawTrackStatus(int counter, std::string Id = "In"){
   treeFast->SetMarkerColor(2);   /// first MC point
   treeFast->Draw("gyMC:gxMC","Iteration$==0","same",1,counter);
   treeFast->SetMarkerColor(3);   /// trigger problem
-  treeFast->Draw("gyMC:gxMC",Form("partFull.fStatusMask%s==0x1",Id.c_str()),"same",1,counter);
+  treeFast->Draw("gyMC:gxMC",Form("partFull.fStatusMask%s==%s",Id.c_str(),Error.c_str()),"same",1,counter);
 }
 
-void drawTrackStatus3D(int counter, std::string Id = "In"){
+void drawTrackStatus3D(int counter, std::string Id = "In", std::string Error = "0x1"){
   //
   treeFast->SetMarkerColor(1);   /// all MC
   treeFast->Draw("gyMC:gxMC:gzMC","","",1,counter);
@@ -150,10 +150,10 @@ void drawTrackStatus3D(int counter, std::string Id = "In"){
   treeFast->SetMarkerColor(2);   /// first MC point
   treeFast->Draw("gyMC:gxMC:gzMC","Iteration$==0","same",1,counter);
   treeFast->SetMarkerColor(3);   /// trigger problem
-  treeFast->Draw("gyMC:gxMC:gzMC",Form("partFull.fStatusMask%s==0x1",Id.c_str()),"same",1,counter);
+  treeFast->Draw("gyMC:gxMC:gzMC",Form("partFull.fStatusMask%s==%s",Id.c_str(),Error.c_str()),"same",1,counter);
 }
 
-void SetList(std::string Id = "In",std::string Error = "0x1"){
+void SetList(std::string Id = "In", std::string Error = "0x1"){
 
   treeFast->SetAlias("gyInF",Form("sin(partFull.fParam%s[].fAlpha)*partFull.fParam%s[].fX",Id.c_str(),Id.c_str()));
   treeFast->SetAlias("gxInF",Form("cos(partFull.fParam%s[].fAlpha)*partFull.fParam%s[].fX",Id.c_str(),Id.c_str()));
@@ -165,6 +165,4 @@ void SetList(std::string Id = "In",std::string Error = "0x1"){
   int counter=0;
   treeFast->SetMarkerSize(1.5);
   gStyle->SetPalette(55);
-
-
 }
