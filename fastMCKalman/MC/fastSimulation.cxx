@@ -1744,6 +1744,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
           continue;
       }
       else{
+
           if (radius>0) {
             status = param.Rotate(alpha);
           }
