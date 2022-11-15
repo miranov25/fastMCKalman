@@ -1555,6 +1555,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   }
   uint index1 = TMath::Min(indexStart,uint(fParamMC.size()-1));
   fStatusMaskIn.resize(index1+1);
+  
   for(uint i=0;i<=index1;i++) fStatusMaskIn[i]=0;
   /// skip layers with too big erregy loss - to smalle BG
   for (int i=index1; i>0; i--){  /// TODO - make query on fraction of the energy loss
@@ -1564,7 +1565,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
     index1=i;
     break;
   }
-
+  
 
   fMaxLayerRec=index1;
 
@@ -1897,7 +1898,14 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
   uint indexlast = TMath::Min(lastPoint,uint(fParamMC.size()-1));
   fStatusMaskOut.resize(indexlast+1);
   for(uint i=0;i<=indexlast;i++) fStatusMaskOut[i]=0;
-
+  /// skip layers with too big erregy loss - to smalle BG
+  for (int i=indexlast; i>0; i--){  /// TODO - make query on fraction of the energy loss
+    if (fParamMC[i].Beta()<0.05) {
+      continue; /// TODO this is hack
+    }
+    indexlast=i;
+    break;
+  }
 
   fMaxLayerRec=indexlast;
 
