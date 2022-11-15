@@ -129,40 +129,37 @@ void addCovariance(AliExternalTrackParam4D track){
 /// add canvas with views for MC and data
 /// + proint particle properties
 /// first
-void drawTrackStatus(int counter){
+void drawTrackStatus(int counter, std::string Id = "In"){
   //
   treeFast->SetMarkerColor(1);   /// all MC
   treeFast->Draw("gyMC:gxMC","","",1,counter);
   treeFast->SetMarkerColor(4);   /// all reco points
-  treeFast->Draw("gyInF:gxInF","partFull.fStatusMaskIn.fData>0","same",1,counter);
+  treeFast->Draw("gyInF:gxInF",Form("partFull.fStatusMask%s>0",Id.c_str()),"same",1,counter);
   treeFast->SetMarkerColor(2);   /// first MC point
   treeFast->Draw("gyMC:gxMC","Iteration$==0","same",1,counter);
   treeFast->SetMarkerColor(3);   /// trigger problem
-  treeFast->Draw("gyMC:gxMC","partFull.fStatusMaskIn.fData==0x1","same",1,counter);
+  treeFast->Draw("gyMC:gxMC",Form("partFull.fStatusMask%s==0x1",Id.c_str()),"same",1,counter);
 }
 
-void drawTrackStatus3D(int counter){
+void drawTrackStatus3D(int counter, std::string Id = "In"){
   //
   treeFast->SetMarkerColor(1);   /// all MC
   treeFast->Draw("gyMC:gxMC:gzMC","","",1,counter);
   treeFast->SetMarkerColor(4);   /// all reco points
-  treeFast->Draw("gyInF:gxInF:gzInF","partFull.fStatusMaskIn.fData>0","same",1,counter);
+  treeFast->Draw("gyInF:gxInF:gzInF",Form("partFull.fStatusMask%s>0",Id.c_str()),"same",1,counter);
   treeFast->SetMarkerColor(2);   /// first MC point
   treeFast->Draw("gyMC:gxMC:gzMC","Iteration$==0","same",1,counter);
   treeFast->SetMarkerColor(3);   /// trigger problem
-  treeFast->Draw("gyMC:gxMC:gzMC","partFull.fStatusMaskIn.fData==0x1","same",1,counter);
+  treeFast->Draw("gyMC:gxMC:gzMC",Form("partFull.fStatusMask%s==0x1",Id.c_str()),"same",1,counter);
 }
 
-void testDrawProblems(){
-  // checking the X position
-  // treeFast->Draw("gyMC:gxMC:(part.fParamMC[].fX==part.fParamMC[Iteration$-2].fX)","Iteration$>2","colz",10);
-  //treeFast->Draw("gyMC:gxMC:partFull.fStatusMaskIn.fData==0x1","Iteration$>2","colz",100);
-  //
-  treeFast->Draw(">>ProblemRot","Sum$(partFull.fStatusMaskIn.fData==0x1)","entrylist");
-  treeFast->SetAlias("gyInF","sin(partFull.fParamIn[].fAlpha)*partFull.fParamIn[].fX");
-  treeFast->SetAlias("gxInF","cos(partFull.fParamIn[].fAlpha)*partFull.fParamIn[].fX");
-  treeFast->SetAlias("gzInF","partFull.fParamIn[].fP[1]");
-  //
+void SetList(std::string Id = "In",std::string Error = "0x1"){
+
+  treeFast->SetAlias("gyInF",Form("sin(partFull.fParam%s[].fAlpha)*partFull.fParam%s[].fX",Id.c_str(),Id.c_str()));
+  treeFast->SetAlias("gxInF",Form("cos(partFull.fParam%s[].fAlpha)*partFull.fParam%s[].fX",Id.c_str(),Id.c_str()));
+  treeFast->SetAlias("gzInF",Form("partFull.fParam%s[].fP[1]",Id.c_str()));
+
+  treeFast->Draw(">>ProblemRot",Form("Sum$(partFull.fStatusMask%s==%s)",Id.c_str(),Error.c_str()),"entrylist");
   TEntryList* problemList0x1 =(TEntryList*)gDirectory->Get("ProblemRot");
   treeFast->SetEntryList(problemList0x1);
   int counter=0;
