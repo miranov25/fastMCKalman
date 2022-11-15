@@ -101,7 +101,7 @@ public:
   fastParticle(int nLayers){
     fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamInRot.reserve(nLayers);
     fParamOut.reserve(nLayers); fParamMC.reserve(nLayers);fStatusMaskMC.reserve(nLayers); fStatusMaskIn.reserve(nLayers);
-    fChi2.resize(nLayers);fLoop.reserve(nLayers);
+    fStatusMaskOut.reserve(nLayers); fChi2.resize(nLayers);fLoop.reserve(nLayers);
     fMaxLayer=0;
     fDecayLength=0;
   }
@@ -112,6 +112,7 @@ public:
   int simulateParticle(fastGeometry     &geom, double r[3], double p[3], long pdgCode, float maxLength, uint maxPoints);
   int reconstructParticle(fastGeometry  &geom, long pdgCode, uint layerStart);
   int reconstructParticleFull(fastGeometry  &geom, long pdgCode, uint layerStart);
+  int reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, uint indexStart);
   int reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, uint layerStart);
   static void setAliases(TTree & tree);           //   set aliases for derived variables
   int                        fAddMSsmearing;     //   flag to add smearing during simulation
@@ -128,6 +129,7 @@ public:
   uint                         fMaxLayer;   //   maximal layer position
   int                         fMaxLayerRec;   //   maximal layer position in reconstruction
   int                         fLengthIn;   //   track length for in propagation
+  int                         fLengthOut;   //   track length for in propagation
   int                         fFirstIndex;   //   track length for in propagation
    int                         fLengthInRot;   //   track length for in propagation
    Float_t                     fDecayLength;  // decay length  -if length bigger than decay length - stop partilce
@@ -140,8 +142,11 @@ public:
   RVec<AliExternalTrackParam4D> fParamInRot;    //   "reconstructed" Param In - in rotated frame
   RVec<int>      fStatusMaskMC;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
   RVec<int>      fStatusMaskIn;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
+  RVec<int>      fStatusMaskOut;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
   RVec<int>      fStatusMaskInRot;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
   RVec<float>                 fChi2;      //   chi2  at layer
+  //                                       - local information - to be assigned to simulated track - if not set  taken symmetric from fastGeometry
+  RVec<float>                 fChi2Out;      //   chi2  at layer
   //                                       - local information - to be assigned to simulated track - if not set  taken symmetric from fastGeometry
   RVec<float> fLayerResolRPhi;             //   r-phi resolution at layer
   RVec<float> fLayerResolZ;                //   z  resolution at layer
