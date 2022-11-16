@@ -1558,12 +1558,15 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   
   for(uint i=0;i<=index1;i++) fStatusMaskIn[i]=0;
   /// skip layers with too big erregy loss - to smalle BG
-  for (int i=index1; i>0; i--){  /// TODO - make query on fraction of the energy loss
-    if (fParamMC[i].Beta()<0.05) {
-      continue; /// TODO this is hack
+  if(fUseMCInfo)
+  {
+    for (int i=index1; i>0; i--){  /// TODO - make query on fraction of the energy loss
+      if (fParamMC[i].Beta()<0.05) {
+        continue; /// TODO this is hack
+      }
+      index1=i;
+      break;
     }
-    index1=i;
-    break;
   }
   
 
@@ -1594,8 +1597,13 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
           int layer = fLayerIndex[index];
           //fParamMC[index1-step*dLayer-1].GetXYZ(xyzS[dLayer]);
           xyzS[dLayer][0]=fParamMC[index].GetX();
-          xyzS[dLayer][1]=fParamMC[index].GetY()+gRandom->Gaus(0,geom.fLayerResolRPhi[layer]);
-          xyzS[dLayer][2]=fParamMC[index].GetZ()+gRandom->Gaus(0,geom.fLayerResolZ[layer]);
+          xyzS[dLayer][1]=fParamMC[index].GetY();
+          xyzS[dLayer][2]=fParamMC[index].GetZ();
+          if(fAddPadsmearing)
+          {
+            xyzS[dLayer][1]+=gRandom->Gaus(0,geom.fLayerResolRPhi[layer]);
+            xyzS[dLayer][2]+=gRandom->Gaus(0,geom.fLayerResolZ[layer]);
+          }
           fParamMC[index].Local2GlobalPosition(xyzS[dLayer],fParamMC[index].GetAlpha()-alpha0);
     }
 
@@ -1698,22 +1706,14 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
       double radius = TMath::Sqrt(xyz[0]*xyz[0]+xyz[1]*xyz[1]);
       fStatusMaskIn[index]|=kTrackEnter;
 
-      if(checkloop==0) checkloop = fLoop[index]-fLoop[index+1];  /////// PropagateToMirror triggered for now using flag from MC information: not realistic reconstruction
-
-      /*
-      /////For future implementation of flag-less mirroring
-      if((TMath::Abs(param.GetParameter()[2])>kMaxSnp && (param.GetParameter()[2]/fParamIn[TMath::Min(index1,uint(index+2))].GetParameter()[2])>1)
-        ||  (TMath::Abs(fParamMC[index+1].GetX()-fParamMC[index].GetX())<kAlmost0) )
+      if(checkloop==0) 
       {
-              status = 0; 
-      } 
-      else  status=1;
-      */
+        if(fUseMCInfo) checkloop = fLoop[index]-fLoop[index+1];  /////// PropagateToMirror triggered for now using flag from MC information: not realistic reconstruction
+        else checkloop = (TMath::Abs(param.GetParameter()[2])>kMaxSnp)? 1:0;
+      }
 
-      if(checkloop==0) status=1;
-      else status=0; 
       
-      if (status==0){   // if not possible to propagate to next radius - assume looper - change direction
+      if (checkloop!=0){   
           float dir = 0;
           dir = - fDirection[index+1];
           crossLength = param.PropagateToMirrorX(geom.fBz, dir, geom.fLayerResolRPhi[layer],geom.fLayerResolZ[layer]);  ////Using direction from MC, not realistic reconstruction
@@ -1817,7 +1817,12 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
       float xx0  =geom.fLayerX0[layer];
       float deltaY = gRandom->Gaus(0,geom.fLayerResolRPhi[layer]);
       float deltaZ = gRandom->Gaus(0,geom.fLayerResolZ[layer]);
-      double pos[2]={0+deltaY,xyz[2]+deltaZ};
+      double pos[2]={0,xyz[2]};
+      if(fAddPadsmearing)
+      {
+        pos[0]+=deltaY;
+        pos[1]+=deltaZ;
+      }
       double cov[3]={geom.fLayerResolRPhi[layer]*geom.fLayerResolRPhi[layer],0, geom.fLayerResolZ[layer]*geom.fLayerResolZ[layer]};
       fParamIn[index]=param;
       float chi2 =  param.GetPredictedChi2(pos, cov);
@@ -1899,12 +1904,15 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
   fStatusMaskOut.resize(indexlast+1);
   for(uint i=0;i<=indexlast;i++) fStatusMaskOut[i]=0;
   /// skip layers with too big erregy loss - to smalle BG
-  for (int i=indexlast; i>0; i--){  /// TODO - make query on fraction of the energy loss
-    if (fParamMC[i].Beta()<0.05) {
-      continue; /// TODO this is hack
+  if(fUseMCInfo)
+  {
+    for (int i=indexlast; i>0; i--){  /// TODO - make query on fraction of the energy loss
+      if (fParamMC[i].Beta()<0.05) {
+        continue; /// TODO this is hack
+      }
+      indexlast=i;
+      break;
     }
-    indexlast=i;
-    break;
   }
 
   fMaxLayerRec=indexlast;
@@ -1935,8 +1943,13 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
           int layer = fLayerIndex[index];
           //fParamMC[index1-step*dLayer-1].GetXYZ(xyzS[dLayer]);
           xyzS[dLayer][0]=fParamMC[index].GetX();
-          xyzS[dLayer][1]=fParamMC[index].GetY()+gRandom->Gaus(0,geom.fLayerResolRPhi[layer]);
-          xyzS[dLayer][2]=fParamMC[index].GetZ()+gRandom->Gaus(0,geom.fLayerResolZ[layer]);
+          xyzS[dLayer][1]=fParamMC[index].GetY();
+          xyzS[dLayer][2]=fParamMC[index].GetZ();
+          if(fAddPadsmearing)
+          {
+            xyzS[dLayer][1]+=gRandom->Gaus(0,geom.fLayerResolRPhi[layer]);
+            xyzS[dLayer][2]+=gRandom->Gaus(0,geom.fLayerResolZ[layer]);
+          }
           fParamMC[index].Local2GlobalPosition(xyzS[dLayer],fParamMC[index].GetAlpha()-alpha0);
     }
 
@@ -2038,22 +2051,14 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
       double radius = TMath::Sqrt(xyz[0]*xyz[0]+xyz[1]*xyz[1]);
       fStatusMaskOut[index]|=kTrackEnter;
 
-      if(checkloop==0 && index>1) checkloop = fLoop[index]-fLoop[index-1];  /////// PropagateToMirror triggered for now using flag from MC information: not realistic reconstruction
-
-      /*
-      /////For future implementation of flag-less mirroring
-      if((TMath::Abs(param.GetParameter()[2])>kMaxSnp && (param.GetParameter()[2]/fParamIn[TMath::Min(index1,uint(index+2))].GetParameter()[2])>1)
-        ||  (TMath::Abs(fParamMC[index+1].GetX()-fParamMC[index].GetX())<kAlmost0) )
+      if(checkloop==0 && index>1) 
       {
-              status = 0; 
-      } 
-      else  status=1;
-      */
+        if(fUseMCInfo) checkloop = fLoop[index]-fLoop[index-1];  /////// PropagateToMirror triggered for now using flag from MC information: not realistic reconstruction
+        else checkloop = (TMath::Abs(param.GetParameter()[2])>kMaxSnp)? 1:0;
+      }
 
-      if(checkloop==0) status=1;
-      else status=0; 
       
-      if (status==0){   // if not possible to propagate to next radius - assume looper - change direction
+      if (checkloop!=0){   // if not possible to propagate to next radius - assume looper - change direction
           float dir = 0;
           dir = fDirection[index-1];
           crossLength = param.PropagateToMirrorX(geom.fBz, dir, geom.fLayerResolRPhi[layer],geom.fLayerResolZ[layer]);  ////Using direction from MC, not realistic reconstruction
@@ -2156,7 +2161,12 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
       float xx0  =geom.fLayerX0[layer];
       float deltaY = gRandom->Gaus(0,geom.fLayerResolRPhi[layer]);
       float deltaZ = gRandom->Gaus(0,geom.fLayerResolZ[layer]);
-      double pos[2]={0+deltaY,xyz[2]+deltaZ};
+      double pos[2]={0,xyz[2]};
+      if(fAddPadsmearing)
+      {
+        pos[0]+=deltaY;
+        pos[1]+=deltaZ;
+      }
       double cov[3]={geom.fLayerResolRPhi[layer]*geom.fLayerResolRPhi[layer],0, geom.fLayerResolZ[layer]*geom.fLayerResolZ[layer]};
       fParamOut[index]=param;
       float chi2 =  param.GetPredictedChi2(pos, cov);

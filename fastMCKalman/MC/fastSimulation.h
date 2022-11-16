@@ -96,7 +96,7 @@ public:
   kTrackSkipRotate =0x100
 } ;
 
-  fastParticle():TObject(),fAddMSsmearing(0),gid(0){}
+  fastParticle():TObject(),fAddMSsmearing(0),fAddPadsmearing(1),fUseMCInfo(1),gid(0){}
   ~fastParticle(){}
   fastParticle(int nLayers){
     fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamInRot.reserve(nLayers);
@@ -116,6 +116,8 @@ public:
   int reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, uint layerStart);
   static void setAliases(TTree & tree);           //   set aliases for derived variables
   int                        fAddMSsmearing;     //   flag to add smearing during simulation
+  int                        fAddPadsmearing;     //   flag to add Pad smearing during reconstruction
+  int                        fUseMCInfo;     //   flag to "cheat" reconstruction using MCInfo
   int                         gid;         // global id
   double fR[3];                            //   initial position
   double fP[3];                            //   initial momentum

@@ -75,6 +75,8 @@ void testTPC(Int_t nParticles, bool dumpStream=1){
   for (Int_t i=0; i<nParticles; i++){
     fastParticle particle(nLayerTPC+1);
     particle.fAddMSsmearing=true;
+    particle.fAddPadsmearing=true;
+    particle.fUseMCInfo=true;
     particle.fgStreamer=pcstream;
     particle.gid=i;
     // generate scan detector properties
