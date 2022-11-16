@@ -113,6 +113,7 @@ void testTPC(Int_t nParticles, bool dumpStream=1){
     fastParticle particle0 = particle;
     particle.reconstructParticleFull(geom,pdgCode,nPoints);
     particle.reconstructParticleFullOut(geom,pdgCode,nPoints);
+    particle.refitParticle();
     //particle.reconstructParticleRotate0(geom,pdgCode,nPoints);
     //particle.simulateParticle(geom, r,p,211, 250,161);
     //particle.reconstructParticle(geom,211,160);
