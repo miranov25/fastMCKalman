@@ -44,7 +44,9 @@ makePullTest(){
     .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C+g
      .L $fastMCKalman/fastMCKalman/MC/test_fastSimulation.C+g
      initTreeFast()
-     testPulls()
+     testPulls("","In","&&Iteration$==0")
+     testPulls("Full","In","&&Iteration$==0")
+     testPulls("Full","Out","&&Iteration$==30")
     .q
 EOF
    chmod a+x makePullTest.sh
