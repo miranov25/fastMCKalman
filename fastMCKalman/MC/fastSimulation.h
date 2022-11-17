@@ -53,6 +53,7 @@ public:
   //Bool_t GetXYZAt(Double_t x, Double_t b, Double_t *r) const;
   // Uit test functions
   void UnitTestDumpCorrectForMaterial(TTreeSRedirector * pcstream, Double_t xOverX0, Double_t xTimesRho,Double_t mass, Int_t nSteps, Float_t stepFraction=0.02);
+  static void UpdateTrack(AliExternalTrackParam4D &track1, const AliExternalTrackParam4D &track2);
 public:
   Int_t    fZ;         // particle Z
   Double_t fMass;      // particle mass
@@ -93,15 +94,20 @@ public:
   kTrackCorrectForMaterial =0x20,
   kTrackPropagatetoMirrorX =0x40,
   kTrackSkip =0x80,
-  kTrackSkipRotate =0x100
+  kTrackSkipRotate =0x100,
+  kTrackSkipUpdate =0x200,
+  kTrackUsedIn =0x400,
+  kTrackUsedOut =0x800,
+  kTrackRefitted =0x1000,
+  kTrackisOK=0x2000
 } ;
 
   fastParticle():TObject(),fAddMSsmearing(0),fAddPadsmearing(1),fUseMCInfo(1),gid(0){}
   ~fastParticle(){}
   fastParticle(int nLayers){
     fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamInRot.reserve(nLayers);
-    fParamOut.reserve(nLayers); fParamMC.reserve(nLayers);fStatusMaskMC.reserve(nLayers); fStatusMaskIn.reserve(nLayers);
-    fStatusMaskOut.reserve(nLayers); fChi2.resize(nLayers);fLoop.reserve(nLayers);
+    fParamOut.reserve(nLayers); fParamRefit.reserve(nLayers); fParamMC.reserve(nLayers);fStatusMaskMC.reserve(nLayers); fStatusMaskIn.reserve(nLayers);
+    fStatusMaskOut.reserve(nLayers); fStatusMaskRefit.reserve(nLayers); fChi2.resize(nLayers);fLoop.reserve(nLayers);
     fMaxLayer=0;
     fDecayLength=0;
   }
@@ -114,6 +120,7 @@ public:
   int reconstructParticleFull(fastGeometry  &geom, long pdgCode, uint layerStart);
   int reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, uint indexStart);
   int reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, uint layerStart);
+  void refitParticle();
   static void setAliases(TTree & tree);           //   set aliases for derived variables
   int                        fAddMSsmearing;     //   flag to add smearing during simulation
   int                        fAddPadsmearing;     //   flag to add Pad smearing during reconstruction
@@ -139,12 +146,14 @@ public:
   RVec<float>                  fDirection;  //   particle direction - Out=1, In = -1
   RVec<int>                   fLoop;          //   particle loop counter
   RVec<AliExternalTrackParam4D> fParamMC;    //   "simulate"      Param MC
+  RVec<AliExternalTrackParam4D> fParamRefit;   //   "reconstructed" Param Out
   RVec<AliExternalTrackParam4D> fParamOut;   //   "reconstructed" Param Out
   RVec<AliExternalTrackParam4D> fParamIn;    //   "reconstructed" Param In
   RVec<AliExternalTrackParam4D> fParamInRot;    //   "reconstructed" Param In - in rotated frame
   RVec<int>      fStatusMaskMC;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
   RVec<int>      fStatusMaskIn;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
   RVec<int>      fStatusMaskOut;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
+  RVec<int>      fStatusMaskRefit;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
   RVec<int>      fStatusMaskInRot;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
   RVec<float>                 fChi2;      //   chi2  at layer
   //                                       - local information - to be assigned to simulated track - if not set  taken symmetric from fastGeometry

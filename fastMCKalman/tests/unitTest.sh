@@ -47,6 +47,7 @@ makePullTest(){
      testPulls("","In","&&Iteration$==0")
      testPulls("Full","In","&&Iteration$==0")
      testPulls("Full","Out","&&Iteration$==30")
+     testPulls("Full","Refit","&&Iteration$==30")
     .q
 EOF
    chmod a+x makePullTest.sh

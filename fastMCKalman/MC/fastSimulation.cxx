@@ -11,6 +11,7 @@
 #include "TTreeStream.h"
 #include "TRandom.h"
 #include "fastTracker.h"
+#include <TMatrixD.h>
 
 
 TTreeSRedirector* fastParticle::fgStreamer = nullptr;
@@ -957,6 +958,82 @@ void AliExternalTrackParam4D::UnitTestDumpCorrectForMaterial(TTreeSRedirector * 
               "\n";
 }
 
+void AliExternalTrackParam4D::UpdateTrack(AliExternalTrackParam4D &track1, const AliExternalTrackParam4D &track2){
+  //
+  // Update track 1 with track 2
+  //
+  //
+  //
+  TMatrixD vecXk(5,1);    // X vector
+  TMatrixD covXk(5,5);    // X covariance 
+  TMatrixD matHk(5,5);    // vector to mesurement
+  TMatrixD measR(5,5);    // measurement error 
+  TMatrixD vecZk(5,1);    // measurement
+  //
+  TMatrixD vecYk(5,1);    // Innovation or measurement residual
+  TMatrixD matHkT(5,5);
+  TMatrixD matSk(5,5);    // Innovation (or residual) covariance
+  TMatrixD matKk(5,5);    // Optimal Kalman gain
+  TMatrixD mat1(5,5);     // update covariance matrix
+  TMatrixD covXk2(5,5);   // 
+  TMatrixD covOut(5,5);
+  //
+  Double_t *param1=(Double_t*) track1.GetParameter();
+  Double_t *covar1=(Double_t*) track1.GetCovariance();
+  Double_t *param2=(Double_t*) track2.GetParameter();
+  Double_t *covar2=(Double_t*) track2.GetCovariance();
+  //
+  // copy data to the matrix
+  for (Int_t ipar=0; ipar<5; ipar++){
+    for (Int_t jpar=0; jpar<5; jpar++){
+      covXk(ipar,jpar) = covar1[track1.GetIndex(ipar, jpar)];
+      measR(ipar,jpar) = covar2[track2.GetIndex(ipar, jpar)];
+      matHk(ipar,jpar)=0;
+      mat1(ipar,jpar)=0;
+    }
+    vecXk(ipar,0) = param1[ipar];
+    vecZk(ipar,0) = param2[ipar];
+    matHk(ipar,ipar)=1;
+    mat1(ipar,ipar)=1;
+  }
+  //
+  //
+  //
+  //
+  //
+  vecYk = vecZk-matHk*vecXk;                 // Innovation or measurement residual
+  matHkT=matHk.T(); matHk.T();
+  matSk = (matHk*(covXk*matHkT))+measR;      // Innovation (or residual) covariance
+  matSk.Invert();
+  matKk = (covXk*matHkT)*matSk;              //  Optimal Kalman gain
+  vecXk += matKk*vecYk;                      //  updated vector 
+  covXk2 = (mat1-(matKk*matHk));
+  covOut =  covXk2*covXk; 
+  //
+  //
+  //
+  // copy from matrix to parameters
+  if (0) {
+    vecXk.Print();
+    vecZk.Print();
+    //
+    measR.Print();
+    covXk.Print();
+    covOut.Print();
+    //
+    track1.Print();
+    track2.Print();
+  }
+
+
+  for (Int_t ipar=0; ipar<5; ipar++){
+    param1[ipar]= vecXk(ipar,0) ;
+    for (Int_t jpar=0; jpar<5; jpar++){
+      covar1[track1.GetIndex(ipar, jpar)]=covOut(ipar,jpar);
+    }
+  }
+}
+
 void getHelix(Double_t *fHelix,  AliExternalTrackParam t, float bz){
   // addapted code from AliHelix
   Double_t x,cs,sn;
@@ -1009,6 +1086,57 @@ void fastGeometry::setLayer(int iLayer, float radius,  float X0,float rho, float
   fLayerRadius[iLayer] = radius;
   fLayerResolRPhi[iLayer] = resol[0];
   fLayerResolZ[iLayer] = resol[1];
+}
+
+
+void fastParticle::refitParticle()
+{
+  fParamRefit = fParamIn;
+  fParamRefit.resize(fParamIn.size());
+  fStatusMaskRefit.resize(fParamIn.size());
+  for(size_t i=0; i<fParamRefit.size();i++) fStatusMaskRefit[i]=0;
+  for(size_t i=0; i<fParamRefit.size();i++)
+  {
+    Bool_t statusIn= kFALSE;
+    Bool_t statusOut = kFALSE;
+
+    std::uint16_t flagsIn=fStatusMaskIn[i];
+
+    if(((flagsIn & kTrackEnter) && (flagsIn & kTrackRotate) && (flagsIn & kTrackPropagate) && (flagsIn & kTrackChi2) && (flagsIn & kTrackUpdate) && (flagsIn & kTrackCorrectForMaterial))
+       ||((flagsIn & kTrackEnter) && (flagsIn & kTrackRotate) && (flagsIn & kTrackPropagate) && (flagsIn & kTrackChi2) && (flagsIn & kTrackSkipUpdate ) ))
+    {
+      statusIn=kTRUE;
+    }
+
+    std::uint16_t flagsOut=fStatusMaskOut[i]; 
+
+    if(((flagsOut & kTrackEnter) && (flagsOut & kTrackRotate) && (flagsOut & kTrackPropagate) && (flagsOut & kTrackChi2) && (flagsOut & kTrackUpdate) && (flagsOut & kTrackCorrectForMaterial))
+       ||((flagsOut & kTrackEnter) && (flagsOut & kTrackRotate) && (flagsOut & kTrackPropagate) && (flagsOut & kTrackChi2) && (flagsOut & kTrackSkipUpdate ) ))
+    {
+      statusOut=kTRUE;
+    }
+
+    if(statusIn && !statusOut)
+    {
+      fParamRefit[i]=fParamIn[i];
+      fStatusMaskRefit[i]|=kTrackUsedIn;
+      fStatusMaskRefit[i]|=kTrackisOK;
+    }
+    else if(!statusIn && statusOut)
+    {
+      fParamRefit[i]=fParamOut[i];
+      fStatusMaskRefit[i]|=kTrackUsedOut;
+      fStatusMaskRefit[i]|=kTrackisOK;
+    }
+    else if (statusIn && statusOut)
+    {
+      AliExternalTrackParam4D::UpdateTrack(fParamRefit[i],fParamOut[i]);
+      fStatusMaskRefit[i]|=kTrackRefitted;
+      fStatusMaskRefit[i]|=kTrackisOK;
+    }
+    int checkpoint=0;
+
+  }
 }
 
 /// simulate particle    - barrel part, end cup and loopers not yet implemented
@@ -1522,6 +1650,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
         break;
       }
       fLengthIn++;
+      fStatusMaskIn[index]|=kTrackisOK;
   }
   return 1;
 }
@@ -1741,6 +1870,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
           index=new_index;
           fParamIn[index]=param;
           fStatusMaskIn[index]|=kTrackPropagatetoMirrorX;
+          fStatusMaskIn[index]|=kTrackisOK;
           checkloop=0;
           continue;
       }
@@ -1840,7 +1970,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
           fStatusMaskIn[index]|=kTrackUpdate;
         }else{
             ///skip the Update
-            fStatusMaskIn[index]|=kTrackSkip;
+            fStatusMaskIn[index]|=kTrackSkipUpdate;
             SkipUpdate = kTRUE;
         }
       }
@@ -1868,6 +1998,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
         }
       }
       fLengthIn++;
+      fStatusMaskIn[index]|=kTrackisOK;
   }
   return 1;
   
@@ -2086,6 +2217,7 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
           index=new_index;
           fParamOut[index]=param;
           fStatusMaskOut[index]|=kTrackPropagatetoMirrorX;
+          fStatusMaskOut[index]|=kTrackisOK;
           checkloop=0;
           continue;
       }
@@ -2184,7 +2316,7 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
           fStatusMaskOut[index]|=kTrackUpdate;
         }else{
             ///skip the Update
-            fStatusMaskOut[index]|=kTrackSkip;
+            fStatusMaskOut[index]|=kTrackSkipUpdate;
             SkipUpdate = kTRUE;
         }
       }
@@ -2200,10 +2332,10 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
       if(!SkipUpdate)
       {
         for (Int_t ic=0;ic<5; ic++) {
-          status*= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho/5., mass, 0.01);
+          status*= param.CorrectForMeanMaterial(crossLength * xx0/5., -crossLength * xrho/5., mass, 0.01);
         }
         //status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
-        if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,crossLength*xrho,mass,20);
+        if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,-crossLength*xrho,mass,20);
         if (status) {
           fStatusMaskOut[index]|=kTrackCorrectForMaterial;
         }else{
@@ -2212,6 +2344,7 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
         }
       }
       fLengthOut++;
+      fStatusMaskOut[index]|=kTrackisOK;
   }
   return 1;
   
