@@ -99,15 +99,17 @@ void test_compare(){
   std::vector<float> covarLinear(10);   0-sy2, 2-sz2, 5-sphi2, 9-stheta2 as in AliExternalTrackParam
   Double_t theta2=0.0136*0.0136/(beta2*p2)*TMath::Abs(xOverX0); // smearing angle per unit step
   float dL=crossLength/nSteps;
+  float sigmaPhi2=????;
+  float sigmaTheta2=????;
   //
   for (int i=0; i<nSteps;i++ ){
-     covarLinear[0]+=(theta2*dL*dL);    //
-     covarLinear[2]+=(theta2*dL*dL);
+     covarLinear[0]+=(theta2*dL*dL) ;    // + add contribution frpm angle phi from before
+     covarLinear[2]+=(theta2*dL*dL);    // + add contribution frpm angle phi from before
      covarLinear[5]+=(theta2);          //
      covarLinear[9]+=(theta2);          //
      //
-     covarLinear[3]+=theta2*dL;
-     covarLinear[7]+=theta2*dL;
+     covarLinear[3]+=theta2*dL;         // +
+     covarLinear[7]+=theta2*dL;         // +
   }
   return covarLinear;
 }
