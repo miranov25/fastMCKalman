@@ -59,30 +59,23 @@ void testLooperSmooth(){
 }
 
 
-void testPulls() {
+void testPulls(std::string sv="", std::string Id="In", std::string extra_condition="&&Iteration$==0") {
   TF1 *mygauss = new TF1("mygauss", "gaus");
-  int isOK=fastParticle::kTrackUpdate |fastParticle::kTrackChi2;
-  for (int version=0; version<=1; version++) {
+  int isOK=fastParticle::kTrackisOK;
     for (int iPar = 0; iPar <= 4; iPar++) {
-      std::string sv = "";
-      if (version==1) sv = "Full";
-      treeFast->Draw(Form("(part%s.fParamIn[0].fP[%d]-part%s.fParamMC[0].fP[%d])/sqrt(part%s.fParamIn[0].fC[%d])>>his(100,-6,6)",sv.c_str(), iPar, sv.c_str(), iPar, sv.c_str(), AliExternalTrackParam::GetIndex(iPar, iPar)),
-                    Form("(part%s.fStatusMaskIn[0].fData&%d)==%d&&abs(part%s.fParamIn[0].fP[2])<0.7",sv.c_str(),isOK,isOK,sv.c_str()), "");
+      treeFast->Draw(Form("(part%s.fParam%s[].fP[%d]-part%s.fParamMC[].fP[%d])/sqrt(part%s.fParam%s[].fC[%d])>>his(100,-6,6)",sv.c_str(),Id.c_str(), iPar, sv.c_str(), iPar, sv.c_str(),Id.c_str(), AliExternalTrackParam::GetIndex(iPar, iPar)),
+                    Form("(part%s.fStatusMask%s[].fData&%d)==%d&&abs(part%s.fParam%s[].fP[2])<0.7%s",sv.c_str(),Id.c_str(),isOK,isOK,sv.c_str(),Id.c_str(),extra_condition.c_str()), "");
       treeFast->GetHistogram()->Fit("mygauss", "q");
       bool isOK = abs(1 - mygauss->GetParameter(2)) < 5 * mygauss->GetParError(2);
       float rms=treeFast->GetHistogram()->GetRMS();
       if (isOK) {
-        ::Info(Form("testFastTracker part%s reco pull test P%d ",sv.c_str(),iPar), "pullAnalytical - OK - %2.2f\t%2.2f", mygauss->GetParameter(2),rms);
+        ::Info(Form("testFastTracker part%s reco %s pull test P%d ",sv.c_str(),Id.c_str(),iPar), "pullAnalytical - OK - %2.2f\t%2.2f", mygauss->GetParameter(2),rms);
       } else {
-        ::Error(Form("testFastTracker part%s reco pull test P%d",sv.c_str(), iPar), "pullAnalytical- FAILED- %2.2f\t%2.2f", mygauss->GetParameter(2),rms);
+        ::Error(Form("testFastTracker part%s reco %s pull test P%d",sv.c_str(),Id.c_str(), iPar), "pullAnalytical- FAILED- %2.2f\t%2.2f", mygauss->GetParameter(2),rms);
       }
     }
-  }
 }
 
-void test_compare(){
-
-}
 
 /*
 /// this is pseudocode to be used in propagate to mirror to account or the material along the arc
@@ -127,23 +120,6 @@ void addCovariance(AliExternalTrackParam4D track){
   //
 }
 */
-void SetList(std::string bit = "0x1"){
-  // checking the X position
-  // treeFast->Draw("gyMC:gxMC:(part.fParamMC[].fX==part.fParamMC[Iteration$-2].fX)","Iteration$>2","colz",10);
-  //treeFast->Draw("gyMC:gxMC:partFull.fStatusMaskIn==0x1","Iteration$>2","colz",100);
-  //
-  treeFast->Draw(">>ProblemRot",Form("Sum$(partFull.fStatusMaskIn==(%s))",bit.c_str()),"entrylist");
-  treeFast->SetAlias("gyInF","sin(partFull.fParamIn[].fAlpha)*partFull.fParamIn[].fX");
-  treeFast->SetAlias("gxInF","cos(partFull.fParamIn[].fAlpha)*partFull.fParamIn[].fX");
-  treeFast->SetAlias("gzInF","partFull.fParamIn[].fP[1]");
-  //
-  TEntryList* problemList0x1 =(TEntryList*)gDirectory->Get("ProblemRot");
-  treeFast->SetEntryList(problemList0x1);
-  int counter=0;
-  treeFast->SetMarkerSize(1.5);
-  gStyle->SetPalette(55);
-}
-
 /// add canvas with views for MC and data
 /// + proint particle properties
 /// first
@@ -156,18 +132,18 @@ void drawTrackStatus(int counter, std::string Id = "In", std::string Error = "0x
   treeFast->SetMarkerColor(2);   /// first MC point
   treeFast->Draw("gyMC:gxMC","Iteration$==0","same",1,counter);
   treeFast->SetMarkerColor(3);   /// trigger problem
-  treeFast->Draw("gyMC:gxMC",Form("partFull.fStatusMask%s.fData==%s",Id.c_str(),Error.c_str()),"same",1,counter);
+  treeFast->Draw("gyInF:gxInF",Form("partFull.fStatusMask%s.fData==%s",Id.c_str(),Error.c_str()),"same",1,counter);
 }
 
 void drawTrackStatus3D(int counter, std::string Id = "In", std::string Error = "0x1"){
   treeFast->SetMarkerColor(1);   /// all MC
   treeFast->Draw("gyMC:gxMC:gzMC","","",1,counter);
   treeFast->SetMarkerColor(4);   /// all reco points
-  treeFast->Draw("gyInF:gxInF:gzInF",Form("partFull.fStatusMask%s.fData>0",Id.c_str()),"same",1,counter);
+  treeFast->Draw("gyInF:gxInF:gzInF",Form("partFull.fStatusMask.fData%s>0",Id.c_str()),"same",1,counter);
   treeFast->SetMarkerColor(2);   /// first MC point
   treeFast->Draw("gyMC:gxMC:gzMC","Iteration$==0","same",1,counter);
   treeFast->SetMarkerColor(3);   /// trigger problem
-  treeFast->Draw("gyMC:gxMC:gzMC",Form("partFull.fStatusMask%s.fData==%s",Id.c_str(),Error.c_str()),"same",1,counter);
+  treeFast->Draw("gyInF:gxInF:gzInF",Form("partFull.fStatusMask%s.fData==%s",Id.c_str(),Error.c_str()),"same",1,counter);
 }
 
 void SetList(std::string Id = "In", std::string Error = "0x1"){

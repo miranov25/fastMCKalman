@@ -75,12 +75,14 @@ void testTPC(Int_t nParticles, bool dumpStream=1){
   for (Int_t i=0; i<nParticles; i++){
     fastParticle particle(nLayerTPC+1);
     particle.fAddMSsmearing=true;
+    particle.fAddPadsmearing=true;
+    particle.fUseMCInfo=true;
     particle.fgStreamer=pcstream;
     particle.gid=i;
     // generate scan detector properties
     Float_t matScaling  =(gRandom->Rndm()<kNominalFraction) ? 1.:  (gRandom->Rndm()*kMaterialScaling)+1;
     Float_t resolScan=(gRandom->Rndm()<kNominalFraction) ? kDefResol: gRandom->Rndm()*kMaxResol;
-    for (Int_t iLayer=0; iLayer<geom.fLayerX0.size();iLayer++) {
+    for (size_t iLayer=0; iLayer<geom.fLayerX0.size();iLayer++) {
       geom.fLayerX0[iLayer] = xx0 * matScaling;
       geom.fLayerRho[iLayer] = xrho * matScaling;
       geom.fLayerResolRPhi[iLayer] = resolScan;
@@ -111,6 +113,7 @@ void testTPC(Int_t nParticles, bool dumpStream=1){
     fastParticle particle0 = particle;
     particle.reconstructParticleFull(geom,pdgCode,nPoints);
     particle.reconstructParticleFullOut(geom,pdgCode,nPoints);
+    particle.refitParticle();
     //particle.reconstructParticleRotate0(geom,pdgCode,nPoints);
     //particle.simulateParticle(geom, r,p,211, 250,161);
     //particle.reconstructParticle(geom,211,160);
