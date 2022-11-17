@@ -1120,16 +1120,19 @@ void fastParticle::refitParticle()
     {
       fParamRefit[i]=fParamIn[i];
       fStatusMaskRefit[i]|=kTrackUsedIn;
+      fStatusMaskRefit[i]|=kTrackisOK;
     }
     else if(!statusIn && statusOut)
     {
       fParamRefit[i]=fParamOut[i];
       fStatusMaskRefit[i]|=kTrackUsedOut;
+      fStatusMaskRefit[i]|=kTrackisOK;
     }
     else if (statusIn && statusOut)
     {
       AliExternalTrackParam4D::UpdateTrack(fParamRefit[i],fParamOut[i]);
       fStatusMaskRefit[i]|=kTrackRefitted;
+      fStatusMaskRefit[i]|=kTrackisOK;
     }
     int checkpoint=0;
 
@@ -1647,6 +1650,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
         break;
       }
       fLengthIn++;
+      fStatusMaskIn[index]|=kTrackisOK;
   }
   return 1;
 }
@@ -1866,6 +1870,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
           index=new_index;
           fParamIn[index]=param;
           fStatusMaskIn[index]|=kTrackPropagatetoMirrorX;
+          fStatusMaskIn[index]|=kTrackisOK;
           checkloop=0;
           continue;
       }
@@ -1993,6 +1998,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
         }
       }
       fLengthIn++;
+      fStatusMaskIn[index]|=kTrackisOK;
   }
   return 1;
   
@@ -2211,6 +2217,7 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
           index=new_index;
           fParamOut[index]=param;
           fStatusMaskOut[index]|=kTrackPropagatetoMirrorX;
+          fStatusMaskOut[index]|=kTrackisOK;
           checkloop=0;
           continue;
       }
@@ -2337,6 +2344,7 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
         }
       }
       fLengthOut++;
+      fStatusMaskOut[index]|=kTrackisOK;
   }
   return 1;
   

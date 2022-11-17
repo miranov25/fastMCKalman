@@ -98,7 +98,8 @@ public:
   kTrackSkipUpdate =0x200,
   kTrackUsedIn =0x400,
   kTrackUsedOut =0x800,
-  kTrackRefitted =0x1000
+  kTrackRefitted =0x1000,
+  kTrackisOK=0x2000
 } ;
 
   fastParticle():TObject(),fAddMSsmearing(0),fAddPadsmearing(1),fUseMCInfo(1),gid(0){}
