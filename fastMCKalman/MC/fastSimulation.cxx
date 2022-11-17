@@ -2332,10 +2332,10 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
       if(!SkipUpdate)
       {
         for (Int_t ic=0;ic<5; ic++) {
-          status*= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho/5., mass, 0.01);
+          status*= param.CorrectForMeanMaterial(crossLength * xx0/5., -crossLength * xrho/5., mass, 0.01);
         }
         //status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
-        if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,crossLength*xrho,mass,20);
+        if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,-crossLength*xrho,mass,20);
         if (status) {
           fStatusMaskOut[index]|=kTrackCorrectForMaterial;
         }else{
