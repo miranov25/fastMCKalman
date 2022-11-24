@@ -2557,11 +2557,11 @@ void fastParticle::setAliases(TTree & tree){
   tree.SetAlias("gzMC","part.fParamMC[].fP[1]");
   tree.SetAlias("rMC","part.fParamMC[].fX");
   //
-  tree.SetAlias("ptMC","part.fParamMC[0].fData.Pt()");
-  tree.SetAlias("ptMCL","part.fParamMC[].fData.Pt()");
-  tree.SetAlias("pMC","part.fParamMC[0].fData.P()");
-  tree.SetAlias("ptRec","part.fParamIn[0].fData.Pt()");
-  tree.SetAlias("tglMC","part.fParamIn[0].fData.fP[3]");
+  tree.SetAlias("ptMC","part.fParamMC[0].Pt()");
+  tree.SetAlias("ptMCL","part.fParamMC[].Pt()");
+  tree.SetAlias("pMC","part.fParamMC[0].P()");
+  tree.SetAlias("ptRec","part.fParamIn[0].Pt()");
+  tree.SetAlias("tglMC","part.fParamIn[0].fP[3]");
   //
   //
   tree.SetAlias("layer","Iteration$");
@@ -2576,10 +2576,10 @@ void fastParticle::setAliases(TTree & tree){
   tree.SetAlias("dEdxExpSolidN","AliExternalTrackParam::BetheBlochSolid(pMC/fMassMC)/AliExternalTrackParam::BetheBlochSolid(4)");
 
   tree.SetAlias("dEdxExpSolid","AliExternalTrackParam::BetheBlochSolid(pMC/fMassMC)");
-  tree.SetAlias("dEdxExpSolidL","AliExternalTrackParam::BetheBlochSolid(part.fParamMC[].fData.P()/fMassMC)");
-  tree.SetAlias("dEdxExpSolidL1","AliExternalTrackParam::BetheBlochSolid(part.fParamMC[Iteration$-1].fData.P()/fMassMC)");
-  tree.SetAlias("elossTPCIn","(part.fParamIn[159].fData.GetP()-part.fParamIn[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
-  tree.SetAlias("elossTPCMC","(part.fParamMC[159].fData.GetP()-part.fParamMC[7].fData.GetP())/part.fParamMC[1].fData.GetP()");
+  tree.SetAlias("dEdxExpSolidL","AliExternalTrackParam::BetheBlochSolid(part.fParamMC[].P()/fMassMC)");
+  tree.SetAlias("dEdxExpSolidL1","AliExternalTrackParam::BetheBlochSolid(part.fParamMC[Iteration$-1].P()/fMassMC)");
+  tree.SetAlias("elossTPCIn","(part.fParamIn[159].GetP()-part.fParamIn[7].GetP())/part.fParamMC[1].GetP()");
+  tree.SetAlias("elossTPCMC","(part.fParamMC[159].GetP()-part.fParamMC[7].GetP())/part.fParamMC[1].GetP()");
   //
   tree.SetAlias("sigmaY0","sqrt(part.fParamIn[1].fC[0]+0)");
   tree.SetAlias("sigmaZ0","sqrt(part.fParamIn[1].fC[2]+0)");
@@ -2589,7 +2589,7 @@ void fastParticle::setAliases(TTree & tree){
   tree.SetAlias("sigmaZ0Rot","sqrt(part.fParamInRot[1].fC[2]+0)");
   tree.SetAlias("sigmaqPt0Rot","sqrt(part.fParamInRot[1].fC[14]+0)");
   // eloss aliases
-  tree.SetAlias("eLossLog","log(AliExternalTrackParam::BetheBlochSolid(fParamMC[].P()/fParamMC[].fData.fMassMC)/AliExternalTrackParam::BetheBlochSolid(4))");
+  tree.SetAlias("eLossLog","log(AliExternalTrackParam::BetheBlochSolid(fParamMC[].P()/fParamMC[].fMassMC)/AliExternalTrackParam::BetheBlochSolid(4))");
   //
   tree.SetAlias("c","(0+2.99792458e-2)");
   tree.SetAlias("Larm","part.getStat(0)");
