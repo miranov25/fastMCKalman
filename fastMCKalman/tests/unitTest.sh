@@ -86,5 +86,10 @@ analyzeLogs(){
    done
 }
 
+logDiff(){
+  # TODO
+  diff --side-by-side -W 200  makePullTestSeed_v1.log makePullTestSeed.log |sed  s/"testFastTracker seed pull"//g
+
+}
 
 init
