@@ -1094,6 +1094,7 @@ void fastParticle::refitParticle()
   fParamRefit = fParamIn;
   fParamRefit.resize(fParamIn.size());
   fStatusMaskRefit.resize(fParamIn.size());
+  fNPointsRefit.resize(fParamIn.size());
   for(size_t i=0; i<fParamRefit.size();i++) fStatusMaskRefit[i]=0;
   for(size_t i=0; i<fParamRefit.size();i++)
   {
@@ -1102,16 +1103,14 @@ void fastParticle::refitParticle()
 
     std::uint16_t flagsIn=fStatusMaskIn[i];
 
-    if(((flagsIn & kTrackEnter) && (flagsIn & kTrackRotate) && (flagsIn & kTrackPropagate) && (flagsIn & kTrackChi2) && (flagsIn & kTrackUpdate) && (flagsIn & kTrackCorrectForMaterial))
-       ||((flagsIn & kTrackEnter) && (flagsIn & kTrackRotate) && (flagsIn & kTrackPropagate) && (flagsIn & kTrackChi2) && (flagsIn & kTrackSkipUpdate ) ))
+    if((flagsIn & kTrackisOK)>0)
     {
       statusIn=kTRUE;
     }
 
     std::uint16_t flagsOut=fStatusMaskOut[i]; 
 
-    if(((flagsOut & kTrackEnter) && (flagsOut & kTrackRotate) && (flagsOut & kTrackPropagate) && (flagsOut & kTrackChi2) && (flagsOut & kTrackUpdate) && (flagsOut & kTrackCorrectForMaterial))
-       ||((flagsOut & kTrackEnter) && (flagsOut & kTrackRotate) && (flagsOut & kTrackPropagate) && (flagsOut & kTrackChi2) && (flagsOut & kTrackSkipUpdate ) ))
+    if((flagsOut & kTrackisOK)>0)
     {
       statusOut=kTRUE;
     }
@@ -1121,18 +1120,21 @@ void fastParticle::refitParticle()
       fParamRefit[i]=fParamIn[i];
       fStatusMaskRefit[i]|=kTrackUsedIn;
       fStatusMaskRefit[i]|=kTrackisOK;
+      fNPointsRefit[i]=fNPointsIn[i];
     }
     else if(!statusIn && statusOut)
     {
       fParamRefit[i]=fParamOut[i];
       fStatusMaskRefit[i]|=kTrackUsedOut;
       fStatusMaskRefit[i]|=kTrackisOK;
+      fNPointsRefit[i]=fNPointsOut[i];
     }
     else if (statusIn && statusOut)
     {
       AliExternalTrackParam4D::UpdateTrack(fParamRefit[i],fParamOut[i]);
       fStatusMaskRefit[i]|=kTrackRefitted;
       fStatusMaskRefit[i]|=kTrackisOK;
+      fNPointsRefit[i]=fNPointsIn[i]+fNPointsOut[i];
     }
     int checkpoint=0;
 
@@ -1200,6 +1202,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
   fParamMC.resize(1);
   fParamMC[0]=param;
   fLayerIndex[0]=indexR;
+  fNPointsMC[0]=0;
   fDirection[0]=0;
   fLoop[0]=0;
   double *par = (double*)param.GetParameter();
@@ -1207,6 +1210,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     fLoop.resize(nPoint+1);
     fDirection.resize(nPoint+1);
     fStatusMaskMC.resize(nPoint+1);
+    fNPointsMC.resize(nPoint+1);
     fLayerIndex.resize(nPoint+1);
     float crossLength = 0;
     //printf("%d\n",nPoint);
@@ -1319,6 +1323,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     fLayerIndex[nPoint]=indexR;
     fLoop[nPoint]=loopCounter;
     fDirection[nPoint]=direction;
+    fNPointsMC[nPoint]=nPoint;
     indexR+=direction;
     if (indexR>fMaxLayer) fMaxLayer=indexR;
     if (fDecayLength>0 &&param.fLength>fDecayLength) break;   // decay particles
@@ -1571,6 +1576,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
   fParamIn.resize(index1+1);
   fStatusMaskIn.resize(index1+1);
+  fNPointsIn.resize(index1+1);
   fChi2.resize(index1+1);
   fParamIn[index1]=param;
   double xyz[3];
@@ -1651,6 +1657,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
       }
       fLengthIn++;
       fStatusMaskIn[index]|=kTrackisOK;
+      fNPointsIn[index]=fLengthIn;
   }
   return 1;
 }
@@ -1816,6 +1823,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   fFirstIndex = index1-1;
   fParamIn.resize(index1+1);
   fStatusMaskIn.resize(index1+1);
+  fNPointsIn.resize(index1+1);
   fChi2.resize(index1+1);
   fParamIn[index1]=param;
   double xyz[3];
@@ -1871,6 +1879,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
           fParamIn[index]=param;
           fStatusMaskIn[index]|=kTrackPropagatetoMirrorX;
           fStatusMaskIn[index]|=kTrackisOK;
+          fNPointsIn[index]=fLengthIn;
           checkloop=0;
           continue;
       }
@@ -1998,6 +2007,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
         }
       }
       fLengthIn++;
+      fNPointsIn[index]=fLengthIn;
       fStatusMaskIn[index]|=kTrackisOK;
   }
   return 1;
@@ -2162,6 +2172,7 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
   float length=0, time=0;
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
   fParamOut.resize(indexlast+1);
+  fNPointsOut.resize(indexlast+1);
   fStatusMaskOut.resize(indexlast+1);
   fChi2Out.resize(indexlast+1);
   fParamOut[index1]=param;
@@ -2218,6 +2229,7 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
           fParamOut[index]=param;
           fStatusMaskOut[index]|=kTrackPropagatetoMirrorX;
           fStatusMaskOut[index]|=kTrackisOK;
+          fNPointsOut[index]=fLengthOut;
           checkloop=0;
           continue;
       }
@@ -2345,6 +2357,7 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
       }
       fLengthOut++;
       fStatusMaskOut[index]|=kTrackisOK;
+      fNPointsOut[index]=fLengthOut;
   }
   return 1;
   
