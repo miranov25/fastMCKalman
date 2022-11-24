@@ -106,8 +106,9 @@ public:
   ~fastParticle(){}
   fastParticle(int nLayers){
     fLayerIndex.reserve(nLayers); fDirection.reserve(nLayers); fParamIn.reserve(nLayers); fParamInRot.reserve(nLayers);
-    fParamOut.reserve(nLayers); fParamRefit.reserve(nLayers); fParamMC.reserve(nLayers);fStatusMaskMC.reserve(nLayers); fStatusMaskIn.reserve(nLayers);
-    fStatusMaskOut.reserve(nLayers); fStatusMaskRefit.reserve(nLayers); fChi2.resize(nLayers);fLoop.reserve(nLayers);
+    fParamOut.reserve(nLayers); fParamRefit.reserve(nLayers); fParamMC.reserve(nLayers);fStatusMaskMC.reserve(nLayers); 
+    fStatusMaskIn.reserve(nLayers); fStatusMaskOut.reserve(nLayers); fStatusMaskRefit.reserve(nLayers); fChi2.resize(nLayers);
+    fLoop.reserve(nLayers); fNPointsMC.reserve(nLayers); fNPointsIn.reserve(nLayers); fNPointsOut.reserve(nLayers); fNPointsRefit.reserve(nLayers);
     fMaxLayer=0;
     fDecayLength=0;
   }
@@ -150,11 +151,15 @@ public:
   RVec<AliExternalTrackParam4D> fParamOut;   //   "reconstructed" Param Out
   RVec<AliExternalTrackParam4D> fParamIn;    //   "reconstructed" Param In
   RVec<AliExternalTrackParam4D> fParamInRot;    //   "reconstructed" Param In - in rotated frame
-  RVec<int>      fStatusMaskMC;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
-  RVec<int>      fStatusMaskIn;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
-  RVec<int>      fStatusMaskOut;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
-  RVec<int>      fStatusMaskRefit;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
-  RVec<int>      fStatusMaskInRot;     //   rotation(0x1)/propagation(0x2)/correct for material(0x4)/update(0x8)
+  RVec<int>      fStatusMaskMC;     //   status bit mask
+  RVec<int>      fStatusMaskIn;     //   status bit mask
+  RVec<int>      fStatusMaskOut;     //   status bit mask
+  RVec<int>      fStatusMaskRefit;     //   status bit mask
+  RVec<int>      fStatusMaskInRot;     //   status bit mask
+  RVec<int>      fNPointsMC;     //   number of points used for the reconstrution
+  RVec<int>      fNPointsIn;     //   number of points used for the reconstrution
+  RVec<int>      fNPointsOut;     //   number of points used for the reconstrution
+  RVec<int>      fNPointsRefit;     //   number of points used for the reconstrution
   RVec<float>                 fChi2;      //   chi2  at layer
   //                                       - local information - to be assigned to simulated track - if not set  taken symmetric from fastGeometry
   RVec<float>                 fChi2Out;      //   chi2  at layer
