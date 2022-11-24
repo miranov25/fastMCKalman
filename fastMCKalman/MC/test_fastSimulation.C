@@ -64,7 +64,7 @@ void testPulls(std::string sv="", std::string Id="In", std::string extra_conditi
   int isOK=fastParticle::kTrackisOK;
     for (int iPar = 0; iPar <= 4; iPar++) {
       treeFast->Draw(Form("(part%s.fParam%s[].fP[%d]-part%s.fParamMC[].fP[%d])/sqrt(part%s.fParam%s[].fC[%d])>>his(100,-6,6)",sv.c_str(),Id.c_str(), iPar, sv.c_str(), iPar, sv.c_str(),Id.c_str(), AliExternalTrackParam::GetIndex(iPar, iPar)),
-                    Form("(part%s.fStatusMask%s[].fData&%d)==%d&&abs(part%s.fParam%s[].fP[2])<0.7%s",sv.c_str(),Id.c_str(),isOK,isOK,sv.c_str(),Id.c_str(),extra_condition.c_str()), "");
+                    Form("(part%s.fStatusMask%s[]&%d)==%d&&abs(part%s.fParam%s[].fP[2])<0.7%s",sv.c_str(),Id.c_str(),isOK,isOK,sv.c_str(),Id.c_str(),extra_condition.c_str()), "");
       treeFast->GetHistogram()->Fit("mygauss", "q");
       bool isOK = abs(1 - mygauss->GetParameter(2)) < 5 * mygauss->GetParError(2);
       float rms=treeFast->GetHistogram()->GetRMS();
@@ -128,22 +128,22 @@ void drawTrackStatus(int counter, std::string Id = "In", std::string Error = "0x
   treeFast->SetMarkerColor(1);   /// all MC
   treeFast->Draw("gyMC:gxMC","","",1,counter);
   treeFast->SetMarkerColor(4);   /// all reco points
-  treeFast->Draw("gyInF:gxInF",Form("partFull.fStatusMask%s.fData>0",Id.c_str()),"same",1,counter);
+  treeFast->Draw("gyInF:gxInF",Form("partFull.fStatusMask%s>0",Id.c_str()),"same",1,counter);
   treeFast->SetMarkerColor(2);   /// first MC point
   treeFast->Draw("gyMC:gxMC","Iteration$==0","same",1,counter);
   treeFast->SetMarkerColor(3);   /// trigger problem
-  treeFast->Draw("gyInF:gxInF",Form("partFull.fStatusMask%s.fData==%s",Id.c_str(),Error.c_str()),"same",1,counter);
+  treeFast->Draw("gyInF:gxInF",Form("partFull.fStatusMask%s==%s",Id.c_str(),Error.c_str()),"same",1,counter);
 }
 
 void drawTrackStatus3D(int counter, std::string Id = "In", std::string Error = "0x1"){
   treeFast->SetMarkerColor(1);   /// all MC
   treeFast->Draw("gyMC:gxMC:gzMC","","",1,counter);
   treeFast->SetMarkerColor(4);   /// all reco points
-  treeFast->Draw("gyInF:gxInF:gzInF",Form("partFull.fStatusMask.fData%s>0",Id.c_str()),"same",1,counter);
+  treeFast->Draw("gyInF:gxInF:gzInF",Form("partFull.fStatusMask%s>0",Id.c_str()),"same",1,counter);
   treeFast->SetMarkerColor(2);   /// first MC point
   treeFast->Draw("gyMC:gxMC:gzMC","Iteration$==0","same",1,counter);
   treeFast->SetMarkerColor(3);   /// trigger problem
-  treeFast->Draw("gyInF:gxInF:gzInF",Form("partFull.fStatusMask%s.fData==%s",Id.c_str(),Error.c_str()),"same",1,counter);
+  treeFast->Draw("gyInF:gxInF:gzInF",Form("partFull.fStatusMask%s==%s",Id.c_str(),Error.c_str()),"same",1,counter);
 }
 
 void SetList(std::string Id = "In", std::string Error = "0x1"){
@@ -152,7 +152,7 @@ void SetList(std::string Id = "In", std::string Error = "0x1"){
   treeFast->SetAlias("gxInF",Form("cos(partFull.fParam%s[].fAlpha)*partFull.fParam%s[].fX",Id.c_str(),Id.c_str()));
   treeFast->SetAlias("gzInF",Form("partFull.fParam%s[].fP[1]",Id.c_str()));
 
-  treeFast->Draw(">>ProblemRot",Form("Sum$(partFull.fStatusMask%s.fData==%s)",Id.c_str(),Error.c_str()),"entrylist");
+  treeFast->Draw(">>ProblemRot",Form("Sum$(partFull.fStatusMask%s==%s)",Id.c_str(),Error.c_str()),"entrylist");
   TEntryList* problemList0x1 =(TEntryList*)gDirectory->Get("ProblemRot");
   treeFast->SetEntryList(problemList0x1);
   int counter=0;
