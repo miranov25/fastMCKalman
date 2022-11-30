@@ -55,11 +55,13 @@ def makeRegression(df):
 
     regressor = RandomForestRegressor(n_estimators =n_estimators,n_jobs=n_jobs,max_depth=max_depthBase,max_samples=max_samples)
     #dfFit=df.query("(statusMaskFullRefit&0x2000)>0")
-    dfFit0=df[((df["statusMaskFullRefit"]&0x1000)>0)]
-    dfFit1=dfFit0.query(f"abs({target})<5")
+    dfFit0=df[((df["statusMaskFullRefit"]&0x1000)>0)].query(f"abs({target})<10")
+    dfFit1=dfFit0.sample(frac=0.05).sort_index()
+    #
     #
     nAll=dfFit1.shape[0]
     regressor.fit(dfFit1[varIn][:nAll//2], dfFit1[target][:nAll//2])
     dfFit1[f"{target}Pred0"]=regressor.predict(dfFit1[varIn])
     #
     ((dfFit1[f"{target}"]-dfFit1[f"{target}Pred0"])[nAll//2:]).std()
+    ((dfFit1[f"{target}"]-dfFit1[f"{target}Pred0"])[:nAll//2]).std()
