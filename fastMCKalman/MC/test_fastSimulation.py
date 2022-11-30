@@ -1,4 +1,5 @@
 # include fastMCKalman to the path
+# import sys,os; sys.path.insert(1, os.environ[f"fastMCKalman"]+'/fastMCKalman/MC/');  from test_fastSimulation import *
 import sys,os;
 sys.path.insert(1, os.environ[f"fastMCKalman"]+'/fastMCKalman/MC/');
 import ROOT
@@ -9,9 +10,11 @@ from RootInteractive.MLpipeline.MIForestErrPDF import *
 
 
 # load tree
-inputData = "fastParticle.list"
-ROOT.initTreeFast(inputData)
-tree=ROOT.treeFast
+def loadTree():
+    inputData = "fastParticle.list"
+    ROOT.initTreeFast(inputData)
+    tree=ROOT.treeFast
+    return tree
 
 # define aliases
 def makeAliases(tree):
@@ -34,6 +37,13 @@ def loadPanda(tree):
     df["statusMaskFullRefit"]=df["statusMaskFullRefit"].astype("int")
     return df
 
+
+def loadData():
+    tree= loadTree()
+    makeAliases(tree)
+    df=loadPanda(tree)
+    return df
+
 def makeRegression(df):
     varIn=["fPdgCodeMC","paramFullMC2","paramFullMC3","paramFullMC4"]
     target="pullFullRefit4"
@@ -53,6 +63,3 @@ def makeRegression(df):
     dfFit1[f"{target}Pred0"]=regressor.predict(dfFit1[varIn])
     #
     ((dfFit1[f"{target}"]-dfFit1[f"{target}Pred0"])[nAll//2:]).std()
-
-
-
