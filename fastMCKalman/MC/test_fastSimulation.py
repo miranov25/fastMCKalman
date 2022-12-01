@@ -10,8 +10,7 @@ from RootInteractive.MLpipeline.MIForestErrPDF import *
 
 
 # load tree
-def loadTree():
-    inputData = "fastParticle.list"
+def loadTree(inputData = "fastParticle.list"):
     ROOT.initTreeFast(inputData)
     tree=ROOT.treeFast
     return tree
@@ -20,6 +19,7 @@ def loadTree():
 def makeAliases(tree):
     for pType in ["In","Out","Refit","MC"]:
         tree.SetAlias(f"statusMaskFull{pType}",f"partFull.fStatusMask{pType}")
+        tree.SetAlias(f"NPointsFull{pType}",f"partFull.fNPoints{pType}")
         for iPar in [0,1,2,3,4]:
             tree.SetAlias(f"paramFull{pType}{iPar}",f"partFull.fParam{pType}[].fP[{iPar}]")
             iCov=ROOT.AliExternalTrackParam.GetIndex(iPar, iPar)
@@ -28,7 +28,7 @@ def makeAliases(tree):
 
 
 def loadPanda(tree):
-    variables=[".*pullFull.*",".*statusMaskFull.*",".*paramFull.*",
+    variables=[".*pullFull.*",".*statusMaskFull.*",".*paramFull.*",".*NPointsFull.*",
                ".*gx.*",".*gy.*",".*gz.*",
                "ptMC","tglMC","fPdgCodeMC",
                # to add  lever arm at given layer
@@ -38,14 +38,14 @@ def loadPanda(tree):
     return df
 
 
-def loadData():
-    tree= loadTree()
+def loadData(inputData = "fastParticle.list"):
+    tree= loadTree(inputData)
     makeAliases(tree)
     df=loadPanda(tree)
     return df
 
 def makeRegression(df):
-    varIn=["fPdgCodeMC","paramFullMC2","paramFullMC3","paramFullMC4"]
+    varIn=["fPdgCodeMC","paramFullMC2","paramFullMC3","paramFullMC4","NPointsFullRefit"]
     target="pullFullRefit4"
     n_estimators=200
     n_jobs=100
