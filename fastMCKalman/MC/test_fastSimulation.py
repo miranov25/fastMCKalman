@@ -33,7 +33,8 @@ def loadPanda(tree):
                "ptMC","tglMC","fPdgCodeMC",
                # to add  lever arm at given layer
                ]
-    df=tree2Panda(tree,variables, "partFull.fLengthIn>5",columnMask=[["_fElements",""]],nEntries=10000)
+    exclude=[".*pullFullMC.*"]
+    df=tree2Panda(tree,variables, "partFull.fLengthIn>5",columnMask=[["_fElements",""]],exclude=exclude,nEntries=10000)
     df["statusMaskFullRefit"]=df["statusMaskFullRefit"].astype("int")
     return df
 
