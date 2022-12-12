@@ -17,6 +17,8 @@ def loadTree(inputData = "fastParticle.list"):
 
 # define aliases
 def makeAliases(tree):
+    tree.SetAlias("X0","geom.fLayerX0[0]")
+    tree.SetAlias("sigma0","geom.fLayerResolZ[0]")
     for pType in ["In","Out","Refit","MC"]:
         tree.SetAlias(f"statusMaskFull{pType}",f"partFull.fStatusMask{pType}")
         tree.SetAlias(f"NPointsFull{pType}",f"partFull.fNPoints{pType}")
@@ -25,15 +27,19 @@ def makeAliases(tree):
             iCov=ROOT.AliExternalTrackParam.GetIndex(iPar, iPar)
             tree.SetAlias(f"pullFull{pType}{iPar}",
                           f"(partFull.fParam{pType}[].fP[{iPar}]-partFull.fParamMC[].fP[{iPar}])/sqrt(partFull.fParam{pType}[].fC[{iCov}])")
+            tree.SetAlias(f"deltaFull{pType}{iPar}",
+                          f"(partFull.fParam{pType}[].fP[{iPar}]-partFull.fParamMC[].fP[{iPar}])")
+            tree.SetAlias(f"sqrtCovFull{pType}{iPar}",
+                          f"partFull.fParam{pType}[].fC[{iCov}]")
 
 
 def loadPanda(tree):
-    variables=[".*pullFull.*",".*statusMaskFull.*",".*paramFull.*",".*NPointsFull.*",
-               ".*gx.*",".*gy.*",".*gz.*",
-               "ptMC","tglMC","fPdgCodeMC",
+    variables=[".*pullFull.*",".*statusMaskFull.*",".*paramFull.*",".*NPointsFull.*",".*deltaFull.*", ".*CovFull.*",
+               ".*gx.*",".*gy.*",".*gz.*", "X0", "sigma0",
+               "ptMC","tglMC","fPdgCodeMC","fMassMC","pidCode"
                # to add  lever arm at given layer
                ]
-    exclude=[".*pullFullMC.*"]
+    exclude=[".*pullFullMC.*",".*deltaFullMC.*",".*CovFullMC.*"]
     df=tree2Panda(tree,variables, "partFull.fLengthIn>5",columnMask=[["_fElements",""]],exclude=exclude,nEntries=10000)
     df["statusMaskFullRefit"]=df["statusMaskFullRefit"].astype("int")
     return df
