@@ -18,7 +18,8 @@ def loadTree(inputData = "fastParticle.list"):
 # define aliases
 def makeAliases(tree):
     tree.SetAlias("X0","geom.fLayerX0[0]")
-    tree.SetAlias("sigma0","geom.fLayerResolZ[0]")
+    tree.SetAlias("sigmaRPhi","geom.fLayerResolRPhi[0]")
+    tree.SetAlias("sigmaZ","geom.fLayerResolZ[0]")
     for pType in ["In","Out","Refit","MC"]:
         tree.SetAlias(f"statusMaskFull{pType}",f"partFull.fStatusMask{pType}")
         tree.SetAlias(f"NPointsFull{pType}",f"partFull.fNPoints{pType}")
@@ -34,14 +35,14 @@ def makeAliases(tree):
                           f"partFull.fParam{pType}[].fC[{iCov}]")
 
 
-def loadPanda(tree):
+def loadPanda(tree,entries):
     variables=[".*pullFull.*",".*statusMaskFull.*",".*paramFull.*",".*NPointsFull.*",".*dEdx.*",".*deltaFull.*", ".*CovFull.*",
-               ".*gx.*",".*gy.*",".*gz.*", "X0", "sigma0",
+               ".*gx.*",".*gy.*",".*gz.*", "X0", "sigmaRPhi","sigmaZ",
                "ptMC","tglMC","fPdgCodeMC","fMassMC","pidCode","charge"
                # to add  lever arm at given layer
                ]
     exclude=[".*pullFullMC.*",".*deltaFullMC.*",".*CovFullMC.*",".*dEdxExp*"]
-    df=tree2Panda(tree,variables, "partFull.fLengthIn>5",columnMask=[["_fElements",""]],exclude=exclude,nEntries=10000)
+    df=tree2Panda(tree,variables, "partFull.fLengthIn>5",columnMask=[["_fElements",""]],exclude=exclude,nEntries=entries)
     df["statusMaskFullRefit"]=df["statusMaskFullRefit"].astype("int")
     return df
 
@@ -73,3 +74,48 @@ def makeRegression(df):
     #
     ((dfFit1[f"{target}"]-dfFit1[f"{target}Pred0"])[nAll//2:]).std()
     ((dfFit1[f"{target}"]-dfFit1[f"{target}Pred0"])[:nAll//2]).std()
+
+
+def loadDataRDF(tree):
+    rdf=ROOT.RDataFrame(tree)
+    varList=["sigmaRPhi","sigmaZ"]
+    rdf1=rdf.Define("sigmaRPhi","geom.fLayerResolRPhi[0]")
+    rdf1=rdf1.Define("sigmaZ","geom.fLayerResolZ[0]")
+    #
+    for pType in ["In","Out","Refit","MC"]:
+        rdf1=rdf1.Define(f"statusMaskFull{pType}",f"partFull.fStatusMask{pType}")
+        rdf1=rdf1.Define(f"NPointsFull{pType}",f"partFull.fNPoints{pType}")
+        varList.append(f"statusMaskFull{pType}")
+        varList.append(f"NPointsFull{pType}")
+        #tree.SetAlias(f"dEdx{pType}",f"AliExternalTrackParam::BetheBlochSolid(partFull.fParam{pType}[].GetP()/partFull.fMassMC)")
+
+
+    for col in  rdf1.GetDefinedColumnNames():
+        print(col)
+
+    rdf1.Snapshot("xxx","xxx.root",varList)
+    #
+    # auto  getTrackInfo(ROOT::RVec<> track){
+    ROOT.gInterpreter.Declare(
+    """
+        auto  dEdx2(ROOT::RVec<AliExternalTrackParam4D>& track, float &mass){
+           ROOT::RVec<float> dEdx(track.size());
+           for (int i=0; i<track.size(); i++) dEdx[i]=AliExternalTrackParam::BetheBlochSolid(track[i].GetP()/mass);
+           return dEdx;
+        }
+    """)
+    rdf1=rdf1.Define(f"fParamMCDF","part.fParamMC")
+    rdf1=rdf1.Define(f"fMassMCDF","part.fMassMC")
+
+    rdf1=rdf1.Define(f"dEdx{pType}",ROOT.dEdx2, {"fParamMCDF","fMassMCDF"})
+
+def loadCode():
+    ROOT.gInterpreter.ProcessLine("""gSystem->Load("$fastMCKalman/fastMCKalman/aliKalman/test/AliExternalTrackParam.so");""")
+    ROOT.gInterpreter.ProcessLine(""".L $fastMCKalman/fastMCKalman/MC/fastSimulation.cxx+g""")
+    ROOT.gInterpreter.ProcessLine(""".L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C+g""")
+    ROOT.gInterpreter.ProcessLine(""".L $fastMCKalman/fastMCKalman/MC/test_fastSimulation.C+g""")
+
+
+def testRDF():
+    tree=loadTree("fastParticle.list")
+    rdf1 =ROOT. makeDataFrame(ROOT.treeFast)

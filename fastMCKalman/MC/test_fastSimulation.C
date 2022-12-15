@@ -20,12 +20,17 @@
 #include "fastTracker.h"
 #include "fastSimulation.h"
 #include "TStyle.h"
+//
+#include "ROOT/RDataFrame.hxx"
+#include "ROOT/RVec.hxx"
+#include "ROOT/RDF/RInterface.hxx"
 
 
 
 
 extern TChain * treeSeed;
 extern TChain * treeFast;
+static int paramsDFGlobal[5]={0,1,2,3,4};
 
 /// to check momentum bias in the seeds
 
@@ -158,4 +163,40 @@ void SetList(std::string Id = "In", std::string Error = "0x1"){
   int counter=0;
   treeFast->SetMarkerSize(1.5);
   gStyle->SetPalette(55);
+}
+
+ROOT::RVec<float>  dEdxRVec1(ROOT::RVec<AliExternalTrackParam4D>& track, float &mass) {
+  ROOT::RVec<float> dEdx(track.size());
+  for (int i = 0; i < track.size(); i++) dEdx[i] = AliExternalTrackParam::BetheBlochSolid(track[i].GetP() / mass);
+  return dEdx;
+}
+
+ROOT::RVec<float>  deltaP(ROOT::RVec<AliExternalTrackParam4D>& track, ROOT::RVec<AliExternalTrackParam4D>& trackMC, int param) {
+  ROOT::RVec<float> deltaP(track.size());
+  for (int i = 0; i < track.size(); i++) deltaP[i] = track[i].GetParameter()[param]-trackMC[i].GetParameter()[param];
+  return deltaP;
+}
+
+
+ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTree * treeFast){
+  // problem defining parameters in scope
+  std::vector<string> varList;
+  //int params[5]={0,1,2,3,4};
+  //
+  auto rdf=ROOT::RDataFrame(*treeFast);
+  auto rdf1=rdf.Define("sigmaRPhi","geom.fLayerResolRPhi[0]");
+  rdf1=rdf1.Define("sigmaZ","geom.fLayerResolZ[0]");
+  rdf1=rdf1.Define("dEdxMC",dEdxRVec1,{"part.fParamMC","part.fMassMC"});
+  //
+  varList.push_back("sigmaRPhi"); varList.push_back("sigmaZ");  varList.push_back("dEdxMC");
+  //
+  for (int i=0; i<5; i++){
+    rdf1=rdf1.Define(Form("deltaIn%d",i),
+                     [i](ROOT::RVec<AliExternalTrackParam4D>& track, ROOT::RVec<AliExternalTrackParam4D>& trackMC){
+        return deltaP(track,trackMC,paramsDFGlobal[i]);},
+        {"partFull.fParamIn","partFull.fParamMC"});
+    varList.push_back(Form("deltaIn%d",i));
+  }
+  //rdf1.Snapshot("xxx","xxx.root",varList);
+  return rdf1;
 }
