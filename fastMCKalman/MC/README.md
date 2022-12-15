@@ -17,5 +17,5 @@
   * Goal  - check of standard AliExternalTrackParam routines 
   
 * test_fastSimulation.C  
-  * status: empty for the moment
+  * status: empty for the moment 
 
