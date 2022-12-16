@@ -9,7 +9,8 @@
 
     //test RDF
     rdf1=makeDataFrame(treeFast);
-    rdf1.Snapshot("xxx","xxx.root",{"deltaIn0","deltaIn1"});
+    rdf1.Range(1000).Snapshot("xxx","xxx.root",{"deltaIn0","deltaIn1"});
+    rdf1.Range(100).Snapshot("dump","dumpAll.root");
  */
 
 #include "TFile.h"
@@ -196,32 +197,42 @@ ROOT::RVec<float>  paramP(ROOT::RVec<AliExternalTrackParam4D>& track, int param)
 ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTree * treeFast){
   // problem defining parameters in scope
   std::vector<string> varList;
-  string paramType[3]={"In","Out","Refit"};
+  string paramType[4]={"In","Out","Refit", "MC"};
   //int params[5]={0,1,2,3,4};
   //
   auto rdf=ROOT::RDataFrame(*treeFast);
   auto rdf1=rdf.Define("sigmaRPhi","geom.fLayerResolRPhi[0]");
   rdf1=rdf1.Define("sigmaZ","geom.fLayerResolZ[0]");
+  rdf1=rdf1.Define("layerX0","geom.fLayerX0[0]");
   rdf1=rdf1.Define("dEdxMC",dEdxRVec1,{"part.fParamMC","part.fMassMC"});
+  rdf1=rdf1.Define("dEdxIn",dEdxRVec1,{"part.fParamIn","part.fMassMC"});
   //
   varList.push_back("sigmaRPhi"); varList.push_back("sigmaZ");  varList.push_back("dEdxMC");
   //
   for (int i=0; i<5; i++){
-    rdf1=rdf1.Define(Form("deltaIn%d",i),
-                     [i](ROOT::RVec<AliExternalTrackParam4D>& track, ROOT::RVec<AliExternalTrackParam4D>& trackMC){
-        return deltaP(track,trackMC,paramsDFGlobal[i]);},
-        {"partFull.fParamIn","partFull.fParamMC"});
-    rdf1=rdf1.Define(Form("covarIn%d",i),
-                     [i](ROOT::RVec<AliExternalTrackParam4D>& track){
-        return covarP(track,paramsDFGlobal[i]);},
-        {"partFull.fParamIn"});
-    rdf1=rdf1.Define(Form("paramIn%d",i),
-                     [i](ROOT::RVec<AliExternalTrackParam4D>& track){
-        return paramP(track,paramsDFGlobal[i]);},
-        {"partFull.fParamIn"});
-    varList.push_back(Form("deltaIn%d",i));
-    varList.push_back(Form("covarIn%d",i));
-    varList.push_back(Form("paramIn%d",i));
+    for (int iType=0; iType<4; iType++) {
+      const char *type=paramType[iType].data();
+      //
+      rdf1 = rdf1.Define(Form("param%s%d", type, i),
+                         [i](ROOT::RVec <AliExternalTrackParam4D> &track) {
+                           return paramP(track, paramsDFGlobal[i]);
+                         },
+                         {Form("partFull.fParam%s",type)});
+      varList.push_back(Form("param%s%d", type, i));
+      if (iType==3) continue;  /// skip delta and covar for the MC part
+      rdf1 = rdf1.Define(Form("delta%s%d",type, i),
+                         [i](ROOT::RVec <AliExternalTrackParam4D> &track, ROOT::RVec <AliExternalTrackParam4D> &trackMC) {
+                           return deltaP(track, trackMC, paramsDFGlobal[i]);
+                         },
+                         {Form("partFull.fParam%s",type), "partFull.fParamMC"});
+      rdf1 = rdf1.Define(Form("covar%s%d",type, i),
+                         [i](ROOT::RVec <AliExternalTrackParam4D> &track) {
+                           return covarP(track, paramsDFGlobal[i]);
+                         },
+                         {Form("partFull.fParam%s",type)});
+      varList.push_back(Form("delta%s%d", type, i));
+      varList.push_back(Form("covar%s%d", type, i));
+    }
   }
   //rdf1.Snapshot("xxx","xxx.root",varList);
   return rdf1;
