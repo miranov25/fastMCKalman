@@ -118,4 +118,31 @@ def loadCode():
 
 def testRDF():
     tree=loadTree("fastParticle.list")
+    ROOT.EnableImplicitMT(10)
     rdf1 =ROOT. makeDataFrame(ROOT.treeFast)
+    print(rdf1.GetColumnNames())
+    #
+    varList=[]
+    rejectList=[".f","part","part"]
+    for var in  rdf1.GetColumnNames():
+        isOK=True
+        for varReject in rejectList:
+            print(varReject, var, (varReject in var))
+            if (varReject in var):
+                isOK=False
+                print("Reject",varReject, var)
+            else:
+                print(f"""Accept "{varReject}" in "{var}" """)
+        if isOK:
+            varList.append(var)
+
+    varList=[]
+    for type in ["In","Out","Refit"]:
+        for i in [0,1,2,3,4]:
+            varList.append(f"param{type}{i}")
+            varList.append(f"delta{type}{i}")
+            varList.append(f"covar{type}{i}")
+    varList.sort()
+
+    import awkward._v2 as ak
+    array = ak.from_rdataframe(rdf1, columns=varList)
