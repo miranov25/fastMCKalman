@@ -6,6 +6,10 @@
      .L $fastMCKalman/fastMCKalman/MC/fastSimulationTest.C+g
     .L $fastMCKalman/fastMCKalman/MC/test_fastSimulation.C+g
     initTreeFast();
+
+    //test RDF
+    rdf1=makeDataFrame(treeFast);
+    rdf1.Snapshot("xxx","xxx.root",{"deltaIn0","deltaIn1"});
  */
 
 #include "TFile.h"
@@ -30,7 +34,7 @@
 
 extern TChain * treeSeed;
 extern TChain * treeFast;
-static int paramsDFGlobal[5]={0,1,2,3,4};
+int paramsDFGlobal[5]={0,1,2,3,4};
 
 /// to check momentum bias in the seeds
 
@@ -167,20 +171,32 @@ void SetList(std::string Id = "In", std::string Error = "0x1"){
 
 ROOT::RVec<float>  dEdxRVec1(ROOT::RVec<AliExternalTrackParam4D>& track, float &mass) {
   ROOT::RVec<float> dEdx(track.size());
-  for (int i = 0; i < track.size(); i++) dEdx[i] = AliExternalTrackParam::BetheBlochSolid(track[i].GetP() / mass);
+  for (size_t i = 0; i < track.size(); i++) dEdx[i] = AliExternalTrackParam::BetheBlochSolid(track[i].GetP() / mass);
   return dEdx;
 }
 
 ROOT::RVec<float>  deltaP(ROOT::RVec<AliExternalTrackParam4D>& track, ROOT::RVec<AliExternalTrackParam4D>& trackMC, int param) {
   ROOT::RVec<float> deltaP(track.size());
-  for (int i = 0; i < track.size(); i++) deltaP[i] = track[i].GetParameter()[param]-trackMC[i].GetParameter()[param];
+  for (size_t i = 0; i < track.size(); i++) deltaP[i] = track[i].GetParameter()[param]-trackMC[i].GetParameter()[param];
   return deltaP;
 }
 
+ROOT::RVec<float>  covarP(ROOT::RVec<AliExternalTrackParam4D>& track, int param) {
+  ROOT::RVec<float> covarP(track.size());
+  for (size_t i = 0; i < track.size(); i++) covarP[i] = track[i].GetCovariance()[AliExternalTrackParam::GetIndex(param, param)];
+  return covarP;
+}
+
+ROOT::RVec<float>  paramP(ROOT::RVec<AliExternalTrackParam4D>& track, int param) {
+  ROOT::RVec<float> paramP(track.size());
+  for (size_t i = 0; i < track.size(); i++) paramP[i] = track[i].GetParameter()[param];
+  return paramP;
+}
 
 ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTree * treeFast){
   // problem defining parameters in scope
   std::vector<string> varList;
+  string paramType[3]={"In","Out","Refit"};
   //int params[5]={0,1,2,3,4};
   //
   auto rdf=ROOT::RDataFrame(*treeFast);
@@ -195,7 +211,17 @@ ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTre
                      [i](ROOT::RVec<AliExternalTrackParam4D>& track, ROOT::RVec<AliExternalTrackParam4D>& trackMC){
         return deltaP(track,trackMC,paramsDFGlobal[i]);},
         {"partFull.fParamIn","partFull.fParamMC"});
+    rdf1=rdf1.Define(Form("covarIn%d",i),
+                     [i](ROOT::RVec<AliExternalTrackParam4D>& track){
+        return covarP(track,paramsDFGlobal[i]);},
+        {"partFull.fParamIn"});
+    rdf1=rdf1.Define(Form("paramIn%d",i),
+                     [i](ROOT::RVec<AliExternalTrackParam4D>& track){
+        return paramP(track,paramsDFGlobal[i]);},
+        {"partFull.fParamIn"});
     varList.push_back(Form("deltaIn%d",i));
+    varList.push_back(Form("covarIn%d",i));
+    varList.push_back(Form("paramIn%d",i));
   }
   //rdf1.Snapshot("xxx","xxx.root",varList);
   return rdf1;
