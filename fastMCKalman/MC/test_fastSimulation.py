@@ -7,7 +7,8 @@ from ROOT import TFile, gSystem
 from fastSimulation import *
 from RootInteractive.Tools.aliTreePlayer import *
 from RootInteractive.MLpipeline.MIForestErrPDF import *
-
+from RootInteractive.Tools.RDataFrameTools import filterRDFColumns
+import awkward._v2 as ak
 
 # load tree
 def loadTree(inputData = "fastParticle.list"):
@@ -116,33 +117,42 @@ def loadCode():
     ROOT.gInterpreter.ProcessLine(""".L $fastMCKalman/fastMCKalman/MC/test_fastSimulation.C+g""")
 
 
-def testRDF():
-    tree=loadTree("fastParticle.list")
-    ROOT.EnableImplicitMT(10)
-    rdf1 =ROOT. makeDataFrame(ROOT.treeFast)
-    print(rdf1.GetColumnNames())
-    #
-    varList=[]
-    rejectList=[".f","part","part"]
-    for var in  rdf1.GetColumnNames():
-        isOK=True
-        for varReject in rejectList:
-            print(varReject, var, (varReject in var))
-            if (varReject in var):
-                isOK=False
-                print("Reject",varReject, var)
-            else:
-                print(f"""Accept "{varReject}" in "{var}" """)
-        if isOK:
-            varList.append(var)
+def testRDF(input="fastParticle.list",verbosity=0, doTest=True):
+    """
 
-    varList=[]
-    for type in ["In","Out","Refit"]:
-        for i in [0,1,2,3,4]:
-            varList.append(f"param{type}{i}")
-            varList.append(f"delta{type}{i}")
-            varList.append(f"covar{type}{i}")
-    varList.sort()
+    :param input:
+    :param verbosity:
+    :return:
+    example:
+    input="fastParticle.list"; verbosity=0; doTest=True
+    """
+
+    from RootInteractive.Tools.RDataFrameTools import filterRDFColumns
+    tree=loadTree(input)
+    tree.SetCacheSize(40000000)
+    #ROOT.EnableImplicitMT(10)
+    rdf1 =ROOT. makeDataFrame(tree)
+    print(rdf1.GetColumnNames())
+    # define alias namess for some columns with dots not supported for the
+    varListAlias=   filterRDFColumns(rdf1, ["partFull.*Status.*","partFull.*NPoint.*"],[],[".*"],[],2)
+    for var in varListAlias:
+        aliasName=var.replace("partFull.f","")
+        #rdf1=rdf1.Alias(aliasName,var)
+        rdf1=rdf1.Define(aliasName,var)
+    #
+    #
+    varList = filterRDFColumns(rdf1, ["param.*","covar.*","delta.*",".*pid.*","charge",".*Status.*",".*NPoi.*",".*dEdx.*"],
+                               ["part.*Para.*","geom.*","part.*",".*InRot.*" ],[".*"],[".*AliExternal.*","Long64.*","Long.*","Short_t"], verbose=verbosity)
+
+
+    if doTest:
+        rdfTest=rdf1.Range(0,10)
+        rdfTest.Snapshot("testVarRDF","testVarRDF.root", varList)
+        array = ak.from_rdataframe(rdfTest, columns=varList)
+        df=ak.to_dataframe(array)
+        print(df.head(5),df.shape)
+    #
 
     import awkward._v2 as ak
     array = ak.from_rdataframe(rdf1, columns=varList)
+    df=ak.to_dataframe(array)
