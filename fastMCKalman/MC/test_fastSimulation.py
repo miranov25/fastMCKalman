@@ -77,38 +77,6 @@ def makeRegression(df):
     ((dfFit1[f"{target}"]-dfFit1[f"{target}Pred0"])[:nAll//2]).std()
 
 
-def loadDataRDF(tree):
-    rdf=ROOT.RDataFrame(tree)
-    varList=["sigmaRPhi","sigmaZ"]
-    rdf1=rdf.Define("sigmaRPhi","geom.fLayerResolRPhi[0]")
-    rdf1=rdf1.Define("sigmaZ","geom.fLayerResolZ[0]")
-    #
-    for pType in ["In","Out","Refit","MC"]:
-        rdf1=rdf1.Define(f"statusMaskFull{pType}",f"partFull.fStatusMask{pType}")
-        rdf1=rdf1.Define(f"NPointsFull{pType}",f"partFull.fNPoints{pType}")
-        varList.append(f"statusMaskFull{pType}")
-        varList.append(f"NPointsFull{pType}")
-        #tree.SetAlias(f"dEdx{pType}",f"AliExternalTrackParam::BetheBlochSolid(partFull.fParam{pType}[].GetP()/partFull.fMassMC)")
-
-
-    for col in  rdf1.GetDefinedColumnNames():
-        print(col)
-
-    rdf1.Snapshot("xxx","xxx.root",varList)
-    #
-    # auto  getTrackInfo(ROOT::RVec<> track){
-    ROOT.gInterpreter.Declare(
-    """
-        auto  dEdx2(ROOT::RVec<AliExternalTrackParam4D>& track, float &mass){
-           ROOT::RVec<float> dEdx(track.size());
-           for (int i=0; i<track.size(); i++) dEdx[i]=AliExternalTrackParam::BetheBlochSolid(track[i].GetP()/mass);
-           return dEdx;
-        }
-    """)
-    rdf1=rdf1.Define(f"fParamMCDF","part.fParamMC")
-    rdf1=rdf1.Define(f"fMassMCDF","part.fMassMC")
-
-    rdf1=rdf1.Define(f"dEdx{pType}",ROOT.dEdx2, {"fParamMCDF","fMassMCDF"})
 
 def loadCode():
     ROOT.gInterpreter.ProcessLine("""gSystem->Load("$fastMCKalman/fastMCKalman/aliKalman/test/AliExternalTrackParam.so");""")
@@ -117,7 +85,7 @@ def loadCode():
     ROOT.gInterpreter.ProcessLine(""".L $fastMCKalman/fastMCKalman/MC/test_fastSimulation.C+g""")
 
 
-def testRDF(input="fastParticle.list",verbosity=0, doTest=True):
+def loadRDF(input="fastParticle.list",verbosity=0, doTest=True):
     """
 
     :param input:
@@ -130,19 +98,26 @@ def testRDF(input="fastParticle.list",verbosity=0, doTest=True):
     from RootInteractive.Tools.RDataFrameTools import filterRDFColumns
     tree=loadTree(input)
     tree.SetCacheSize(40000000)
-    #ROOT.EnableImplicitMT(10)
+    if doTest == False: ROOT.EnableImplicitMT(10)
     rdf1 =ROOT. makeDataFrame(tree)
-    print(rdf1.GetColumnNames())
+    if verbosity>0: print(rdf1.GetColumnNames())
     # define alias namess for some columns with dots not supported for the
-    varListAlias=   filterRDFColumns(rdf1, ["partFull.*Status.*","partFull.*NPoint.*"],[],[".*"],[],2)
+    varListAlias=   filterRDFColumns(rdf1, ["partFull.*Status.*","partFull.*NPoint.*"],[],[".*"],[],verbosity)
     for var in varListAlias:
         aliasName=var.replace("partFull.f","")
         #rdf1=rdf1.Alias(aliasName,var)
         rdf1=rdf1.Define(aliasName,var)
+
+    deltaListAlias=   filterRDFColumns(rdf1, ["delta.*"],[],[".*"],[],verbosity)
+
+    for var in deltaListAlias:
+        pullName=var.replace("delta","pull")
+        covarName=var.replace("delta","covar")
+        rdf1=rdf1.Define(pullName,var+"/"+covarName)
     #
     #
-    varList = filterRDFColumns(rdf1, ["param.*","covar.*","delta.*",".*pid.*","charge",".*Status.*",".*NPoi.*",".*dEdx.*"],
-                               ["part.*Para.*","geom.*","part.*",".*InRot.*" ],[".*"],[".*AliExternal.*","Long64.*","Long.*","Short_t"], verbose=verbosity)
+    varList = filterRDFColumns(rdf1, ["param.*","covar.*","delta.*",".*pid.*","charge",".*Status.*",".*NPoi.*",".*dEdx.*","pull.*",".*X0.*",".*sigma.*"],
+                               ["part.*Para.*","geom.*","part.*",".*InRot.*" ],[".*"],[".*AliExternal.*","Long64.*","Long.*"], verbose=verbosity)
 
 
     if doTest:
@@ -156,3 +131,4 @@ def testRDF(input="fastParticle.list",verbosity=0, doTest=True):
     import awkward._v2 as ak
     array = ak.from_rdataframe(rdf1, columns=varList)
     df=ak.to_dataframe(array)
+    return df

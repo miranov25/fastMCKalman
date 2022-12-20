@@ -196,8 +196,8 @@ ROOT::RVec<float>  paramP(ROOT::RVec<AliExternalTrackParam4D>& track, int param)
 
 ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTree * treeFast){
   // problem defining parameters in scope
-  std::vector<string> varList;
-  string paramType[4]={"In","Out","Refit", "MC"};
+  std::vector<std::string> varList;
+  std::string paramType[4]={"In","Out","Refit", "MC"};
   //int params[5]={0,1,2,3,4};
   //
   auto rdf=ROOT::RDataFrame(*treeFast);
