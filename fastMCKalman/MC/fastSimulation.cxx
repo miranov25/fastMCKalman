@@ -2196,7 +2196,7 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
       if(checkloop==0 && index>1) 
       {
         if(fUseMCInfo) checkloop = fLoop[index]-fLoop[index-1];  /////// PropagateToMirror triggered for now using flag from MC information: not realistic reconstruction
-        else checkloop = (TMath::Abs(param.GetParameter()[2])>kMaxSnp)? 1:0;
+        else checkloop = (TMath::Abs(param.GetParameter()[2])>kMaxSnp && index!=0 && (param.GetParameter()[2]/fParamOut[index-1].GetParameter()[2])>0)? 1:0;
       }
 
       
