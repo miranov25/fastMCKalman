@@ -182,6 +182,13 @@ ROOT::RVec<float>  deltaP(ROOT::RVec<AliExternalTrackParam4D>& track, ROOT::RVec
   return deltaP;
 }
 
+ROOT::RVec<float>  pullP(ROOT::RVec<AliExternalTrackParam4D>& track, ROOT::RVec<AliExternalTrackParam4D>& trackMC, int param) {
+  ROOT::RVec<float> pullP(track.size());
+  for (size_t i = 0; i < track.size(); i++) pullP[i] = (track[i].GetParameter()[param]-trackMC[i].GetParameter()[param])/sqrt(track[i].GetCovariance()[AliExternalTrackParam::GetIndex(param, param)]);
+  return pullP;
+}
+
+
 ROOT::RVec<float>  covarP(ROOT::RVec<AliExternalTrackParam4D>& track, int param) {
   ROOT::RVec<float> covarP(track.size());
   for (size_t i = 0; i < track.size(); i++) covarP[i] = track[i].GetCovariance()[AliExternalTrackParam::GetIndex(param, param)];
@@ -230,10 +237,39 @@ ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTre
                            return covarP(track, paramsDFGlobal[i]);
                          },
                          {Form("partFull.fParam%s",type)});
+      rdf1 = rdf1.Define(Form("pull%s%d",type, i),
+                         [i](ROOT::RVec <AliExternalTrackParam4D> &track, ROOT::RVec <AliExternalTrackParam4D> &trackMC) {
+                           return pullP(track, trackMC, paramsDFGlobal[i]);
+                         },
+                         {Form("partFull.fParam%s",type), "partFull.fParamMC"});
       varList.push_back(Form("delta%s%d", type, i));
       varList.push_back(Form("covar%s%d", type, i));
+      varList.push_back(Form("pull%s%d", type, i));
     }
   }
   //rdf1.Snapshot("xxx","xxx.root",varList);
   return rdf1;
+}
+
+
+std::string testPullsSnapshot(std::string name="testVarRDF",std::string Id="In", std::string extra_condition="") {
+  std::string filename = name+".root";
+  TChain * tree = new TChain(name.c_str());
+  tree->Add(filename.c_str());
+  TF1 *mygauss = new TF1("mygauss", "gaus");
+  int isOK=fastParticle::kTrackisOK;
+  std::string results="";
+    for (int iPar = 0; iPar <= 4; iPar++) {
+      tree->Draw(Form("pull%s%d[]>>his(100,-6,6)",Id.c_str(), iPar),
+                    Form("(StatusMask%s[]&%d)==%d&&abs(param%s2[])<0.7%s",Id.c_str(),isOK,isOK,Id.c_str(),extra_condition.c_str()), "");
+      tree->GetHistogram()->Fit("mygauss", "q");
+      bool pullisOK = abs(1 - mygauss->GetParameter(2)) < 5 * mygauss->GetParError(2);
+      float rms=tree->GetHistogram()->GetRMS();
+      if (pullisOK) {
+        results += Form("testFastTracker snapShot reco %s pull test P%d - pullAnalytical - OK - %2.2f\t%2.2f \n",Id.c_str(),iPar, mygauss->GetParameter(2),rms);
+      } else {
+        results += Form("testFastTracker snapShot reco %s pull test P%d - pullAnalytical - FAILED - %2.2f\t%2.2f \n",Id.c_str(),iPar, mygauss->GetParameter(2),rms);
+      }
+    }
+  return results;
 }

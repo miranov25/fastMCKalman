@@ -108,12 +108,12 @@ def loadRDF(input="fastParticle.list",verbosity=0, doTest=True):
         #rdf1=rdf1.Alias(aliasName,var)
         rdf1=rdf1.Define(aliasName,var)
 
-    deltaListAlias=   filterRDFColumns(rdf1, ["delta.*"],[],[".*"],[],verbosity)
+    #deltaListAlias=   filterRDFColumns(rdf1, ["delta.*"],[],[".*"],[],verbosity)
 
-    for var in deltaListAlias:
-        pullName=var.replace("delta","pull")
-        covarName=var.replace("delta","covar")
-        rdf1=rdf1.Define(pullName,var+"/"+covarName)
+    #for var in deltaListAlias:
+    #    pullName=var.replace("delta","pull")
+    #    covarName=var.replace("delta","covar")
+    #    rdf1=rdf1.Define(pullName,var+"/"+covarName)
     #
     #
     varList = filterRDFColumns(rdf1, ["param.*","covar.*","delta.*",".*pid.*","charge",".*Status.*",".*NPoi.*",".*dEdx.*","pull.*",".*X0.*",".*sigma.*"],
@@ -121,14 +121,17 @@ def loadRDF(input="fastParticle.list",verbosity=0, doTest=True):
 
 
     if doTest:
-        rdfTest=rdf1.Range(0,10)
+        rdfTest=rdf1.Range(0,1000)
         rdfTest.Snapshot("testVarRDF","testVarRDF.root", varList)
         array = ak.from_rdataframe(rdfTest, columns=varList)
         df=ak.to_dataframe(array)
         print(df.head(5),df.shape)
+        print(ROOT.testPullsSnapshot("testVarRDF","In"))
+        print(ROOT.testPullsSnapshot("testVarRDF","Out"))
+        print(ROOT.testPullsSnapshot("testVarRDF","Refit"))
     #
 
-    import awkward._v2 as ak
+    #import awkward._v2 as ak
     array = ak.from_rdataframe(rdf1, columns=varList)
     df=ak.to_dataframe(array)
     return df
