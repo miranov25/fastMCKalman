@@ -8,11 +8,18 @@ from fastSimulation import *
 from RootInteractive.Tools.aliTreePlayer import *
 from RootInteractive.MLpipeline.MIForestErrPDF import *
 from RootInteractive.Tools.RDataFrameTools import filterRDFColumns
-import awkward._v2 as ak
-
+import awkward as ak
+# memory/cpu monitoring
+import os
+import psutil
+import time
+import gc
+pid = os.getpid()
+python_process = psutil.Process(pid)
 # load tree
 def loadTree(inputData = "fastParticle.list"):
     ROOT.initTreeFast(inputData)
+    #tree.SetCacheSize()
     tree=ROOT.treeFast
     return tree
 
@@ -85,20 +92,23 @@ def loadCode():
     ROOT.gInterpreter.ProcessLine(""".L $fastMCKalman/fastMCKalman/MC/test_fastSimulation.C+g""")
 
 
-def loadRDF(input="fastParticle.list",verbosity=0, doTest=True):
+def loadRDF(input="fastParticle.list",verbosity=0, doTest=True, nThreads=0):
     """
 
     :param input:
     :param verbosity:
     :return:
     example:
-    input="fastParticle.list"; verbosity=0; doTest=True
+    input="fastParticle.list"; verbosity=0; doTest=True; nThreads=0
     """
 
     from RootInteractive.Tools.RDataFrameTools import filterRDFColumns
     tree=loadTree(input)
     tree.SetCacheSize(40000000)
-    if doTest == False: ROOT.EnableImplicitMT(10)
+    if nThreads >0:
+        ROOT.EnableImplicitMT(nThreads)
+    else:
+        ROOT.DisableImplicitMT()
     rdf1 =ROOT. makeDataFrame(tree)
     if verbosity>0: print(rdf1.GetColumnNames())
     # define alias namess for some columns with dots not supported for the
@@ -130,8 +140,89 @@ def loadRDF(input="fastParticle.list",verbosity=0, doTest=True):
         print(ROOT.testPullsSnapshot("testVarRDF","Out"))
         print(ROOT.testPullsSnapshot("testVarRDF","Refit"))
     #
-
-    #import awkward._v2 as ak
-    array = ak.from_rdataframe(rdf1, columns=varList)
-    df=ak.to_dataframe(array)
+    else:
+        #import awkward._v2 as ak
+        t0=time.perf_counter()
+        m0=python_process.memory_info()[0]/2.**30
+        gc.collect()
+        array = ak.from_rdataframe(rdf1, columns=varList)
+        gc.collect()
+        memoryUse = python_process.memory_info()[0]/2.**30  # memory use in GB...I think
+        print('Resource rdf->awkward', m0, memoryUse-m0,time.perf_counter()-t0)
+        df=ak.to_dataframe(array)
+        gc.collect()
+        print('Resource awkward->df', m0, memoryUse-m0,time.perf_counter()-t0)
     return df
+
+
+def testAK(varList,rdf1):
+    import os
+    import psutil
+    import time
+    import gc
+    pid = os.getpid()
+    python_process = psutil.Process(pid)
+    #
+    gc.collect()
+    t0=time.perf_counter()
+    m0=python_process.memory_info()[0]/2.**30
+    memoryUse={}
+    memoryUse["begin"] = python_process.memory_info()[0]/2.**30  # memory use in GB...I think
+    print('memory use:', memoryUse["begin"]-m0,time.perf_counter()-t0)
+
+    array = ak.from_rdataframe(rdf1, columns=varList)
+    memoryUse["readAll"] = python_process.memory_info()[0]/2.**30  # memory use in GB...I think
+    print('memory use read all:', memoryUse["readAll"]-m0,time.perf_counter()-t0)
+    gc.collect()
+    memoryUse["readAllColl"] = python_process.memory_info()[0]/2.**30  # memory use in GB...I think
+    print('memory use read all:', memoryUse["readAllColl"]-m0,time.perf_counter()-t0)
+
+    if 0:
+    #
+        #tree.SetCacheSize(100000)
+        gc.collect()
+        m0=python_process.memory_info()[0]/2.**30
+        for i in range(0, 10):
+            rdfTest = rdf1.Range(0, 4000)
+            array = ak.from_rdataframe(rdfTest, columns=varList)
+            gc.collect()
+            memoryUse[f"array{i}"] = python_process.memory_info()[0]/2.**30  # memory use in GB...I think
+            print(f'memory use with gc - {i}', memoryUse[f"array{i}"]-m0, time.perf_counter()-t0)
+        gc.collect()
+        #
+        gc.collect()
+        m0=python_process.memory_info()[0]/2.**30
+        for i in range(0, 10):
+            rdfTest = rdf1.Range(0, 4000)
+            array = ak.from_rdataframe(rdfTest, columns=varList)
+            memoryUse[f"array{i}"] = python_process.memory_info()[0]/2.**30  # memory use in GB...I think
+            print(f'memory use without gc - {i}', memoryUse[f"array{i}"]-m0, time.perf_counter()-t0)
+        gc.collect()
+        #
+        for i in [1, 3, 6, 9]:
+            rdfTest = rdf1.Range(0, 4000*i)
+            array = ak.from_rdataframe(rdfTest, columns=varList)
+            gc.collect()
+            memoryUse[f"array{i}"] = python_process.memory_info()[0]/2.**30  # memory use in GB...I think
+            print(f'memory iterative - {i}', memoryUse[f"array{i}"]-m0, time.perf_counter()-t0)
+        gc.collect()
+
+    ak.to_dataframe(array[:100])
+
+    # t0=time.perf_counter()
+    # #
+    dfInner=ak.to_dataframe(array, how="inner")
+    memoryUse["afterInner"] = python_process.memory_info()[0]/2.**30  # memory use in GB...I think
+    print('memory use afterInner:', memoryUse["afterInner"],dfInner.shape,time.perf_counter()-t0)
+    # dfOuter=ak.to_dataframe(array,how="outer")
+    # memoryUse["afterOuter"] = python_process.memory_info()[0]/2.**30  # memory use in GB...I think
+    # print('memory use afterOuter:', memoryUse["afterOuter"],dfOuter.shape,time.perf_counter()-t0)
+    # dfInner2=ak.to_dataframe(array,how="inner")
+    # memoryUse["afterInner2"] = python_process.memory_info()[0]/2.**30  # memory use in GB...I think
+    # print('memory use afterInner2:', memoryUse["afterInner2"],dfInner2.shape,time.perf_counter()-t0)
+    # dfOuter2=ak.to_dataframe(array,how="outer")
+    # memoryUse["afterOuter2"] = python_process.memory_info()[0]/2.**30  # memory use in GB...I think
+    # print('memory use afterOuter2:', memoryUse["afterOuter2"],dfOuter2.shape,time.perf_counter()-t0)
+    # #
+
+    return array
