@@ -211,8 +211,8 @@ ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTre
   auto rdf1=rdf.Define("sigmaRPhi","geom.fLayerResolRPhi[0]");
   rdf1=rdf1.Define("sigmaZ","geom.fLayerResolZ[0]");
   rdf1=rdf1.Define("layerX0","geom.fLayerX0[0]");
-  rdf1=rdf1.Define("dEdxMC",dEdxRVec1,{"part.fParamMC","part.fMassMC"});
-  rdf1=rdf1.Define("dEdxIn",dEdxRVec1,{"part.fParamIn","part.fMassMC"});
+  rdf1=rdf1.Define("dEdxMC",dEdxRVec1,{"partFull.fParamMC","partFull.fMassMC"});
+  rdf1=rdf1.Define("dEdxIn",dEdxRVec1,{"partFull.fParamIn","partFull.fMassMC"});
   //
   varList.push_back("sigmaRPhi"); varList.push_back("sigmaZ");  varList.push_back("dEdxMC");
   //

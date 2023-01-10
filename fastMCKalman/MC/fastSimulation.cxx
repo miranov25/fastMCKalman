@@ -1158,6 +1158,8 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
    float_t mass=0,sign=1;
   fPdgCodeMC=pdgCode;
   fParamMC.resize(1);
+  fStatusMaskMC.resize(1);
+  fNPointsMC.resize(1);
   if (pdgCode==0 ){  // do not set mass in case PDG code undefined - use user settings
     if (fMassMC==0) fMassMC=gRandom->Rndm();
     mass=fMassMC;
@@ -1327,6 +1329,11 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     indexR+=direction;
     if (indexR>fMaxLayer) fMaxLayer=indexR;
     if (fDecayLength>0 &&param.fLength>fDecayLength) break;   // decay particles
+  }
+  if(fStatusMaskMC.size()!=fParamMC.size()) 
+  {
+    fStatusMaskMC.resize(fParamMC.size());
+    fNPointsMC.resize(fParamMC.size());
   }
   return 1;
 }
@@ -1691,6 +1698,8 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
   }
   uint index1 = TMath::Min(indexStart,uint(fParamMC.size()-1));
   fStatusMaskIn.resize(index1+1);
+  fParamIn.resize(index1+1);
+  fNPointsIn.resize(index1+1);
   
   for(uint i=0;i<=index1;i++) fStatusMaskIn[i]=0;
   /// skip layers with too big erregy loss - to smalle BG
@@ -2010,6 +2019,12 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
       fNPointsIn[index]=fLengthIn;
       fStatusMaskIn[index]|=kTrackisOK;
   }
+  if(fParamMC.size()!=fParamIn.size())
+  {
+    fParamIn.resize(fParamMC.size());
+    fStatusMaskIn.resize(fParamMC.size());
+    fNPointsIn.resize(fParamMC.size());
+  }
   return 1;
   
 }
@@ -2043,6 +2058,8 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
   }
   uint indexlast = TMath::Min(lastPoint,uint(fParamMC.size()-1));
   fStatusMaskOut.resize(indexlast+1);
+  fParamOut.resize(indexlast+1);
+  fNPointsOut.resize(indexlast+1);
   for(uint i=0;i<=indexlast;i++) fStatusMaskOut[i]=0;
   /// skip layers with too big erregy loss - to smalle BG
   if(fUseMCInfo)
@@ -2358,6 +2375,12 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
       fLengthOut++;
       fStatusMaskOut[index]|=kTrackisOK;
       fNPointsOut[index]=fLengthOut;
+  }
+  if(fParamMC.size()!=fParamOut.size())
+  {
+    fParamOut.resize(fParamMC.size());
+    fStatusMaskOut.resize(fParamMC.size());
+    fNPointsOut.resize(fParamMC.size());
   }
   return 1;
   
