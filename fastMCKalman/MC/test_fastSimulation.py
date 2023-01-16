@@ -104,7 +104,7 @@ def loadRDF(input="fastParticle.list",verbosity=0, doTest=True, nThreads=0):
 
     from RootInteractive.Tools.RDataFrameTools import filterRDFColumns
     tree=loadTree(input)
-    tree.SetCacheSize(40000000)
+    tree.SetCacheSize(40000)
     if nThreads >0:
         ROOT.EnableImplicitMT(nThreads)
     else:
@@ -126,7 +126,9 @@ def loadRDF(input="fastParticle.list",verbosity=0, doTest=True, nThreads=0):
     #    rdf1=rdf1.Define(pullName,var+"/"+covarName)
     #
     #
-    varList = filterRDFColumns(rdf1, ["param.*","covar.*","delta.*",".*pid.*","charge",".*Status.*",".*NPoi.*",".*dEdx.*","pull.*",".*X0.*",".*sigma.*"],
+    varList = filterRDFColumns(rdf1,
+                               ["param.*","covar.*","delta.*",".*pid.*","charge",".*Status.*",".*NPoi.*",".*dEdx.*","pull.*",".*X0.*",".*sigma.*",
+                                "densScaling","isSecondary","hasDecay"],
                                ["part.*Para.*","geom.*","part.*",".*InRot.*" ],[".*"],[".*AliExternal.*","Long64.*","Long.*"], verbose=verbosity)
 
 
@@ -143,15 +145,17 @@ def loadRDF(input="fastParticle.list",verbosity=0, doTest=True, nThreads=0):
     else:
         #import awkward._v2 as ak
         t0=time.perf_counter()
-        m0=python_process.memory_info()[0]/2.**30
+        m0=python_process.memory_info()[0]/(2.**30)
         gc.collect()
         array = ak.from_rdataframe(rdf1, columns=varList)
         gc.collect()
-        memoryUse = python_process.memory_info()[0]/2.**30  # memory use in GB...I think
+        memoryUse = python_process.memory_info()[0]/(2.**30)  # memory use in GB...I think
         print('Resource rdf->awkward', m0, memoryUse-m0,time.perf_counter()-t0)
         df=ak.to_dataframe(array)
         gc.collect()
         print('Resource awkward->df', m0, memoryUse-m0,time.perf_counter()-t0)
+    del tree
+    gc.collect()
     return df
 
 

@@ -191,7 +191,7 @@ ROOT::RVec<float>  pullP(ROOT::RVec<AliExternalTrackParam4D>& track, ROOT::RVec<
 
 ROOT::RVec<float>  covarP(ROOT::RVec<AliExternalTrackParam4D>& track, int param) {
   ROOT::RVec<float> covarP(track.size());
-  for (size_t i = 0; i < track.size(); i++) covarP[i] = track[i].GetCovariance()[AliExternalTrackParam::GetIndex(param, param)];
+  for (size_t i = 0; i < track.size(); i++) covarP[i] = TMath::Sqrt(track[i].GetCovariance()[AliExternalTrackParam::GetIndex(param, param)]);
   return covarP;
 }
 
@@ -199,6 +199,12 @@ ROOT::RVec<float>  paramP(ROOT::RVec<AliExternalTrackParam4D>& track, int param)
   ROOT::RVec<float> paramP(track.size());
   for (size_t i = 0; i < track.size(); i++) paramP[i] = track[i].GetParameter()[param];
   return paramP;
+}
+
+ROOT::RVec<float>  LArm(ROOT::RVec<AliExternalTrackParam4D>& track, int param) {
+  ROOT::RVec<float> lArm(track.size());
+  for (size_t i = 0; i < track.size(); i++) lArm[i] = 0;   //????;
+  return lArm;
 }
 
 ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTree * treeFast){

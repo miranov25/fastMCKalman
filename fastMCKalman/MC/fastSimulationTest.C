@@ -122,6 +122,7 @@ void testTPC(Int_t nParticles, bool dumpStream=1){
     else {
       (*pcstream) << "fastPart" <<
                   "i=" << i <<
+                  "densScaling="<<matScaling<<
                   "geom.="<<&geom<<
                   "hasDecay="<<hasDecay<<
                   "isSecondary="<<isSecondary<<
