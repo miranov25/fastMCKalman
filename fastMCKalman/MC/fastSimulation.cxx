@@ -1202,6 +1202,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
   }
 
   fParamMC.resize(1);
+  fFirstIndexMC = 0;
   fParamMC[0]=param;
   fLayerIndex[0]=indexR;
   fNPointsMC[0]=0;
@@ -1829,7 +1830,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
 
   float length=0, time=0;
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
-  fFirstIndex = index1-1;
+  fFirstIndexIn = index1;
   fParamIn.resize(index1+1);
   fStatusMaskIn.resize(index1+1);
   fNPointsIn.resize(index1+1);
@@ -2188,6 +2189,7 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
 
   float length=0, time=0;
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
+  fFirstIndexOut = index1;
   fParamOut.resize(indexlast+1);
   fNPointsOut.resize(indexlast+1);
   fStatusMaskOut.resize(indexlast+1);

@@ -201,10 +201,16 @@ ROOT::RVec<float>  paramP(ROOT::RVec<AliExternalTrackParam4D>& track, int param)
   return paramP;
 }
 
-ROOT::RVec<float>  LArm(ROOT::RVec<AliExternalTrackParam4D>& track, int param) {
-  ROOT::RVec<float> lArm(track.size());
-  for (size_t i = 0; i < track.size(); i++) lArm[i] = 0;   //????;
-  return lArm;
+ROOT::RVec<float>  LArm(ROOT::RVec<AliExternalTrackParam4D>& track, int FirstIndex) {
+  ROOT::RVec<float> LArm(track.size());
+  for (size_t i = 0; i < track.size(); i++) {
+    Double_t xyzMC0[3];
+    Double_t xyzi[3];
+    track[FirstIndex].GetXYZ(xyzMC0);
+    track[i].GetXYZ(xyzi);
+    LArm[i] = TMath::Sqrt((xyzMC0[0]-xyzi[0])*(xyzMC0[0]-xyzi[0])+(xyzMC0[1]-xyzi[1])*(xyzMC0[1]-xyzi[1]));
+  }
+  return LArm;
 }
 
 ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTree * treeFast){
@@ -253,6 +259,16 @@ ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTre
       varList.push_back(Form("pull%s%d", type, i));
     }
   }
+
+   for (int iType=0; iType<4; iType++) {
+     const char *type=paramType[iType].data();
+     if(iType==2) continue;
+     rdf1 = rdf1.Define(Form("LArm%s",type),LArm,{Form("partFull.fParam%s",type), Form("partFull.fFirstIndex%s",type)});
+     varList.push_back(Form("LArm%s", type));
+  }
+  
+  rdf1 = rdf1.Define("LArmRefit","LArmIn+LArmOut");
+  varList.push_back(Form("LArmRefit"));
   //rdf1.Snapshot("xxx","xxx.root",varList);
   return rdf1;
 }
