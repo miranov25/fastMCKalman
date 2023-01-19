@@ -80,7 +80,7 @@ void testTPC(Int_t nParticles, bool dumpStream=1){
     particle.fgStreamer=pcstream;
     particle.gid=i;
     // generate scan detector properties
-    Float_t matScaling  =(gRandom->Rndm()<kNominalFraction) ? 1.:  (gRandom->Rndm()*kMaterialScaling)+1;
+    Float_t matScaling  =(gRandom->Rndm()<kNominalFraction) ? 1:  (gRandom->Rndm()*kMaterialScaling)+0.0;
     Float_t resolScan=(gRandom->Rndm()<kNominalFraction) ? kDefResol: gRandom->Rndm()*kMaxResol;
     for (size_t iLayer=0; iLayer<geom.fLayerX0.size();iLayer++) {
       geom.fLayerX0[iLayer] = xx0 * matScaling;
