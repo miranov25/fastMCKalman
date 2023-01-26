@@ -213,6 +213,45 @@ ROOT::RVec<float>  LArm(ROOT::RVec<AliExternalTrackParam4D>& track, int FirstInd
   return LArm;
 }
 
+ROOT::RVec<float>  LengthOut(ROOT::RVec<AliExternalTrackParam4D>& track, int FirstIndex) {
+  ROOT::RVec<float> Length(track.size());
+  for (size_t i = 0; i < track.size(); i++) {
+    float Lengthtot = 0;
+    if(i>size_t(FirstIndex)){    
+      for(size_t j = 0; j < size_t(i-FirstIndex); j++)
+        {
+          Double_t xyz0[3];
+          Double_t xyzi[3];
+          track[FirstIndex+j].GetXYZ(xyz0);
+          track[FirstIndex+j+1].GetXYZ(xyzi);
+          Lengthtot+=TMath::Sqrt((xyz0[0]-xyzi[0])*(xyz0[0]-xyzi[0])+(xyz0[1]-xyzi[1])*(xyz0[1]-xyzi[1]));
+        }
+      }
+    Length[i] = Lengthtot;
+  }
+  return Length;
+}
+
+ROOT::RVec<float>  LengthIn(ROOT::RVec<AliExternalTrackParam4D>& track, int FirstIndex) {
+  ROOT::RVec<float> Length(track.size());
+  for (size_t i = 0; i < track.size(); i++) {
+    float Lengthtot = 0;
+    if(i<size_t(FirstIndex)){ 
+      for(size_t j = i; j < size_t(FirstIndex); j++)
+        {
+          Double_t xyzMC0[3];
+          Double_t xyzi[3];
+          track[j].GetXYZ(xyzMC0);
+          track[j+1].GetXYZ(xyzi);
+          Lengthtot+=TMath::Sqrt((xyzMC0[0]-xyzi[0])*(xyzMC0[0]-xyzi[0])+(xyzMC0[1]-xyzi[1])*(xyzMC0[1]-xyzi[1]));
+        }
+    }
+    Length[i] = Lengthtot;
+  }
+  return Length;
+}
+
+
 ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTree * treeFast){
   // problem defining parameters in scope
   std::vector<std::string> varList;
@@ -265,10 +304,21 @@ ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTre
      if(iType==2) continue;
      rdf1 = rdf1.Define(Form("LArm%s",type),LArm,{Form("partFull.fParam%s",type), Form("partFull.fFirstIndex%s",type)});
      varList.push_back(Form("LArm%s", type));
+     if(iType==0)
+     {
+      rdf1 = rdf1.Define(Form("LengthXY%s",type),LengthIn,{Form("partFull.fParam%s",type), Form("partFull.fFirstIndex%s",type)});
+      varList.push_back(Form("LengthXY%s", type));
+     }
+     else{
+      rdf1 = rdf1.Define(Form("LengthXY%s",type),LengthOut,{Form("partFull.fParam%s",type), Form("partFull.fFirstIndex%s",type)});
+      varList.push_back(Form("LengthXY%s", type));
+     }
   }
   
   rdf1 = rdf1.Define("LArmRefit","LArmIn+LArmOut");
   varList.push_back(Form("LArmRefit"));
+  rdf1 = rdf1.Define("LengthXYRefit","LengthXYIn+LengthXYOut");
+  varList.push_back(Form("LengthXYRefit"));
   //rdf1.Snapshot("xxx","xxx.root",varList);
   return rdf1;
 }
