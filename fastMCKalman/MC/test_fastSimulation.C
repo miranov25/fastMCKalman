@@ -176,6 +176,44 @@ ROOT::RVec<float>  dEdxRVec1(ROOT::RVec<AliExternalTrackParam4D>& track, float &
   return dEdx;
 }
 
+ROOT::RVec<float>  AvgSqrtdEdxOverpTOut(ROOT::RVec<AliExternalTrackParam4D>& track, float &mass, int FirstIndex) {
+  ROOT::RVec<float> dEdxOverpT(track.size());
+  for (size_t i = 0; i < track.size(); i++) 
+  {
+    float dEdxOverpTTot=0;
+    int nPoints=0;
+    if(i>=size_t(FirstIndex)){    
+      for(size_t j = 0; j <= size_t(i-FirstIndex); j++)
+        {
+          dEdxOverpTTot+=sqrt(AliExternalTrackParam::BetheBlochSolid(track[j].GetP() / mass)) * abs(track[j].GetParameter()[4]);
+          nPoints++;
+        }
+      }
+    dEdxOverpT[i] = dEdxOverpTTot;
+    if(nPoints!=0) dEdxOverpT[i]/=nPoints;
+  }
+  return dEdxOverpT;
+}
+
+ROOT::RVec<float>  AvgSqrtdEdxOverpTIn(ROOT::RVec<AliExternalTrackParam4D>& track, float &mass, int FirstIndex) {
+  ROOT::RVec<float> dEdxOverpT(track.size());
+  for (size_t i = 0; i < track.size(); i++) 
+  {
+    float dEdxOverpTTot=0;
+    int nPoints=0;
+    if(i<=size_t(FirstIndex)){    
+      for(size_t j = 0; j <= size_t(FirstIndex); j++)
+        {
+          dEdxOverpTTot+=sqrt(AliExternalTrackParam::BetheBlochSolid(track[j].GetP() / mass)) * abs(track[j].GetParameter()[4]);
+          nPoints++;
+        }
+      }
+    dEdxOverpT[i] = dEdxOverpTTot;
+    if(nPoints!=0) dEdxOverpT[i]/=nPoints;
+  }
+  return dEdxOverpT;
+}
+
 ROOT::RVec<float>  deltaP(ROOT::RVec<AliExternalTrackParam4D>& track, ROOT::RVec<AliExternalTrackParam4D>& trackMC, int param) {
   ROOT::RVec<float> deltaP(track.size());
   for (size_t i = 0; i < track.size(); i++) deltaP[i] = track[i].GetParameter()[param]-trackMC[i].GetParameter()[param];
@@ -267,6 +305,7 @@ ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTre
 
   rdf1=rdf1.Define("dEdxMC",dEdxRVec1,{"partFull.fParamMC","partFull.fMassMC"});
   rdf1=rdf1.Define("dEdxIn",dEdxRVec1,{"partFull.fParamIn","partFull.fMassMC"});
+  rdf1=rdf1.Define("dEdxOut",dEdxRVec1,{"partFull.fParamOut","partFull.fMassMC"});
   //
   varList.push_back("sigmaRPhi"); varList.push_back("sigmaZ");  varList.push_back("dEdxMC");
   //
@@ -311,10 +350,14 @@ ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTre
      {
       rdf1 = rdf1.Define(Form("LengthXY%s",type),LengthIn,{Form("partFull.fParam%s",type), Form("partFull.fFirstIndex%s",type)});
       varList.push_back(Form("LengthXY%s", type));
+      rdf1 = rdf1.Define(Form("AvgSqrtdEdxOverpT%s",type),AvgSqrtdEdxOverpTIn,{Form("partFull.fParam%s",type), "partFull.fMassMC", Form("partFull.fFirstIndex%s",type)});
+      varList.push_back(Form("AvgSqrtdEdxOverpT%s", type));
      }
      else{
       rdf1 = rdf1.Define(Form("LengthXY%s",type),LengthOut,{Form("partFull.fParam%s",type), Form("partFull.fFirstIndex%s",type)});
       varList.push_back(Form("LengthXY%s", type));
+      rdf1 = rdf1.Define(Form("AvgSqrtdEdxOverpT%s",type),AvgSqrtdEdxOverpTOut,{Form("partFull.fParam%s",type), "partFull.fMassMC", Form("partFull.fFirstIndex%s",type)});
+      varList.push_back(Form("AvgSqrtdEdxOverpT%s", type));
      }
   }
   
@@ -322,6 +365,8 @@ ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTre
   varList.push_back(Form("LArmRefit"));
   rdf1 = rdf1.Define("LengthXYRefit","LengthXYIn+LengthXYOut");
   varList.push_back(Form("LengthXYRefit"));
+  rdf1 = rdf1.Define("AvgSqrtdEdxOverpTRefit","(AvgSqrtdEdxOverpTIn+AvgSqrtdEdxOverpTOut)/2");
+  varList.push_back("AvgSqrtdEdxOverpTRefit");
   //rdf1.Snapshot("xxx","xxx.root",varList);
   return rdf1;
 }
