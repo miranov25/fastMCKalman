@@ -8,6 +8,7 @@ from fastSimulation import *
 from RootInteractive.Tools.aliTreePlayer import *
 from RootInteractive.MLpipeline.MIForestErrPDF import *
 from RootInteractive.Tools.RDataFrameTools import filterRDFColumns
+import pandas as pd
 import awkward as ak
 # memory/cpu monitoring
 import os
@@ -157,6 +158,86 @@ def loadRDF(input="fastParticle.list",verbosity=0, doTest=True, nThreads=0):
     del tree
     gc.collect()
     return df
+
+
+def loadRDFSample(input="fastParticle.list",verbosity=0, doTest=True, nThreads=0, nchunks = 20, entries_frac= 1, cluster_frac=0.1):
+    """
+
+    :param input:
+    :param verbosity:
+    :return:
+    example:
+    input="fastParticle.list"; verbosity=0; doTest=True; nThreads=0; sample=0.1; nchunks=10; entries_frac= 1;
+    """
+
+    from RootInteractive.Tools.RDataFrameTools import filterRDFColumns
+    tree=loadTree(input)
+    tree.SetCacheSize(40000)
+    if nThreads >0:
+        ROOT.EnableImplicitMT(nThreads)
+    else:
+        ROOT.DisableImplicitMT()
+    rdf1 =ROOT. makeDataFrame(tree)
+    if verbosity>0: print(rdf1.GetColumnNames())
+    # define alias namess for some columns with dots not supported for the
+    varListAlias=   filterRDFColumns(rdf1, ["partFull.*Status.*","partFull.*NPoint.*"],[],[".*"],[],verbosity)
+    for var in varListAlias:
+        aliasName=var.replace("partFull.f","")
+        #rdf1=rdf1.Alias(aliasName,var)
+        rdf1=rdf1.Define(aliasName,var)
+
+    varListAlias=   filterRDFColumns(rdf1, ["part.*StatusMaskIn.*","part.*NPointsIn.*"],["partFull.*",".*Rot.*"],[".*"],[],verbosity)
+    for var in varListAlias:
+        aliasName=var.replace("part.f","")
+        #rdf1=rdf1.Alias(aliasName,var)
+        rdf1=rdf1.Define(aliasName+"Leg",var)
+
+    #deltaListAlias=   filterRDFColumns(rdf1, ["delta.*"],[],[".*"],[],verbosity)
+
+    #for var in deltaListAlias:
+    #    pullName=var.replace("delta","pull")
+    #    covarName=var.replace("delta","covar")
+    #    rdf1=rdf1.Define(pullName,var+"/"+covarName)
+    #
+    #
+    varList = filterRDFColumns(rdf1,
+                               ["param.*","covar.*","delta.*",".*pid.*","charge",".*Status.*",".*NPoi.*","dEdx.*","pull.*",".*X0.*",".*sigma.*",
+                                "densScaling","isSecondary","hasDecay","LArm.*","Length.*","ptMCIn0"],
+                               ["part.*Para.*","geom.*","part.*",".*InRot.*" ],[".*"],[".*AliExternal.*","Long64.*","Long.*"], verbose=verbosity)
+
+
+    if doTest:
+        rdfTest=rdf1.Range(0,1000)
+        rdfTest.Snapshot("testVarRDF","testVarRDF.root", varList)
+        array = ak.from_rdataframe(rdfTest, columns=varList)
+        df=ak.to_dataframe(array)
+        print(df.head(5),df.shape)
+        print(ROOT.testPullsSnapshot("testVarRDF","In"))
+        print(ROOT.testPullsSnapshot("testVarRDF","Out"))
+        print(ROOT.testPullsSnapshot("testVarRDF","Refit"))
+    #
+    else:
+        df = pd.DataFrame()
+        nEntries = int(entries_frac* rdf1.Count().GetValue())
+        for chunk in range(0,nchunks):
+            print(int(chunk*nEntries/nchunks),int((chunk+1)*nEntries/nchunks))
+            rdfE = rdf1.Range(int(chunk*nEntries/nchunks),int((chunk+1)*nEntries/nchunks))
+            t0=time.perf_counter()
+            m0=python_process.memory_info()[0]/(2.**30)
+            gc.collect()
+            array = ak.from_rdataframe(rdfE, columns=varList)
+            gc.collect()
+            memoryUse = python_process.memory_info()[0]/(2.**30)  # memory use in GB...I think
+            print('Resource rdf->awkward', m0, memoryUse-m0,time.perf_counter()-t0)
+            dfa=ak.to_dataframe(array)
+            gc.collect()
+            print('Resource awkward->df', m0, memoryUse-m0,time.perf_counter()-t0)
+            dfEs= dfa.sample(frac=cluster_frac).sort_index()
+            df = pd.concat([df,dfEs])
+    del tree
+    gc.collect()
+    return df
+    
 
 
 def testAK(varList,rdf1):
