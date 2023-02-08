@@ -176,6 +176,12 @@ ROOT::RVec<float>  dEdxRVec1(ROOT::RVec<AliExternalTrackParam4D>& track, float &
   return dEdx;
 }
 
+ROOT::RVec<float>  Beta(ROOT::RVec<AliExternalTrackParam4D>& track, float &mass) {
+  ROOT::RVec<float> beta(track.size());
+  for (size_t i = 0; i < track.size(); i++) beta[i] = sqrt((track[i].GetP()*track[i].GetP()) / (mass*mass+track[i].GetP()*track[i].GetP()));
+  return beta;
+}
+
 ROOT::RVec<float>  AvgSqrtdEdxOverpTOut(ROOT::RVec<AliExternalTrackParam4D>& track, float &mass, int FirstIndex) {
   ROOT::RVec<float> dEdxOverpT(track.size());
   for (size_t i = 0; i < track.size(); i++) 
@@ -212,6 +218,46 @@ ROOT::RVec<float>  AvgSqrtdEdxOverpTIn(ROOT::RVec<AliExternalTrackParam4D>& trac
     if(nPoints!=0) dEdxOverpT[i]/=nPoints;
   }
   return dEdxOverpT;
+}
+
+ROOT::RVec<float>  AvgInvBetapTOut(ROOT::RVec<AliExternalTrackParam4D>& track, float &mass, int FirstIndex) {
+  ROOT::RVec<float> InvbetapT(track.size());
+  for (size_t i = 0; i < track.size(); i++) 
+  {
+    float InvbetapTTot=0;
+    int nPoints=0;
+    if(i>=size_t(FirstIndex)){    
+      for(size_t j = 0; j <= size_t(i-FirstIndex); j++)
+        {
+          float beta = sqrt((track[i].GetP()*track[i].GetP()) / (mass*mass+track[i].GetP()*track[i].GetP()));
+          InvbetapTTot+=abs(track[j].GetParameter()[4])* 1 / beta;
+          nPoints++;
+        }
+      }
+    InvbetapT[i] = InvbetapTTot;
+    if(nPoints!=0) InvbetapT[i]/=nPoints;
+  }
+  return InvbetapT;
+}
+
+ROOT::RVec<float>  AvgInvBetapTIn(ROOT::RVec<AliExternalTrackParam4D>& track, float &mass, int FirstIndex) {
+  ROOT::RVec<float> InvbetapT(track.size());
+  for (size_t i = 0; i < track.size(); i++) 
+  {
+    float InvbetapTTot=0;
+    int nPoints=0;
+    if(i<=size_t(FirstIndex)){    
+      for(size_t j = 0; j <= size_t(FirstIndex); j++)
+        {
+          float beta = sqrt((track[i].GetP()*track[i].GetP()) / (mass*mass+track[i].GetP()*track[i].GetP()));
+          InvbetapTTot += abs(track[j].GetParameter()[4])* 1 / beta;
+          nPoints++;
+        }
+      }
+    InvbetapT[i] = InvbetapTTot;
+    if(nPoints!=0) InvbetapT[i]/=nPoints;
+  }
+  return InvbetapT;
 }
 
 ROOT::RVec<float>  deltaP(ROOT::RVec<AliExternalTrackParam4D>& track, ROOT::RVec<AliExternalTrackParam4D>& trackMC, int param) {
@@ -299,13 +345,19 @@ ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTre
   auto rdf=ROOT::RDataFrame(*treeFast);
   auto rdf1=rdf.Define("sigmaRPhi","geom.fLayerResolRPhi[0]");
   rdf1=rdf1.Define("sigmaZ","geom.fLayerResolZ[0]");
-  rdf1=rdf1.Define("layerX0","geom.fLayerX0[0]");
+  rdf1=rdf1.Define("layerX0","1/geom.fLayerX0[0]");
   rdf1=rdf1.Define("ptMC0",[](ROOT::RVec<AliExternalTrackParam4D> &track){return track[0].Pt();},{"partFull.fParamMC"});
   rdf1=rdf1.Define("ptMCEnd",[](ROOT::RVec<AliExternalTrackParam4D> &track){return track[track.size()-1].Pt();},{"partFull.fParamMC"});
 
   rdf1=rdf1.Define("dEdxMC",dEdxRVec1,{"partFull.fParamMC","partFull.fMassMC"});
   rdf1=rdf1.Define("dEdxIn",dEdxRVec1,{"partFull.fParamIn","partFull.fMassMC"});
   rdf1=rdf1.Define("dEdxOut",dEdxRVec1,{"partFull.fParamOut","partFull.fMassMC"});
+  rdf1=rdf1.Define("dEdxRefit",dEdxRVec1,{"partFull.fParamRefit","partFull.fMassMC"});
+
+  rdf1=rdf1.Define("BetaMC",Beta,{"partFull.fParamMC","partFull.fMassMC"});
+  rdf1=rdf1.Define("BetaIn",Beta,{"partFull.fParamIn","partFull.fMassMC"});
+  rdf1=rdf1.Define("BetaOut",Beta,{"partFull.fParamOut","partFull.fMassMC"});
+  rdf1=rdf1.Define("BetaRefit",Beta,{"partFull.fParamRefit","partFull.fMassMC"});
   //
   varList.push_back("sigmaRPhi"); varList.push_back("sigmaZ");  varList.push_back("dEdxMC");
   //
@@ -350,6 +402,8 @@ ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTre
      {
       rdf1 = rdf1.Define(Form("LengthXY%s",type),LengthIn,{Form("partFull.fParam%s",type), Form("partFull.fFirstIndex%s",type)});
       varList.push_back(Form("LengthXY%s", type));
+      rdf1 = rdf1.Define(Form("AvgInvBetapT%s",type),AvgInvBetapTIn,{Form("partFull.fParam%s",type), "partFull.fMassMC", Form("partFull.fFirstIndex%s",type)});
+      varList.push_back(Form("AvgInvBetapT%s", type));
       rdf1 = rdf1.Define(Form("AvgSqrtdEdxOverpT%s",type),AvgSqrtdEdxOverpTIn,{Form("partFull.fParam%s",type), "partFull.fMassMC", Form("partFull.fFirstIndex%s",type)});
       varList.push_back(Form("AvgSqrtdEdxOverpT%s", type));
      }
@@ -358,8 +412,13 @@ ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTre
       varList.push_back(Form("LengthXY%s", type));
       rdf1 = rdf1.Define(Form("AvgSqrtdEdxOverpT%s",type),AvgSqrtdEdxOverpTOut,{Form("partFull.fParam%s",type), "partFull.fMassMC", Form("partFull.fFirstIndex%s",type)});
       varList.push_back(Form("AvgSqrtdEdxOverpT%s", type));
+      rdf1 = rdf1.Define(Form("AvgInvBetapT%s",type),AvgInvBetapTOut,{Form("partFull.fParam%s",type), "partFull.fMassMC", Form("partFull.fFirstIndex%s",type)});
+      varList.push_back(Form("AvgInvBetapT%s", type));
      }
   }
+
+  rdf1 = rdf1.Define("AvgInvBetapTRefit","(AvgInvBetapTIn+AvgInvBetapTOut)/2");
+  varList.push_back("AvgInvBetapTRefit");
   
   rdf1 = rdf1.Define("LArmRefit","LArmIn+LArmOut");
   varList.push_back(Form("LArmRefit"));
@@ -367,7 +426,27 @@ ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTre
   varList.push_back(Form("LengthXYRefit"));
   rdf1 = rdf1.Define("AvgSqrtdEdxOverpTRefit","(AvgSqrtdEdxOverpTIn+AvgSqrtdEdxOverpTOut)/2");
   varList.push_back("AvgSqrtdEdxOverpTRefit");
-  //rdf1.Snapshot("xxx","xxx.root",varList);
+
+  rdf1 = rdf1.Define("covarIn4ExpLPTMoliere","10.674*abs(paramIn4)/(BetaIn*sqrt(LengthXYIn*layerX0))");
+  varList.push_back("covarIn4ExpLPTMoliere");
+  rdf1 = rdf1.Define("covarOut4ExpLPTMoliere","10.674*abs(paramOut4)/(BetaOut*sqrt(LengthXYOut*layerX0))");
+  varList.push_back("covarOut4ExpLPTMoliere");
+  rdf1 = rdf1.Define("covarRefit4ExpLPTMoliere","10.674*abs(paramRefit4)/(BetaRefit*sqrt(LengthXYRefit*layerX0))");
+  varList.push_back("covarRefit4ExpLPTMoliere");
+
+  rdf1 = rdf1.Define("covarIn4ExpLPTMoliereAvg","10.674*AvgInvBetapTIn/(sqrt(LengthXYIn*layerX0))");
+  varList.push_back("covarIn4ExpLPTMoliereAvg");
+  rdf1 = rdf1.Define("covarOut4ExpLPTMoliereAvg","10.674*AvgInvBetapTOut/(sqrt(LengthXYOut*layerX0))");
+  varList.push_back("covarIn4ExpLPTMoliereAvg");
+  rdf1 = rdf1.Define("covarRefit4ExpLPTMoliereAvg","10.674*AvgInvBetapTRefit/(sqrt(LengthXYRefit*layerX0))");
+  varList.push_back("covarRefit4ExpLPTMoliereAvg");
+
+  rdf1 = rdf1.Define("covarIn4ExpHPT","17900.928*sigmaRPhi/((LArmIn*LArmIn)*(sqrt(partFull.fNPointsIn)))");
+  varList.push_back("covarIn4ExpHPT");
+  rdf1 = rdf1.Define("covarOut4ExpHPT","17900.928*sigmaRPhi/((LArmOut*LArmOut)*(sqrt(partFull.fNPointsOut)))");
+  varList.push_back("covarIn4ExpHPT");
+  rdf1 = rdf1.Define("covarRefit4ExpHPT","17900.928*sigmaRPhi/((LArmRefit*LArmRefit)*(sqrt(partFull.fNPointsRefit)))");
+  varList.push_back("covarIn4ExpHPT");
   return rdf1;
 }
 
