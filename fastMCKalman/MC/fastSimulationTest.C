@@ -195,7 +195,10 @@ void testAlice(Int_t nParticles, bool dumpStream){
     //pidCode=2;
     long  charge  = (gRandom->Rndm()<0.5) ? -1:1;
     long    pdgCode = AliPID::ParticleCode(pidCode)*charge;  // PID code covnerted to the PdgCode
-    if (gRandom->Rndm()<kRandomPDGFraction) pdgCode=0;
+    if (gRandom->Rndm()<kRandomPDGFraction) {
+      pdgCode=0;
+      pidCode=-1;
+    }
      Float_t decayLength= (gRandom->Rndm()<kDecayFraction) ?gRandom->Rndm()*geom.fLayerRadius[geom.fLayerRadius.size()-1]:0;
     particle.fDecayLength=decayLength;
     particle.simulateParticle(geom, r,p,pdgCode, kMaxLength,nLayerTPC);
@@ -304,8 +307,11 @@ void testAlice3Werner(Int_t nParticles, bool dumpStream){
     int    pidCode=int(gRandom->Rndm()*8);                   // PID code of particles - 0-electron ,1-muon, 2-pion, 3-Kaon
     long  charge  = (gRandom->Rndm()<0.5) ? -1:1;
     long    pdgCode = AliPID::ParticleCode(pidCode)*charge;  // PID code covnerted to the PdgCode
-    if (gRandom->Rndm()<kRandomPDGFraction) pdgCode=0;
-     Float_t decayLength= (gRandom->Rndm()<kDecayFraction) ?gRandom->Rndm()*geom.fLayerRadius[geom.fLayerRadius.size()-1]:0;
+    if (gRandom->Rndm()<kRandomPDGFraction) {
+      pdgCode=0;
+      pidCode=-1;
+    }
+    Float_t decayLength= (gRandom->Rndm()<kDecayFraction) ?gRandom->Rndm()*geom.fLayerRadius[geom.fLayerRadius.size()-1]:0;
     particle.fDecayLength=decayLength;
     particle.simulateParticle(geom, r,p,pdgCode, kMaxLength,nLayersAll*2);
     particle.reconstructParticle(geom,pdgCode,nLayersAll*2);
