@@ -1494,6 +1494,9 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
     fMassRec=particle->Mass();
   }
   uint index1 = TMath::Min(indexStart,uint(fParamMC.size()-1));
+  fStatusMaskIn.resize(index1+1);
+  fParamIn.resize(index1+1);
+  fNPointsIn.resize(index1+1);
   fMaxLayerRec=index1;
   for (;index1>0; index1--){
     if (fLoop[index1]>0) continue;                                   // loop number - only closet part of helix to the production vertex
@@ -1582,6 +1585,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
   //
   float length=0, time=0;
   float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
+  fFirstIndexIn = index1;
   fParamIn.resize(index1+1);
   fStatusMaskIn.resize(index1+1);
   fNPointsIn.resize(index1+1);
@@ -1666,6 +1670,12 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
       fLengthIn++;
       fStatusMaskIn[index]|=kTrackisOK;
       fNPointsIn[index]=fLengthIn;
+  }
+  if(fParamMC.size()!=fParamIn.size())
+  {
+    fParamIn.resize(fParamMC.size());
+    fStatusMaskIn.resize(fParamMC.size());
+    fNPointsIn.resize(fParamMC.size());
   }
   return 1;
 }
