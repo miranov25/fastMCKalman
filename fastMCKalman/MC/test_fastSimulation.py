@@ -129,7 +129,7 @@ def loadRDF(input="fastParticle.list",verbosity=0, doTest=True, nThreads=0):
     #
     varList = filterRDFColumns(rdf1,
                                ["param.*","covar.*","delta.*",".*pid.*","charge",".*Status.*",".*NPoi.*",".*dEdx.*","pull.*",".*X0.*",".*sigma.*",
-                                "densScaling","isSecondary","hasDecay","LArm.*","Length.*","ptMCIn0"],
+                                "densScaling","isSecondary","hasDecay","LArm.*","Length.*","ptMCIn0","massMC"],
                                ["part.*Para.*","geom.*","part.*",".*InRot.*" ],[".*"],[".*AliExternal.*","Long64.*","Long.*"], verbose=verbosity)
 
 
@@ -202,7 +202,7 @@ def loadRDFSample(input="fastParticle.list",verbosity=0, doTest=True, nThreads=0
     #
     varList = filterRDFColumns(rdf1,
                                ["param.*","covar.*","delta.*",".*pid.*","charge",".*Status.*",".*NPoi.*","dEdx.*","pull.*",".*X0.*",".*sigma.*",
-                                "densScaling","isSecondary","hasDecay","LArm.*","Length.*","ptMCIn0"],
+                                "densScaling","isSecondary","hasDecay","LArm.*","Length.*","ptMCIn0","massMC"],
                                ["part.*Para.*","geom.*","part.*",".*InRot.*" ],[".*"],[".*AliExternal.*","Long64.*","Long.*"], verbose=verbosity)
 
 
