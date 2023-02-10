@@ -26,7 +26,7 @@
 #include "TCanvas.h"
 #include "AliPID.h"
 const Float_t kDecayFraction=0.5;
-const Float_t kRandomPDGFraction=0.5;
+const Float_t kRandomPDGFraction=0.25;
 
 TChain * treeFast = 0;
 TChain * treeTurn=0;
@@ -104,7 +104,10 @@ void testTPC(Int_t nParticles, bool dumpStream=1){
     int    pidCode=int(gRandom->Rndm()*5);          //avoid unrecognized pdg codes
     short  charge  = (gRandom->Rndm()<0.5) ? -1:1;
     int64_t   pdgCode = AliPID::ParticleCode(pidCode)*charge;
-    if (gRandom->Rndm()<kRandomPDGFraction) pdgCode=0;
+    if (gRandom->Rndm()<kRandomPDGFraction) {
+      pdgCode=0;
+      pidCode=-1;
+    }
     Bool_t  hasDecay=(gRandom->Rndm()<kDecayFraction);
     Float_t decayLength= hasDecay ?gRandom->Rndm()*geom.fLayerRadius[geom.fLayerRadius.size()-1]:0;
     particle.fDecayLength=decayLength;
