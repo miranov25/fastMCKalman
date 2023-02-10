@@ -346,6 +346,7 @@ ROOT::RDF::RInterface<ROOT::Detail::RDF::RLoopManager, void>  makeDataFrame(TTre
   auto rdf1=rdf.Define("sigmaRPhi","geom.fLayerResolRPhi[0]");
   rdf1=rdf1.Define("sigmaZ","geom.fLayerResolZ[0]");
   rdf1=rdf1.Define("layerX0","1/geom.fLayerX0[0]");
+  rdf1=rdf1.Define("massMC","partFull.fMassMC");
   rdf1=rdf1.Define("ptMC0",[](ROOT::RVec<AliExternalTrackParam4D> &track){return track[0].Pt();},{"partFull.fParamMC"});
   rdf1=rdf1.Define("ptMCEnd",[](ROOT::RVec<AliExternalTrackParam4D> &track){return track[track.size()-1].Pt();},{"partFull.fParamMC"});
 
