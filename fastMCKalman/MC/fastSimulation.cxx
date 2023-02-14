@@ -831,7 +831,7 @@ Double_t AliExternalTrackParam4D::dPdxEuler(double p, double mass, Double_t xTim
 /// \return        - dP/dx
 Double_t AliExternalTrackParam4D::dPdxEulerStep(double p, double mass,  Double_t xTimesRho, double step, Double_t (*fundEdx)(Double_t)){
     // const Double_t kBGStop=0.0040; // the position of non relybal BB  depends on the function ... not well defined BetheBlocAleph
-    const Double_t kBGStop=0.0140;    // not well defined BetheBlocSolid
+    const Double_t kBGStop=0.0040;    // not well defined BetheBlocSolid
     Double_t bg=p/mass;
     double dEdxMin=fundEdx(3);
     float signCorr=(xTimesRho<0)? -1:1;
