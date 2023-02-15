@@ -36,7 +36,7 @@ EOF
 makePullTest(){
        cat <<EOF >  makePullTest.sh
 #!/bin/bash
-    echo fastParticle.root >fastParticle.list
+    echo $(pwd)/fastParticle.root >fastParticle.list
     root.exe -n -b -l <<\EOF 2>&1 | tee makePullTest.log
     gSystem->AddIncludePath("-I\"$fastMCKalman/fastMCKalman/fastMCKalman/aliKalman/test/\"")
     gSystem->Load("$fastMCKalman/fastMCKalman/aliKalman/test/AliExternalTrackParam.so");
@@ -57,7 +57,7 @@ EOF
 makePullTestSeed(){
        cat <<EOF >  makePullTestSeed.sh
 #!/bin/bash
-    echo fastParticle.root >fastParticle.list
+    echo $(pwd)/fastParticle.root >fastParticle.list
     root.exe -n -b -l <<\EOF 2>&1 | tee makePullTestSeed.log
     gSystem->AddIncludePath("-I\"$fastMCKalman/fastMCKalman/fastMCKalman/aliKalman/test/\"")
     gSystem->Load("$fastMCKalman/fastMCKalman/aliKalman/test/AliExternalTrackParam.so");
