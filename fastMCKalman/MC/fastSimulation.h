@@ -99,7 +99,11 @@ public:
   kTrackUsedIn =0x400,
   kTrackUsedOut =0x800,
   kTrackRefitted =0x1000,
-  kTrackisOK=0x2000
+  kTrackisOK=0x2000,
+  kTrackOutOfBoundary=0x4000,
+  kTrackHasDecayed=0x8000,
+  kTrackFirstPointProblem=0x20000,
+  kTrackMaxSize=0x40000,
 } ;
 
   fastParticle():TObject(),fAddMSsmearing(0),fAddPadsmearing(1),fUseMCInfo(1),gid(0){}
@@ -153,6 +157,7 @@ public:
   RVec<AliExternalTrackParam4D> fParamOut;   //   "reconstructed" Param Out
   RVec<AliExternalTrackParam4D> fParamIn;    //   "reconstructed" Param In
   RVec<AliExternalTrackParam4D> fParamInRot;    //   "reconstructed" Param In - in rotated frame
+  int      fStatusStopMC;     //   status bit mask
   RVec<int>      fStatusMaskMC;     //   status bit mask
   RVec<int>      fStatusMaskIn;     //   status bit mask
   RVec<int>      fStatusMaskOut;     //   status bit mask
