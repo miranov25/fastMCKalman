@@ -482,3 +482,15 @@ std::string testPullsSnapshot(std::string name="testVarRDF",std::string Id="In",
     }
   return results;
 }
+
+void drawdEdxResolution(){
+   //treeFast->Draw("partFull.@fParamMC.size():partFull.fParamMC[0].P():densScaling","hasDecay==0&&pidCode==1&&partFull.fStatusStopMC==0x20&&partFull.fParamMC[0].P()<0.1","colz")
+
+  treeFast->SetAlias("sigmadEdxRel","0.06*(1/(densScaling**0.25))*sqrt(120./partFull.@fParamMC.size())*(1./(dEdxExp**0.25))");
+  // sigmadEdx=k*((2/Beta^3)*sigmaBeta= 2*dedx/Beta*sigmaBeta --> sigmaBeta=Beta*(sigmadEdx/dEdx)/2.
+  treeFast->SetAlias("betaResRel","sigmadEdxRel/2."); // 1/Beta^2 ~ dEdx  sigmadEdx=k*((2/Beta^3)*sigmaBeta= dedx/Beta*sigmaBeta
+  treeFast->SetAlias("pResRel","betaResRel*2");    // in the region where Beta<<1
+  treeFast->Draw("pResRel:1/ptMC:densScaling","ptMC<2&&ptMC>0.05&&pidCode==4&&hasDecay==0&&densScaling>5","colz",100000)
+
+
+}

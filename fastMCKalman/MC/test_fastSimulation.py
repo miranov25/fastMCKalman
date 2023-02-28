@@ -236,6 +236,7 @@ def loadRDFSample(input="fastParticle.list",verbosity=0, doTest=True, nThreads=0
             df = pd.concat([df,dfEs])
     del tree
     gc.collect()
+    df.to_pickle("fastParticleDefault.pkl")
     return df
     
 
