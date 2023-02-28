@@ -503,11 +503,11 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   //Calculating the energy loss corrections************************
   Double_t cP4=1.;
   if ((xTimesRho != 0.) && (beta2 < 1.)) {
-    Double_t dE=Eout-Ein;
-    if ( (1.+ dE/p2*(dE + 2*Ein)) < 0. ) {
-      return kFALSE;
-    }
-    cP4 = 1./TMath::Sqrt(1.+ dE/p2*(dE + 2*Ein));  //A precise formula by Ruben !  - //TODO -this formula is only first taylor approximation
+    // Double_t dE=Eout-Ein;
+    // if ( (1.+ dE/p2*(dE + 2*Ein)) < 0. ) {
+    //   return kFALSE;
+    // }
+    // cP4 = 1./TMath::Sqrt(1.+ dE/p2*(dE + 2*Ein));  //A precise formula by Ruben !  - //TODO -this formula is only first taylor approximation
     cP4 = pOld/pOut;                               /// TODO we use momentum loss not need to use "Ruben E loss approximation"
     //if (TMath::Abs(fP4*cP4)>100.) return kFALSE; //Do not track below 10 MeV/c -disable controlled by the BG cut
     // Approximate energy loss fluctuation (M.Ivanov)
@@ -551,9 +551,9 @@ Bool_t AliExternalTrackParam4D::CorrectForMeanMaterial(Double_t xOverX0, Double_
   fC43 += cC43;
   fC44 += cC44;
   fP4  *= cP4;
-  if (isMC && (GetP()>pOld) ){
-    ::Error("AliExternalTrackParam4D", "Incorrect energy loss %f -> %f ", pOld,GetP());
-  }
+  // if (isMC && (GetP()>pOld) ){
+  //   ::Error("AliExternalTrackParam4D", "Incorrect energy loss %f -> %f ", pOld,GetP());
+  // }
   //CheckCovariance();
   return kTRUE;
 }
@@ -831,7 +831,7 @@ Double_t AliExternalTrackParam4D::dPdxEuler(double p, double mass, Double_t xTim
 /// \return        - dP/dx
 Double_t AliExternalTrackParam4D::dPdxEulerStep(double p, double mass,  Double_t xTimesRho, double step, Double_t (*fundEdx)(Double_t)){
     // const Double_t kBGStop=0.0040; // the position of non relybal BB  depends on the function ... not well defined BetheBlocAleph
-    const Double_t kBGStop=0.0140;    // not well defined BetheBlocSolid
+    const Double_t kBGStop=0.0040;    // not well defined BetheBlocSolid
     Double_t bg=p/mass;
     double dEdxMin=fundEdx(3);
     float signCorr=(xTimesRho<0)? -1:1;
@@ -1197,6 +1197,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
       fStatusMaskMC[nPoint]|= kTrackRotate;
     }else{
       ::Error("fastParticle::simulateParticle","Incorrect rotation of first point");
+      fStatusStopMC=kTrackFirstPointProblem;
       return 0;
     }
   }
@@ -1219,6 +1220,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     //printf("%d\n",nPoint);
     //param.Print();
     if (indexR>=geom.fLayerRadius.size() || TMath::Abs(param.GetZ())>kMaxZ) {
+      fStatusStopMC = kTrackOutOfBoundary;
       break;
     }
     if (fStatusMaskMC.size()<=nPoint) fStatusMaskMC.resize(nPoint+1);
@@ -1232,6 +1234,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     if (status==0){   // if not possible to propagate to next radius - assume looper - change direction
 
       if(nPoint==1) {
+        fStatusStopMC = kTrackFirstPointProblem;
         break; // Can't turn immediately otherwise produce infinite looper
       }
       param.GetPxPyPz(pxyz);
@@ -1247,6 +1250,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
       AliExternalTrackParam4D paramOld = param;
       crossLength = param.PropagateToMirrorX(geom.fBz, direction, geom.fLayerResolRPhi[indexR],geom.fLayerResolZ[indexR]);
       if (crossLength==0) {
+        fStatusStopMC = kTrackPropagatetoMirrorX;
         break;
       }
 
@@ -1269,20 +1273,36 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
       indexR+=direction; ///// needed to unset the previous radius update
       loopCounter++;
     }else{
+      bool Propagate_First=kFALSE;
       double alpha  = TMath::ATan2(xyz[1],xyz[0]);
       fStatusMaskMC[nPoint]=0;
       status = param.Rotate(alpha);
       if (status) {
         fStatusMaskMC[nPoint]|= kTrackRotate;
       }else{
+        status = param.PropagateTo(radius,geom.fBz,1);
+        status = param.Rotate(alpha);
+        if (status)
+        {
+          fStatusMaskMC[nPoint]|= kTrackRotate;
+          fStatusMaskMC[nPoint]|=kTrackPropagate;
+          Propagate_First=kTRUE;
+        }
+        else{
+          fStatusStopMC = kTrackRotate;
         break;
+        break;
+          break;
+        }
       }
-      status = param.PropagateTo(radius,geom.fBz,1);
+      if(!Propagate_First)
+      {status = param.PropagateTo(radius,geom.fBz,1);
       if (status) {
         fStatusMaskMC[nPoint]|=kTrackPropagate;
       }else{
+        fStatusStopMC = kTrackPropagate;
         break;
-      }
+      }}
     }
     //
     float xrho    = geom.fLayerRho[indexR];
@@ -1308,7 +1328,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
                        "\n";
        }
     }
-    if ((status == true) &&param.GetP()>pOld){
+    if ((status == true) && (abs(param.GetP()/pOld)-1)>0.000001){
       ::Error("simulateParticle", "Invalid momentum loss %f ->%f - check again",pOld,param.GetP());
       status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005,fAddMSsmearing);
     }
@@ -1319,6 +1339,7 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     if (status) {
         fStatusMaskMC[nPoint]|=kTrackCorrectForMaterial;
       }else{
+        fStatusStopMC = kTrackCorrectForMaterial;
         break;
     }
     fParamMC.resize(nPoint+1);
@@ -1329,8 +1350,12 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     fNPointsMC[nPoint]=nPoint;
     indexR+=direction;
     if (indexR>fMaxLayer) fMaxLayer=indexR;
-    if (fDecayLength>0 &&param.fLength>fDecayLength) break;   // decay particles
+    if (fDecayLength>0 &&param.fLength>fDecayLength) {
+      fStatusStopMC = kTrackHasDecayed;
+      break;   // decay particles
+    }
   }
+  if(fParamMC.size()==maxPoints) fStatusStopMC = kTrackMaxSize;
   if(fStatusMaskMC.size()!=fParamMC.size()) 
   {
     fStatusMaskMC.resize(fParamMC.size());
@@ -2176,8 +2201,8 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
   //param.fMass=.fMass;
   Double_t dEdx=AliExternalTrackParam::BetheBlochAleph(param.P()/mass);
   //Double_t dPdx=AliExternalTrackParam4D::dPdx(fParamMC[index1-1]);
-  int version=1;
-  (*fgStreamer)<<"seedDumpOut"<<   // seeding not ideal in case significant energy loss
+  int version=2;
+  (*fgStreamer)<<"seedDump"<<   // seeding not ideal in case significant energy loss
     "version="<<version<<       // version 1 leg
     "gid="<<gid<<
     "sign0="<<sign0<<
