@@ -1067,7 +1067,7 @@ void getHelix(Double_t *fHelix,  AliExternalTrackParam t, float bz){
 /// \param rN
 /// \param power
 /// \param X0
-void fastGeometry::setLayerRadiusPower(int layer0, int layerN, float r0, float rN, float power, float X0,float rho, float resol[2]){
+void fastGeometry::setLayerRadiusPower(int layer0, int layerN, float r0, float rN, float power, float X0,float rho, float resol[2],float width){
     float dLayerN=(layerN-layer0);
     for (Int_t iLayer=layer0; iLayer<=layerN; iLayer++){
         fLayerX0[iLayer]=X0;
@@ -1076,16 +1076,18 @@ void fastGeometry::setLayerRadiusPower(int layer0, int layerN, float r0, float r
         fLayerRadius[iLayer]=radius;
         fLayerResolRPhi[iLayer]=resol[0];
         fLayerResolZ[iLayer]=resol[1];
+        fLayerWidth[iLayer]=width;
     }
     fLayerIndex = Argsort(fLayerRadius);
 }
 
-void fastGeometry::setLayer(int iLayer, float radius,  float X0,float rho, float resol[2]) {
+void fastGeometry::setLayer(int iLayer, float radius,  float X0,float rho, float resol[2],float width) {
   fLayerX0[iLayer] = X0;
   fLayerRho[iLayer] = rho;
   fLayerRadius[iLayer] = radius;
   fLayerResolRPhi[iLayer] = resol[0];
   fLayerResolZ[iLayer] = resol[1];
+  fLayerWidth[iLayer]=width;
 }
 
 
@@ -1310,7 +1312,6 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
     float tanPhi2 = par[2]*par[2];
     tanPhi2/=(1-tanPhi2);
     if (crossLength==0) crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
-    //status = param.CorrectForMeanMaterialT4(crossLength*xx0,-crossLength*xrho,mass);
     double pOld=param.GetP();
     status = param.CorrectForMeanMaterial(crossLength*xx0,-crossLength*xrho,mass,0.005,1+0x2*fAddMSsmearing);
     if (1){
@@ -1363,135 +1364,6 @@ int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3]
   }
   return 1;
 }
-
-/*
-
-int fastParticle::simulateParticle(fastGeometry  &geom, double r[3], double p[3], int pdgCode, float maxLength, int maxPoints){
-  const float kMaxSnp=0.90;
-  double covar[21]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-  fPdgCodeMC=pdgCode;
-  TParticlePDG * particle = TDatabasePDG::Instance()->GetParticle(pdgCode);
-  if (particle== nullptr) {
-    ::Error("fastParticle::simulateParticle","Invalid pdgCode %d",pdgCode);
-    return -1;
-  }
-  float sign = particle->Charge()/3.;
-  float mass = particle->Mass();
-  AliExternalTrackParam param(r,p,covar,sign);
-  float length=0, time=0;
-  float radius = sqrt(param.GetX()*param.GetX()+param.GetY()*param.GetY());
-  float direction=r[0]*p[0]+r[1]*p[1]+r[2]*p[2];
-  direction=(direction>0)? 1.:-1.;
-  if (radius==0) direction=1;
-  uint indexR= uint(std::upper_bound (geom.fLayerRadius.begin(),geom.fLayerRadius.end(), radius)-geom.fLayerRadius.begin());
-  int nPoint=0;
-  fParamMC.resize(1);
-  fParamMC[0]=param;
-  fLayerIndex[0]=indexR;
-  double *par = (double*)param.GetParameter();
-  for (nPoint=1; nPoint<maxPoints&&length<maxLength; nPoint++){
-    //printf("%d\n",nPoint);
-    //param.Print();
-    if (indexR>geom.fLayerRadius.size()) {
-      break;
-    }
-    double xyz[3],pxyz[3];
-    float radius  = geom.fLayerRadius[indexR];
-    //float xrho    = geom.fLayerRho[indexR];
-    //float xx0     = geom.fLayerX0[indexR];
-    //Float_t x = param.GetXatLabR(r,localX,fBz,1);
-    int status =  param.GetXYZatR(radius,geom.fBz,xyz);
-    if (status==0){   // if not possible to propagate to next radius - assume looper - change direction
-      float C         = param.GetC(geom.fBz);
-      float R         = TMath::Abs(1/C);
-      float dca       = param.GetD(0,0,geom.fBz);         // distance of closest approach to origin (0,0)
-      float dla       = dca+2*R;                          // distance of longest approach
-      bool  isUp      = abs(Radius-dca)>abs(Radius-dla);
-      float dAlpha    = abs(TMath::ASin(param->GetSnp()))-TMath::Pi()*0.5;
-      dAlpha *=(param->GetSnp()<0):-1.:1.;
-      float alphaNew  = param.GetAlpha()+dAlpha;
-      double paramNew[5]={par[0],par[1],par[2],par[3],par[4]};
-      AliExternalTrackParam paramNew=param;
-      double xyzNew[3],pxyzNew[3];
-      paramNew.GetPxPyPz(pxyzNew);
-      paramNew.GetXYZ(xyzNew);
-      float stepDir=(direction*C*sign)>0? -1:1;
-      double alphaDir  = TMath::ATan2(pxyzNew[1],pxyzNew[0]);
-      if (stepDir<0) alphaDir+=TMath::Pi();
-      double alpha     = TMath::ATan2(xyzNew[1],xyzNew[0]);
-      float dPhi = TMath::Abs(TMath::ASin(paramNew.GetSnp()));
-      float step = TMath::Cos(dPhi)*TMath::Abs(R);
-      status = paramNew.Rotate(alphaDir);
-      if (status==0) {
-        param.Print();
-        paramNew.Print();
-        printf("1.) Can not rotate: \t%f\t%f\t%f\n\n",direction,C,sign);
-        break;
-      }
-
-      float newX=paramNew.GetX()+stepDir*TMath::Abs(step*2);
-      status = paramNew.PropagateTo(newX,geom.fBz);
-      if (status==0) {
-        printf("2.)\n");
-        param.Print();
-        paramNew.Print();
-        AliExternalTrackParam paramNew2=param;
-        status = paramNew2.Rotate(-alphaDir);
-        float newX=paramNew2.GetX()+TMath::Abs(step*2);
-        bool status2 = paramNew2.PropagateTo(newX,geom.fBz);
-        paramNew2.Print();
-        printf("2.) Can not propagate:\t%f\t%f\t%f\t%d\t%d\n\n\n",direction,C,sign, (direction*C*sign)>0,status2, isUp);
-        break;
-      }
-      paramNew.GetXYZ(xyzNew);
-      double alphaNew     = TMath::ATan2(xyzNew[1],xyzNew[0])+TMath::Pi();
-      status = paramNew.Rotate(alphaNew);
-      if (status==0) {
-        printf("\n");
-        param.Print();
-        paramNew.Print();
-        printf("3.) Can not rotate new: \t%f\t%f\t%f\t%d\n\n\n",direction,C,sign, (direction*C*sign)>0);
-        break;
-      }
-      paramNew.SetParamOnly(-paramNew.GetX(),alphaNew-TMath::Pi(),paramNew.GetParameter());
-      double *parNew = (double*)paramNew.GetParameter();
-      parNew[4]*=-1; parNew[3]*=-1;
-      printf("param print begin\n");
-      param.Print();
-      paramNew.Print();
-      status = paramNew.PropagateTo(param.GetX(),geom.fBz);
-      if (status==0) {
-        printf("\n");
-        param.Print();
-        paramNew.Print();
-        printf("4.) Can not propagate: \t%f\t%f\t%f\n\n",direction,C,sign);
-      }
-      paramNew.Print();
-      param=paramNew;
-      direction*=-1;
-      indexR=fLayerIndex[nPoint-1];
-      par = (double*)param.GetParameter();
-    }else{
-      double alpha  = TMath::ATan2(xyz[1],xyz[0]);
-      status = param.Rotate(alpha);
-      status = param.PropagateTo(radius,geom.fBz);
-    }
-    //
-    float xrho    = geom.fLayerRho[indexR];
-    float xx0     = geom.fLayerX0[indexR];
-    float tanPhi2 = par[2]*par[2];
-    tanPhi2=(1-tanPhi2);
-    float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3]);               /// geometrical path assuming crossing cylinder
-    param.CorrectForMeanMaterial(-crossLength*xx0,-crossLength*xrho,mass);
-    fParamMC.resize(nPoint+1);
-    fParamMC[nPoint]=param;
-    fLayerIndex[nPoint]=indexR;
-    indexR+=direction;
-  }
-  return 1;
-}
-
-*/
 
 ///
 /// \param geom          - pointer to geometry to use
@@ -1684,7 +1556,6 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
       for (Int_t ic=0;ic<5; ic++) {
         status*= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho/5., mass, 0.01);
       }
-      //status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
       if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,crossLength*xrho,mass,20);
       if (status) {
         fStatusMaskIn[index]|=kTrackCorrectForMaterial;
@@ -2042,7 +1913,6 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
         for (Int_t ic=0;ic<5; ic++) {
           status*= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho/5., mass, 0.01);
         }
-        //status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
         if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,crossLength*xrho,mass,20);
         if (status) {
           fStatusMaskIn[index]|=kTrackCorrectForMaterial;
@@ -2400,7 +2270,6 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
         for (Int_t ic=0;ic<5; ic++) {
           status*= param.CorrectForMeanMaterial(crossLength * xx0/5., -crossLength * xrho/5., mass, 0.01);
         }
-        //status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
         if (gRandom->Rndm() <fracUnitTest) param.UnitTestDumpCorrectForMaterial(fgStreamer,crossLength*xx0,-crossLength*xrho,mass,20);
         if (status) {
           fStatusMaskOut[index]|=kTrackCorrectForMaterial;
@@ -2536,7 +2405,6 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
     for (Int_t ic=0;ic<5; ic++) {
       status *= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho/5., mass, 0.01);
     }
-    //status = param.CorrectForMeanMaterialT4(crossLength*xx0,crossLength*xrho,mass);
     if (status) {
       fStatusMaskInRot[layer] |= kTrackCorrectForMaterial;
     } else {

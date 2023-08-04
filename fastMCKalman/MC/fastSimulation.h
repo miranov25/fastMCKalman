@@ -68,14 +68,16 @@ public:
   ~fastGeometry(){}
   fastGeometry(Int_t maxLayer){
     fLayerRadius.resize(maxLayer); fLayerX0.resize(maxLayer);fLayerRho.resize(maxLayer);fLayerIndex.resize(maxLayer);fLayerResolRPhi.resize(maxLayer);fLayerResolZ.resize(maxLayer);
+    fLayerWidth.resize(maxLayer);
   }
-  void setLayerRadiusPower(int layer0, int layerN, float r0, float rN, float power, float X0,float rho, float resol[2]);
-  void setLayer(int layer, float r0,  float X0,float rho, float resol[2]);
+  void setLayerRadiusPower(int layer0, int layerN, float r0, float rN, float power, float X0,float rho, float resol[2],float width=0);
+  void setLayer(int layer, float r0,  float X0,float rho, float resol[2],float width=0);
   //void Print(Option_t*);
   RVec<float> fLayerRadius;        //   barrel radius array
   RVec<int>   fLayerIndex;         //   barrel indices for fast navigation
   RVec<float> fLayerX0;            //   barrel X0 array
   RVec<float> fLayerRho;           //   barrel Rho array
+  RVec<float> fLayerWidth;         //  barel layer width
   RVec<float> fLayerResolRPhi;     //   r-phi resolution at layer
   RVec<float> fLayerResolZ;        //   z  resolution at layer
   RVec<float> fHitDensity;         //   hit density (hits per cm^2)
