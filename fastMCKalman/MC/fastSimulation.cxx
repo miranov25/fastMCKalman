@@ -1551,7 +1551,7 @@ int fastParticle::reconstructParticle(fastGeometry  &geom, long pdgCode, uint in
 
       float tanPhi2 = par[2]*par[2];
       tanPhi2/=(1-tanPhi2);
-      float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3])*geom.fLayerWidth[indexR];                /// geometrical path assuming crossing cylinder
+      float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3])*geom.fLayerWidth[layer];                /// geometrical path assuming crossing cylinder
       //status = param.AliExternalTrackParam::CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
       for (Int_t ic=0;ic<5; ic++) {
         status*= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho/5., mass, 0.01);
@@ -1906,7 +1906,7 @@ int fastParticle::reconstructParticleFull(fastGeometry  &geom, long pdgCode, uin
 
       float tanPhi2 = par[2]*par[2];
       tanPhi2/=(1-tanPhi2);
-      crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3])*geom.fLayerWidth[indexR];                /// TODO - solve mirror crossing length
+      crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3])*geom.fLayerWidth[layer];                /// TODO - solve mirror crossing length
       //status = param.AliExternalTrackParam::CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
       if(!SkipUpdate)
       {
@@ -2263,7 +2263,7 @@ int fastParticle::reconstructParticleFullOut(fastGeometry  &geom, long pdgCode, 
 
       float tanPhi2 = par[2]*par[2];
       tanPhi2/=(1-tanPhi2);
-      crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3])*geom.fLayerWidth[indexR];                /// TODO - solve mirror crossing length
+      crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3])*geom.fLayerWidth[layer];                /// TODO - solve mirror crossing length
       //status = param.AliExternalTrackParam::CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
       if(!SkipUpdate)
       {
@@ -2400,7 +2400,7 @@ int fastParticle::reconstructParticleRotate0(fastGeometry  &geom, long pdgCode, 
     }
     float tanPhi2 = par[2]*par[2];
     tanPhi2/=(1-tanPhi2);
-    float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3])*geom.fLayerWidth[indexR];                /// geometrical path assuming crossing cylinder  = to be racalculated
+    float crossLength=TMath::Sqrt(1.+tanPhi2+par[3]*par[3])*geom.fLayerWidth[layer];                /// geometrical path assuming crossing cylinder  = to be racalculated
     //status = param.AliExternalTrackParam::CorrectForMeanMaterial(crossLength*xx0,crossLength*xrho,mass);
     for (Int_t ic=0;ic<5; ic++) {
       status *= param.CorrectForMeanMaterial(crossLength * xx0/5., crossLength * xrho/5., mass, 0.01);

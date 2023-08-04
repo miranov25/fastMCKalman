@@ -491,7 +491,7 @@ void drawdEdxResolution(){
   // sigmadEdx=k*((2/Beta^3)*sigmaBeta= 2*dedx/Beta*sigmaBeta --> sigmaBeta=Beta*(sigmadEdx/dEdx)/2.
   treeFast->SetAlias("betaResRel","sigmadEdxRel/2."); // 1/Beta^2 ~ dEdx  sigmadEdx=k*((2/Beta^3)*sigmaBeta= dedx/Beta*sigmaBeta
   treeFast->SetAlias("pResRel","betaResRel*2");    // in the region where Beta<<1
-  treeFast->Draw("pResRel:1/ptMC:densScaling","ptMC<2&&ptMC>0.05&&pidCode==4&&hasDecay==0&&densScaling>5","colz",100000)
+  treeFast->Draw("pResRel:1/ptMC:densScaling","ptMC<2&&ptMC>0.05&&pidCode==4&&hasDecay==0&&densScaling>5","colz",100000);
 
 
 }
