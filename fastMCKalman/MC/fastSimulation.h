@@ -70,8 +70,8 @@ public:
     fLayerRadius.resize(maxLayer); fLayerX0.resize(maxLayer);fLayerRho.resize(maxLayer);fLayerIndex.resize(maxLayer);fLayerResolRPhi.resize(maxLayer);fLayerResolZ.resize(maxLayer);
     fLayerWidth.resize(maxLayer);
   }
-  void setLayerRadiusPower(int layer0, int layerN, float r0, float rN, float power, float X0,float rho, float resol[2],float width=0);
-  void setLayer(int layer, float r0,  float X0,float rho, float resol[2],float width=0);
+  void setLayerRadiusPower(int layer0, int layerN, float r0, float rN, float power, float X0,float rho, float resol[2],float width=1.);
+  void setLayer(int layer, float r0,  float X0,float rho, float resol[2],float width=1.);
   //void Print(Option_t*);
   RVec<float> fLayerRadius;        //   barrel radius array
   RVec<int>   fLayerIndex;         //   barrel indices for fast navigation
